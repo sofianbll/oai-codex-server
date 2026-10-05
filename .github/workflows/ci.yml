@@ -20,6 +20,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
+      # Les tests des scénarios pilotent le SDK Python via `uv run`.
+      - uses: astral-sh/setup-uv@v6
       - run: bun install --frozen-lockfile
       # Le catalogue lit openapi.json au démarrage. Certaines sources secondaires du snapshot
       # sont absentes à ce commit (le script sort en 2) : seul openapi.json est exigé.

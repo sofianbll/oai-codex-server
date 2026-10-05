@@ -1,11 +1,9 @@
 name: Live (session Codex dédiée)
 
 # Choix assumé, contraire au guide OpenAI « Maintain Codex account auth in CI/CD » pour un dépôt public
-# (voir docs/research/2026-10-codex-devday-ci-auth.md §3). Mise en place, depuis le Mac :
-#   export CODEX_HOME=$(mktemp -d) && codex login          # session distincte de celle du Mac
-#   base64 < "$CODEX_HOME/auth.json" | gh secret set CODEX_AUTH_JSON_B64 --env live && rm -rf "$CODEX_HOME"
-#   gh secret set LIVE_SECRETS_TOKEN --env live             # PAT fine-grained : ce dépôt, « Environments » en écriture
-# Environnement `live` : restreindre les branches de déploiement à main.
+# (voir docs/research/2026-10-codex-devday-ci-auth.md §3). Mise en place et reconnexion après
+# refresh_token_reused : ./scripts/setup-secrets.sh (session CI distincte de ~/.codex).
+# L'environnement `live` n'accepte que la branche main.
 on:
   workflow_dispatch:
 
