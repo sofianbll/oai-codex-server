@@ -6,7 +6,6 @@ test("lifecycle runner exposes every native capability scenario", async () => {
   const child = Bun.spawn(["uv", "run", script, "--help"], {
     stdout: "pipe",
     stderr: "pipe",
-    env: { ...process.env, UV_CACHE_DIR: "/private/tmp/oai-codex-uv-cache" },
   });
   const [code, stdout, stderr] = await Promise.all([
     child.exited,

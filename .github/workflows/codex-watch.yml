@@ -50,6 +50,7 @@ jobs:
         continue-on-error: true
         run: |
           bun install --frozen-lockfile
+          for f in $(grep -rl '^# /// script' api-tests); do uv sync --script "$f" -q; done
           (cd codex-contract-atlas && npm run snapshot) > snapshot.log 2>&1 || test -s codex-contract-atlas/snapshot/openapi.json
           bun run check && bun run lint && bun run test
       - name: Corps de la PR

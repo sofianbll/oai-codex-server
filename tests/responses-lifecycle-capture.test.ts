@@ -97,7 +97,6 @@ with CaptureSession(base_url=base_url, api_key="${LOCAL_KEY}", extra_secrets=("$
       ],
       {
         cwd: process.cwd(),
-        env: { ...process.env, UV_CACHE_DIR: "/private/tmp/responses-lifecycle-uv-cache" },
         stdout: "pipe",
         stderr: "pipe",
       },

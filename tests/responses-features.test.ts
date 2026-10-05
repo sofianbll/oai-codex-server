@@ -127,7 +127,6 @@ async function runScenario(
       [
         "uv",
         "run",
-        "--offline",
         featureScript,
         "--scenario",
         scenario,

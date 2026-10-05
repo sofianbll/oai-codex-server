@@ -22,7 +22,13 @@ jobs:
           bun-version-file: package.json
       # Les tests des scénarios pilotent le SDK Python via `uv run`.
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "api-tests/**/*.py"
       - run: bun install --frozen-lockfile
+      # Cache uv froid : le premier appel d'un script Python dépasserait les délais des tests.
+      - name: Préchauffer les dépendances Python
+        run: for f in $(grep -rl '^# /// script' api-tests); do uv sync --script "$f" -q; done
       # Le catalogue lit openapi.json au démarrage. Certaines sources secondaires du snapshot
       # sont absentes à ce commit (le script sort en 2) : seul openapi.json est exigé.
       - name: Snapshot du contrat

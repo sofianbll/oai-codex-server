@@ -198,21 +198,26 @@ has_secret() {
   else gh secret list --json name --jq '.[].name'; fi 2>/dev/null | grep -qx "$1"
 }
 
-# put_env_secret NAME < <(printf '%s' valeur) : écrit dans l'environnement live.
+# put_secret NAME [ENV] < <(printf '%s' valeur) : secret de dépôt, ou d'environnement si ENV.
 # Pas de pipe : la fonction doit tourner dans ce shell pour compléter le récapitulatif.
-put_env_secret() {
-  if gh secret set "$1" --env "$ENV_NAME" >/dev/null; then
-    WRITTEN_SECRET+=("$1 ($ENV_NAME)")
-    printf '  %s✓ set%s GitHub secret %s (environnement %s)\n' "$GREEN" "$RESET" "$1" "$ENV_NAME"
+put_secret() {
+  local scope=(); [[ -n "${2:-}" ]] && scope=(--env "$2")
+  if gh secret set "$1" "${scope[@]}" >/dev/null; then
+    WRITTEN_SECRET+=("$1${2:+ ($2)}")
+    printf '  %s✓ set%s GitHub secret %s%s\n' "$GREEN" "$RESET" "$1" "${2:+ (environnement $2)}"
   else
-    SKIPPED+=("secret $1 de l'environnement $ENV_NAME")
+    SKIPPED+=("secret $1${2:+ (environnement $2)}")
     warn "échec de l'écriture de $1"
   fi
 }
 
 banner "Secrets GitHub de $GH_REPO"
 
-gh auth status >/dev/null 2>&1 || { warn "gh n'est pas connecté : lancez gh auth login puis relancez."; exit 1; }
+# Vrai appel API plutôt que `gh auth status`, qui peut échouer pour une autre raison que la connexion.
+if ! gh_err=$(gh api user --silent 2>&1); then
+  warn "gh ne joint pas GitHub : ${gh_err:-erreur inconnue}"
+  exit 1
+fi
 
 # ── 1. Claude Code sur mention @claude ────────────────────────────────────
 stage "Claude : CLAUDE_CODE_OAUTH_TOKEN"
@@ -225,7 +230,7 @@ else
   pause "Entrée pour lancer claude setup-token"
   claude setup-token
   ask_secret CLAUDE_CODE_OAUTH_TOKEN "Collez le token :"
-  set_secret CLAUDE_CODE_OAUTH_TOKEN "$CLAUDE_CODE_OAUTH_TOKEN"
+  put_secret CLAUDE_CODE_OAUTH_TOKEN < <(printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN")
   unset CLAUDE_CODE_OAUTH_TOKEN
 fi
 pause
@@ -243,7 +248,7 @@ else
   pause "Entrée pour lancer codex login"
   CODEX_HOME="$ci_home" codex login
   if [[ -s "$ci_home/auth.json" ]]; then
-    put_env_secret CODEX_AUTH_JSON_B64 < <(base64 < "$ci_home/auth.json" | tr -d '\n')
+    put_secret CODEX_AUTH_JSON_B64 "$ENV_NAME" < <(base64 < "$ci_home/auth.json" | tr -d '\n')
   else
     SKIPPED+=("CODEX_AUTH_JSON_B64 : auth.json absent après codex login")
     warn "auth.json introuvable : connexion annulée ou stockage dans le trousseau."
@@ -266,7 +271,7 @@ else
   step "Generate token, puis copiez-le (github_pat_…)."
   warn "Si github.com ne charge pas : panne DNS Tailscale, réessayez plus tard."
   ask_secret LIVE_SECRETS_TOKEN "Collez le token :"
-  put_env_secret LIVE_SECRETS_TOKEN < <(printf '%s' "$LIVE_SECRETS_TOKEN")
+  put_secret LIVE_SECRETS_TOKEN "$ENV_NAME" < <(printf '%s' "$LIVE_SECRETS_TOKEN")
   unset LIVE_SECRETS_TOKEN
 fi
 pause

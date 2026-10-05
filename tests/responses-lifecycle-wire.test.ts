@@ -186,7 +186,6 @@ const runScenario = async (
       [
         "uv",
         "run",
-        "--offline",
         script,
         "--scenario",
         scenario,
