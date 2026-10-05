@@ -1,0 +1,1842 @@
+scripts/live-smoke.ts:40:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    38 │     reasoning: { effort: "low" },
+    39 │   });
+  > 40 │   report["jsonObserved"] = {
+       │          ^^^^^^^^^^^^^^
+    41 │     status: response.status,
+    42 │     output: response.output_text,
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    38 38 │       reasoning: { effort: "low" },
+    39 39 │     });
+    40    │ - ··report["jsonObserved"]·=·{
+       40 │ + ··report.jsonObserved·=·{
+    41 41 │       status: response.status,
+    42 42 │       output: response.output_text,
+  
+
+scripts/live-smoke.ts:47:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    45 │   assert.equal(response.status, "completed");
+    46 │   assert.equal(response.output_text.trim(), "PROXY_JSON_OK");
+  > 47 │   report["json"] = {
+       │          ^^^^^^
+    48 │     output: response.output_text,
+    49 │     durationMs: Math.round(performance.now() - started),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    45 45 │     assert.equal(response.status, "completed");
+    46 46 │     assert.equal(response.output_text.trim(), "PROXY_JSON_OK");
+    47    │ - ··report["json"]·=·{
+       47 │ + ··report.json·=·{
+    48 48 │       output: response.output_text,
+    49 49 │       durationMs: Math.round(performance.now() - started),
+  
+
+scripts/live-smoke.ts:69:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    67 │   assert.equal(text.trim(), "PROXY_SSE_OK");
+    68 │   assert.ok(completed);
+  > 69 │   report["stream"] = {
+       │          ^^^^^^^^
+    70 │     output: text,
+    71 │     events,
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    67 67 │     assert.equal(text.trim(), "PROXY_SSE_OK");
+    68 68 │     assert.ok(completed);
+    69    │ - ··report["stream"]·=·{
+       69 │ + ··report.stream·=·{
+    70 70 │       output: text,
+    71 71 │       events,
+  
+
+scripts/live-smoke.ts:75:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    73 │     durationMs: Math.round(performance.now() - streamStart),
+    74 │   };
+  > 75 │   report["passed"] = true;
+       │          ^^^^^^^^
+    76 │ } catch (error) {
+    77 │   report["passed"] = false;
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    73 73 │       durationMs: Math.round(performance.now() - streamStart),
+    74 74 │     };
+    75    │ - ··report["passed"]·=·true;
+       75 │ + ··report.passed·=·true;
+    76 76 │   } catch (error) {
+    77 77 │     report["passed"] = false;
+  
+
+scripts/live-smoke.ts:77:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    75 │   report["passed"] = true;
+    76 │ } catch (error) {
+  > 77 │   report["passed"] = false;
+       │          ^^^^^^^^
+    78 │   report["error"] =
+    79 │     error instanceof OpenAI.APIError
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    75 75 │     report["passed"] = true;
+    76 76 │   } catch (error) {
+    77    │ - ··report["passed"]·=·false;
+       77 │ + ··report.passed·=·false;
+    78 78 │     report["error"] =
+    79 79 │       error instanceof OpenAI.APIError
+  
+
+scripts/live-smoke.ts:78:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    76 │ } catch (error) {
+    77 │   report["passed"] = false;
+  > 78 │   report["error"] =
+       │          ^^^^^^^
+    79 │     error instanceof OpenAI.APIError
+    80 │       ? { status: error.status, code: error.code, type: error.type }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    76 76 │   } catch (error) {
+    77 77 │     report["passed"] = false;
+    78    │ - ··report["error"]·=
+       78 │ + ··report.error·=
+    79 79 │       error instanceof OpenAI.APIError
+    80 80 │         ? { status: error.status, code: error.code, type: error.type }
+  
+
+scripts/live-smoke.ts:33:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    31 │   const models = await client.models.list();
+    32 │   assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+  > 33 │   report["models"] = { count: models.data.length, defaultModelFound: true };
+       │          ^^^^^^^^
+    34 │   const started = performance.now();
+    35 │   const response = await client.responses.create({
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    31 31 │     const models = await client.models.list();
+    32 32 │     assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+    33    │ - ··report["models"]·=·{·count:·models.data.length,·defaultModelFound:·true·};
+       33 │ + ··report.models·=·{·count:·models.data.length,·defaultModelFound:·true·};
+    34 34 │     const started = performance.now();
+    35 35 │     const response = await client.responses.create({
+  
+
+scripts/live-smoke.ts:30:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    28 │   const unauthorized = await fetch(`${state.url}/v1/models`);
+    29 │   assert.equal(unauthorized.status, 401);
+  > 30 │   report["unauthorized"] = unauthorized.status;
+       │          ^^^^^^^^^^^^^^
+    31 │   const models = await client.models.list();
+    32 │   assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    28 28 │     const unauthorized = await fetch(`${state.url}/v1/models`);
+    29 29 │     assert.equal(unauthorized.status, 401);
+    30    │ - ··report["unauthorized"]·=·unauthorized.status;
+       30 │ + ··report.unauthorized·=·unauthorized.status;
+    31 31 │     const models = await client.models.list();
+    32 32 │     assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+  
+
+scripts/qa-api-tests-surfaces.mjs:15:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    13 │   );
+    14 │   const page = await context.newPage();
+  > 15 │   await page.goto(base + "/#tests");
+       │                   ^^^^^^^^^^^^^^^^
+    16 │   await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeEnabled();
+    17 │   await page.getByRole("button", { name: /02\. Streaming SSE/ }).click();
+  
+  i Unsafe fix: Use a template literal.
+  
+    13 13 │     );
+    14 14 │     const page = await context.newPage();
+    15    │ - ··await·page.goto(base·+·"/#tests");
+       15 │ + ··await·page.goto(`${base}/#tests`);
+    16 16 │     await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeEnabled();
+    17 17 │     await page.getByRole("button", { name: /02\. Streaming SSE/ }).click();
+  
+
+scripts/qa-api-tests-surfaces.mjs:26:33 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    24 │   await expect(output).not.toContainText("En attente", { timeout: 120000 });
+    25 │   await expect(page.getByRole("button", { name: "Interrompre", exact: true })).toBeVisible();
+  > 26 │   await page.screenshot({ path: out + "/stream-in-progress.png", fullPage: true });
+       │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    27 │   const partial = await output.textContent();
+    28 │   await page.getByRole("button", { name: "Interrompre", exact: true }).click();
+  
+  i Unsafe fix: Use a template literal.
+  
+    24 24 │     await expect(output).not.toContainText("En attente", { timeout: 120000 });
+    25 25 │     await expect(page.getByRole("button", { name: "Interrompre", exact: true })).toBeVisible();
+    26    │ - ··await·page.screenshot({·path:·out·+·"/stream-in-progress.png",·fullPage:·true·});
+       26 │ + ··await·page.screenshot({·path:·`${out}/stream-in-progress.png`,·fullPage:·true·});
+    27 27 │     const partial = await output.textContent();
+    28 28 │     await page.getByRole("button", { name: "Interrompre", exact: true }).click();
+  
+
+scripts/qa-api-tests-surfaces.mjs:32:33 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    30 │   await expect(output).toContainText(partial);
+    31 │   await expect(page.locator("[data-testid=behavior]:visible")).toContainText("Non vérifié");
+  > 32 │   await page.screenshot({ path: out + "/stream-interrupted.png", fullPage: true });
+       │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    33 │   log.push(
+    34 │     "PASS incremental text observed while request active; cancel retained text and never passed",
+  
+  i Unsafe fix: Use a template literal.
+  
+    30 30 │     await expect(output).toContainText(partial);
+    31 31 │     await expect(page.locator("[data-testid=behavior]:visible")).toContainText("Non vérifié");
+    32    │ - ··await·page.screenshot({·path:·out·+·"/stream-interrupted.png",·fullPage:·true·});
+       32 │ + ··await·page.screenshot({·path:·`${out}/stream-interrupted.png`,·fullPage:·true·});
+    33 33 │     log.push(
+    34 34 │       "PASS incremental text observed while request active; cancel retained text and never passed",
+  
+
+scripts/qa-api-tests-surfaces.mjs:66:33 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    64 │   await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeDisabled();
+    65 │   await expect(page.locator("[data-testid=test-feedback]:visible")).toContainText("indisponibles");
+  > 66 │   await page.screenshot({ path: out + "/models-empty.png", fullPage: true });
+       │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    67 │   log.push("PASS empty models blocks execution");
+    68 │ } finally {
+  
+  i Unsafe fix: Use a template literal.
+  
+    64 64 │     await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeDisabled();
+    65 65 │     await expect(page.locator("[data-testid=test-feedback]:visible")).toContainText("indisponibles");
+    66    │ - ··await·page.screenshot({·path:·out·+·"/models-empty.png",·fullPage:·true·});
+       66 │ + ··await·page.screenshot({·path:·`${out}/models-empty.png`,·fullPage:·true·});
+    67 67 │     log.push("PASS empty models blocks execution");
+    68 68 │   } finally {
+  
+
+scripts/qa-api-tests-surfaces.mjs:71:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    69 │   await browser.close();
+    70 │   log.push("CLEANUP browser closed");
+  > 71 │   await writeFile(out + "/surfaces.json", JSON.stringify(log, null, 2));
+       │                   ^^^^^^^^^^^^^^^^^^^^^^
+    72 │   console.log(log.join("\n"));
+    73 │ }
+  
+  i Unsafe fix: Use a template literal.
+  
+    69 69 │     await browser.close();
+    70 70 │     log.push("CLEANUP browser closed");
+    71    │ - ··await·writeFile(out·+·"/surfaces.json",·JSON.stringify(log,·null,·2));
+       71 │ + ··await·writeFile(`${out}/surfaces.json`,·JSON.stringify(log,·null,·2));
+    72 72 │     console.log(log.join("\n"));
+    73 73 │   }
+  
+
+scripts/qa-api-tests.mjs:58:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    56 │     });
+    57 │   }
+  > 58 │   await page.goto(base + "/#explorer");
+       │                   ^^^^^^^^^^^^^^^^^^^
+    59 │   await expect(page.getByRole("heading", { name: "Explorateur API", exact: true })).toBeVisible();
+    60 │   await page.getByPlaceholder("Rechercher une route…").fill("input_tokens");
+  
+  i Unsafe fix: Use a template literal.
+  
+     56  56 │       });
+     57  57 │     }
+     58     │ - ··await·page.goto(base·+·"/#explorer");
+         58 │ + ··await·page.goto(`${base}/#explorer`);
+     59  59 │     await expect(page.getByRole("heading", { name: "Explorateur API", exact: true })).toBeVisible();
+     60  60 │     await page.getByPlaceholder("Rechercher une route…").fill("input_tokens");
+  
+
+scripts/qa-api-tests.mjs:63:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    61 │   await expect(page.locator(".operation")).toHaveCount(1);
+    62 │   log.push("PIN PASS Explorer filtering");
+  > 63 │   await page.goto(base + "/#activity");
+       │                   ^^^^^^^^^^^^^^^^^^^
+    64 │   await expect(
+    65 │     page.getByRole("heading", { name: "Journal des requêtes", exact: true }),
+  
+  i Unsafe fix: Use a template literal.
+  
+     61  61 │     await expect(page.locator(".operation")).toHaveCount(1);
+     62  62 │     log.push("PIN PASS Explorer filtering");
+     63     │ - ··await·page.goto(base·+·"/#activity");
+         63 │ + ··await·page.goto(`${base}/#activity`);
+     64  64 │     await expect(
+     65  65 │       page.getByRole("heading", { name: "Journal des requêtes", exact: true }),
+  
+
+scripts/qa-api-tests.mjs:68:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    66 │   ).toBeVisible();
+    67 │   log.push("PIN PASS Activity");
+  > 68 │   await page.goto(base + "/#tests");
+       │                   ^^^^^^^^^^^^^^^^
+    69 │   if (red) {
+    70 │     await page.screenshot({ path: out + "/red.png", fullPage: true });
+  
+  i Unsafe fix: Use a template literal.
+  
+     66  66 │     ).toBeVisible();
+     67  67 │     log.push("PIN PASS Activity");
+     68     │ - ··await·page.goto(base·+·"/#tests");
+         68 │ + ··await·page.goto(`${base}/#tests`);
+     69  69 │     if (red) {
+     70  70 │       await page.screenshot({ path: out + "/red.png", fullPage: true });
+  
+
+scripts/qa-api-tests.mjs:70:35 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    68 │   await page.goto(base + "/#tests");
+    69 │   if (red) {
+  > 70 │     await page.screenshot({ path: out + "/red.png", fullPage: true });
+       │                                   ^^^^^^^^^^^^^^^^
+    71 │     const found = await page.getByRole("heading", { name: "Tests API", exact: true }).count();
+    72 │     log.push(
+  
+  i Unsafe fix: Use a template literal.
+  
+     68  68 │     await page.goto(base + "/#tests");
+     69  69 │     if (red) {
+     70     │ - ····await·page.screenshot({·path:·out·+·"/red.png",·fullPage:·true·});
+         70 │ + ····await·page.screenshot({·path:·`${out}/red.png`,·fullPage:·true·});
+     71  71 │       const found = await page.getByRole("heading", { name: "Tests API", exact: true }).count();
+     72  72 │       log.push(
+  
+
+scripts/qa-api-tests.mjs:110:37 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    108 │       await page.getByRole("button", { name: "Lancer le test", exact: true }).click();
+    109 │       await expect(page.locator("[data-testid=technical]:visible")).toContainText("Échec");
+  > 110 │       await page.screenshot({ path: out + "/html-error.png", fullPage: true });
+        │                                     ^^^^^^^^^^^^^^^^^^^^^^^
+    111 │       mode = "wrong";
+    112 │       await page.getByRole("button", { name: "Réessayer", exact: true }).click();
+  
+  i Unsafe fix: Use a template literal.
+  
+    108 108 │         await page.getByRole("button", { name: "Lancer le test", exact: true }).click();
+    109 109 │         await expect(page.locator("[data-testid=technical]:visible")).toContainText("Échec");
+    110     │ - ······await·page.screenshot({·path:·out·+·"/html-error.png",·fullPage:·true·});
+        110 │ + ······await·page.screenshot({·path:·`${out}/html-error.png`,·fullPage:·true·});
+    111 111 │         mode = "wrong";
+    112 112 │         await page.getByRole("button", { name: "Réessayer", exact: true }).click();
+  
+
+scripts/qa-visual.ts:4:26 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    2 │ import { chromium } from "@playwright/test";
+    3 │ 
+  > 4 │ const base = process.env["OAI_CODEX_QA_BASE_URL"] ?? "http://100.64.0.1:8788";
+      │                          ^^^^^^^^^^^^^^^^^^^^^^^
+    5 │ const token = process.env["OAI_CODEX_QA_TOKEN"];
+    6 │ const outDir = "artifacts/qa/ui-live";
+  
+  i Unsafe fix: Use a literal key instead.
+  
+      2   2 │   import { chromium } from "@playwright/test";
+      3   3 │   
+      4     │ - const·base·=·process.env["OAI_CODEX_QA_BASE_URL"]·??·"http://100.64.0.1:8788";
+          4 │ + const·base·=·process.env.OAI_CODEX_QA_BASE_URL·??·"http://100.64.0.1:8788";
+      5   5 │   const token = process.env["OAI_CODEX_QA_TOKEN"];
+      6   6 │   const outDir = "artifacts/qa/ui-live";
+  
+
+scripts/qa-visual.ts:5:27 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    4 │ const base = process.env["OAI_CODEX_QA_BASE_URL"] ?? "http://100.64.0.1:8788";
+  > 5 │ const token = process.env["OAI_CODEX_QA_TOKEN"];
+      │                           ^^^^^^^^^^^^^^^^^^^^
+    6 │ const outDir = "artifacts/qa/ui-live";
+    7 │ if (!token) throw new Error("OAI_CODEX_QA_TOKEN is required");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+      3   3 │   
+      4   4 │   const base = process.env["OAI_CODEX_QA_BASE_URL"] ?? "http://100.64.0.1:8788";
+      5     │ - const·token·=·process.env["OAI_CODEX_QA_TOKEN"];
+          5 │ + const·token·=·process.env.OAI_CODEX_QA_TOKEN;
+      6   6 │   const outDir = "artifacts/qa/ui-live";
+      7   7 │   if (!token) throw new Error("OAI_CODEX_QA_TOKEN is required");
+  
+
+scripts/qa-visual.ts:212:57 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    210 │ }
+    211 │ 
+  > 212 │ const failures = scenarioResults.filter((item) => !item["ok"]);
+        │                                                         ^^^^
+    213 │ console.log(`Scenarios: ${scenarioResults.length}, failures: ${failures.length}`);
+    214 │ console.log(`Console errors: ${consoleErrors.length}`);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    210 210 │   }
+    211 211 │   
+    212     │ - const·failures·=·scenarioResults.filter((item)·=>·!item["ok"]);
+        212 │ + const·failures·=·scenarioResults.filter((item)·=>·!item.ok);
+    213 213 │   console.log(`Scenarios: ${scenarioResults.length}, failures: ${failures.length}`);
+    214 214 │   console.log(`Console errors: ${consoleErrors.length}`);
+  
+
+src/cli/main.ts:100:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+     98 │     const linkPath = resolve(options.target, "oai-codex");
+     99 │     if (existsSync(linkPath)) {
+  > 100 │       console.log("Le lien existe déjà : " + linkPath);
+        │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    101 │       return;
+    102 │     }
+  
+  i Unsafe fix: Use a template literal.
+  
+     98  98 │       const linkPath = resolve(options.target, "oai-codex");
+     99  99 │       if (existsSync(linkPath)) {
+    100     │ - ······console.log("Le·lien·existe·déjà·:·"·+·linkPath);
+        100 │ + ······console.log(`Le·lien·existe·déjà·:·${linkPath}`);
+    101 101 │         return;
+    102 102 │       }
+  
+
+src/cli/main.ts:106:17 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    104 │     symlinkSync(binScript, linkPath);
+    105 │     console.log("Lien créé : " + linkPath + " -> " + binScript);
+  > 106 │     console.log("Vérifiez que " + options.target + " est dans votre PATH.");
+        │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    107 │   });
+    108 │ 
+  
+  i Unsafe fix: Use a template literal.
+  
+    104 104 │       symlinkSync(binScript, linkPath);
+    105 105 │       console.log("Lien créé : " + linkPath + " -> " + binScript);
+    106     │ - ····console.log("Vérifiez·que·"·+·options.target·+·"·est·dans·votre·PATH.");
+        106 │ + ····console.log(`Vérifiez·que·${options.target}·est·dans·votre·PATH.`);
+    107 107 │     });
+    108 108 │   
+  
+
+src/cli/main.ts:105:17 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    103 │     mkdirSync(dirname(linkPath), { recursive: true });
+    104 │     symlinkSync(binScript, linkPath);
+  > 105 │     console.log("Lien créé : " + linkPath + " -> " + binScript);
+        │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    106 │     console.log("Vérifiez que " + options.target + " est dans votre PATH.");
+    107 │   });
+  
+  i Unsafe fix: Use a template literal.
+  
+    103 103 │       mkdirSync(dirname(linkPath), { recursive: true });
+    104 104 │       symlinkSync(binScript, linkPath);
+    105     │ - ····console.log("Lien·créé·:·"·+·linkPath·+·"·->·"·+·binScript);
+        105 │ + ····console.log(`Lien·créé·:·${linkPath}·->·${binScript}`);
+    106 106 │       console.log("Vérifiez que " + options.target + " est dans votre PATH.");
+    107 107 │     });
+  
+
+src/server/config.ts:34:30 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    32 │         .string()
+    33 │         .min(1)
+  > 34 │         .default(process.env["CODEX_HOME"] || resolve(homedir(), ".codex")),
+       │                              ^^^^^^^^^^^^
+    35 │       tokenFile: z.string().min(1).default(".local/server-token"),
+    36 │     })
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     32  32 │           .string()
+     33  33 │           .min(1)
+     34     │ - ········.default(process.env["CODEX_HOME"]·||·resolve(homedir(),·".codex")),
+         34 │ + ········.default(process.env.CODEX_HOME·||·resolve(homedir(),·".codex")),
+     35  35 │         tokenFile: z.string().min(1).default(".local/server-token"),
+     36  36 │       })
+  
+
+src/server/response-adapter.ts:84:44 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    82 │         event.data.response
+    83 │       ) {
+  > 84 │         const output = event.data.response["output"];
+       │                                            ^^^^^^^^
+    85 │         const fillOutput =
+    86 │           completedItems.size > 0 &&
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     82  82 │           event.data.response
+     83  83 │         ) {
+     84     │ - ········const·output·=·event.data.response["output"];
+         84 │ + ········const·output·=·event.data.response.output;
+     85  85 │           const fillOutput =
+     86  86 │             completedItems.size > 0 &&
+  
+
+src/server/response-stream-adapter.ts:59:37 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    57 │       event.response
+    58 │     ) {
+  > 59 │       const output = event.response["output"];
+       │                                     ^^^^^^^^
+    60 │       if (
+    61 │         items.size > 0 &&
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     57  57 │         event.response
+     58  58 │       ) {
+     59     │ - ······const·output·=·event.response["output"];
+         59 │ + ······const·output·=·event.response.output;
+     60  60 │         if (
+     61  61 │           items.size > 0 &&
+  
+
+src/ui/test-result.ts:11:16 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+     9 │   );
+    10 │   const text = el("div", "test-response", "Votre réponse apparaîtra ici.");
+  > 11 │   text.dataset["testid"] = "response-text";
+       │                ^^^^^^^^
+    12 │   const verdicts = el("div", "test-verdicts");
+    13 │   const technical = badge("Non testé");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+      9   9 │     );
+     10  10 │     const text = el("div", "test-response", "Votre réponse apparaîtra ici.");
+     11     │ - ··text.dataset["testid"]·=·"response-text";
+         11 │ + ··text.dataset.testid·=·"response-text";
+     12  12 │     const verdicts = el("div", "test-verdicts");
+     13  13 │     const technical = badge("Non testé");
+  
+
+src/ui/test-result.ts:14:21 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    12 │   const verdicts = el("div", "test-verdicts");
+    13 │   const technical = badge("Non testé");
+  > 14 │   technical.dataset["testid"] = "technical";
+       │                     ^^^^^^^^
+    15 │   const behavior = badge("Non testé");
+    16 │   behavior.dataset["testid"] = "behavior";
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     12  12 │     const verdicts = el("div", "test-verdicts");
+     13  13 │     const technical = badge("Non testé");
+     14     │ - ··technical.dataset["testid"]·=·"technical";
+         14 │ + ··technical.dataset.testid·=·"technical";
+     15  15 │     const behavior = badge("Non testé");
+     16  16 │     behavior.dataset["testid"] = "behavior";
+  
+
+src/ui/test-result.ts:16:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    14 │   technical.dataset["testid"] = "technical";
+    15 │   const behavior = badge("Non testé");
+  > 16 │   behavior.dataset["testid"] = "behavior";
+       │                    ^^^^^^^^
+    17 │   for (const [label, value] of [
+    18 │     ["Réponse technique", technical],
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     14  14 │     technical.dataset["testid"] = "technical";
+     15  15 │     const behavior = badge("Non testé");
+     16     │ - ··behavior.dataset["testid"]·=·"behavior";
+         16 │ + ··behavior.dataset.testid·=·"behavior";
+     17  17 │     for (const [label, value] of [
+     18  18 │       ["Réponse technique", technical],
+  
+
+src/ui/test-result.ts:29:16 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    27 │   const details = el("details", "contract-details test-exchanges");
+    28 │   const sent = code("");
+  > 29 │   sent.dataset["testid"] = "sent-request";
+       │                ^^^^^^^^
+    30 │   const raw = code("");
+    31 │   const events = code("");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     27  27 │     const details = el("details", "contract-details test-exchanges");
+     28  28 │     const sent = code("");
+     29     │ - ··sent.dataset["testid"]·=·"sent-request";
+         29 │ + ··sent.dataset.testid·=·"sent-request";
+     30  30 │     const raw = code("");
+     31  31 │     const events = code("");
+  
+
+src/ui/test-step.ts:52:39 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    50 │   if (context.models.includes(context.status.upstream.defaultModel))
+    51 │     model.value = context.status.upstream.defaultModel;
+  > 52 │   const simple = typeof scenario.body["input"] === "string";
+       │                                       ^^^^^^^
+    53 │   const prompt = el("textarea", "test-prompt");
+    54 │   prompt.value = typeof scenario.body["input"] === "string" ? scenario.body["input"] : "";
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     50  50 │     if (context.models.includes(context.status.upstream.defaultModel))
+     51  51 │       model.value = context.status.upstream.defaultModel;
+     52     │ - ··const·simple·=·typeof·scenario.body["input"]·===·"string";
+         52 │ + ··const·simple·=·typeof·scenario.body.input·===·"string";
+     53  53 │     const prompt = el("textarea", "test-prompt");
+     54  54 │     prompt.value = typeof scenario.body["input"] === "string" ? scenario.body["input"] : "";
+  
+
+src/ui/test-step.ts:54:39 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    52 │   const simple = typeof scenario.body["input"] === "string";
+    53 │   const prompt = el("textarea", "test-prompt");
+  > 54 │   prompt.value = typeof scenario.body["input"] === "string" ? scenario.body["input"] : "";
+       │                                       ^^^^^^^
+    55 │   const target = el("input");
+    56 │   target.value = scenario.expectedText ?? "";
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     52  52 │     const simple = typeof scenario.body["input"] === "string";
+     53  53 │     const prompt = el("textarea", "test-prompt");
+     54     │ - ··prompt.value·=·typeof·scenario.body["input"]·===·"string"·?·scenario.body["input"]·:·"";
+         54 │ + ··prompt.value·=·typeof·scenario.body.input·===·"string"·?·scenario.body["input"]·:·"";
+     55  55 │     const target = el("input");
+     56  56 │     target.value = scenario.expectedText ?? "";
+  
+
+src/ui/test-step.ts:54:77 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    52 │   const simple = typeof scenario.body["input"] === "string";
+    53 │   const prompt = el("textarea", "test-prompt");
+  > 54 │   prompt.value = typeof scenario.body["input"] === "string" ? scenario.body["input"] : "";
+       │                                                                             ^^^^^^^
+    55 │   const target = el("input");
+    56 │   target.value = scenario.expectedText ?? "";
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     52  52 │     const simple = typeof scenario.body["input"] === "string";
+     53  53 │     const prompt = el("textarea", "test-prompt");
+     54     │ - ··prompt.value·=·typeof·scenario.body["input"]·===·"string"·?·scenario.body["input"]·:·"";
+         54 │ + ··prompt.value·=·typeof·scenario.body["input"]·===·"string"·?·scenario.body.input·:·"";
+     55  55 │     const target = el("input");
+     56  56 │     target.value = scenario.expectedText ?? "";
+  
+
+src/ui/test-step.ts:59:26 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    57 │   const instructions = el("textarea", "instructions");
+    58 │   instructions.value =
+  > 59 │     typeof scenario.body["instructions"] === "string" ? scenario.body["instructions"] : "";
+       │                          ^^^^^^^^^^^^^^
+    60 │   const raw = el("textarea", "mono raw-editor");
+    61 │   raw.spellcheck = false;
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     57  57 │     const instructions = el("textarea", "instructions");
+     58  58 │     instructions.value =
+     59     │ - ····typeof·scenario.body["instructions"]·===·"string"·?·scenario.body["instructions"]·:·"";
+         59 │ + ····typeof·scenario.body.instructions·===·"string"·?·scenario.body["instructions"]·:·"";
+     60  60 │     const raw = el("textarea", "mono raw-editor");
+     61  61 │     raw.spellcheck = false;
+  
+
+src/ui/test-step.ts:59:71 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    57 │   const instructions = el("textarea", "instructions");
+    58 │   instructions.value =
+  > 59 │     typeof scenario.body["instructions"] === "string" ? scenario.body["instructions"] : "";
+       │                                                                       ^^^^^^^^^^^^^^
+    60 │   const raw = el("textarea", "mono raw-editor");
+    61 │   raw.spellcheck = false;
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     57  57 │     const instructions = el("textarea", "instructions");
+     58  58 │     instructions.value =
+     59     │ - ····typeof·scenario.body["instructions"]·===·"string"·?·scenario.body["instructions"]·:·"";
+         59 │ + ····typeof·scenario.body["instructions"]·===·"string"·?·scenario.body.instructions·:·"";
+     60  60 │     const raw = el("textarea", "mono raw-editor");
+     61  61 │     raw.spellcheck = false;
+  
+
+src/ui/test-step.ts:96:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    94 │   const result = createTestResult();
+    95 │   const feedback = notice();
+  > 96 │   feedback.dataset["testid"] = "test-feedback";
+       │                    ^^^^^^^^
+    97 │   const send = button(
+    98 │     "Lancer le test",
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     94  94 │     const result = createTestResult();
+     95  95 │     const feedback = notice();
+     96     │ - ··feedback.dataset["testid"]·=·"test-feedback";
+         96 │ + ··feedback.dataset.testid·=·"test-feedback";
+     97  97 │     const send = button(
+     98  98 │       "Lancer le test",
+  
+
+src/ui/test-step.ts:164:16 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    162 │         ? jsonObject.parse(JSON.parse(raw.value))
+    163 │         : { ...scenario.body, input: prompt.value, instructions: instructions.value };
+  > 164 │       if (body["input"] === "" || (Array.isArray(body["input"]) && body["input"].length === 0))
+        │                ^^^^^^^
+    165 │         throw new RequestError(0, "Ajoutez un message dans input.");
+    166 │       const apiRequest = {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    162 162 │           ? jsonObject.parse(JSON.parse(raw.value))
+    163 163 │           : { ...scenario.body, input: prompt.value, instructions: instructions.value };
+    164     │ - ······if·(body["input"]·===·""·||·(Array.isArray(body["input"])·&&·body["input"].length·===·0))
+        164 │ + ······if·(body.input·===·""·||·(Array.isArray(body["input"])·&&·body["input"].length·===·0))
+    165 165 │           throw new RequestError(0, "Ajoutez un message dans input.");
+    166 166 │         const apiRequest = {
+  
+
+src/ui/test-step.ts:164:55 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    162 │         ? jsonObject.parse(JSON.parse(raw.value))
+    163 │         : { ...scenario.body, input: prompt.value, instructions: instructions.value };
+  > 164 │       if (body["input"] === "" || (Array.isArray(body["input"]) && body["input"].length === 0))
+        │                                                       ^^^^^^^
+    165 │         throw new RequestError(0, "Ajoutez un message dans input.");
+    166 │       const apiRequest = {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    162 162 │           ? jsonObject.parse(JSON.parse(raw.value))
+    163 163 │           : { ...scenario.body, input: prompt.value, instructions: instructions.value };
+    164     │ - ······if·(body["input"]·===·""·||·(Array.isArray(body["input"])·&&·body["input"].length·===·0))
+        164 │ + ······if·(body["input"]·===·""·||·(Array.isArray(body.input)·&&·body["input"].length·===·0))
+    165 165 │           throw new RequestError(0, "Ajoutez un message dans input.");
+    166 166 │         const apiRequest = {
+  
+
+src/ui/test-step.ts:164:73 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    162 │         ? jsonObject.parse(JSON.parse(raw.value))
+    163 │         : { ...scenario.body, input: prompt.value, instructions: instructions.value };
+  > 164 │       if (body["input"] === "" || (Array.isArray(body["input"]) && body["input"].length === 0))
+        │                                                                         ^^^^^^^
+    165 │         throw new RequestError(0, "Ajoutez un message dans input.");
+    166 │       const apiRequest = {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    162 162 │           ? jsonObject.parse(JSON.parse(raw.value))
+    163 163 │           : { ...scenario.body, input: prompt.value, instructions: instructions.value };
+    164     │ - ······if·(body["input"]·===·""·||·(Array.isArray(body["input"])·&&·body["input"].length·===·0))
+        164 │ + ······if·(body["input"]·===·""·||·(Array.isArray(body["input"])·&&·body.input.length·===·0))
+    165 165 │           throw new RequestError(0, "Ajoutez un message dans input.");
+    166 166 │         const apiRequest = {
+  
+
+src/ui/test-verdict.ts:70:41 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    69 │ export function evaluateResult(scenario: TestScenario, result: ResultInput): TestVerdict {
+  > 70 │   const requestedStream = scenario.body["stream"] === true;
+       │                                         ^^^^^^^^
+    71 │   if (requestedStream !== result.streamed)
+    72 │     return failed(
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     68  68 │   
+     69  69 │   export function evaluateResult(scenario: TestScenario, result: ResultInput): TestVerdict {
+     70     │ - ··const·requestedStream·=·scenario.body["stream"]·===·true;
+         70 │ + ··const·requestedStream·=·scenario.body.stream·===·true;
+     71  71 │     if (requestedStream !== result.streamed)
+     72  72 │       return failed(
+  
+
+src/ui/test-verdict.ts:85:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    83 │           event.type === "response.failed" ||
+    84 │           event.type === "response.incomplete" ||
+  > 85 │           event["error"] != null,
+       │                 ^^^^^^^
+    86 │       )
+    87 │     )
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     83  83 │             event.type === "response.failed" ||
+     84  84 │             event.type === "response.incomplete" ||
+     85     │ - ··········event["error"]·!=·null,
+         85 │ + ··········event.error·!=·null,
+     86  86 │         )
+     87  87 │       )
+  
+
+tests/openapi.test.ts:115:52 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    113 │     expect(servers).toEqual([[{ url: "/" }]]);
+    114 │     expect(spec["security"]).toEqual([{ LocalBearer: [] }]);
+  > 115 │     const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+        │                                                    ^^^^^^^^^^^^
+    116 │     expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117 │     expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    113 113 │       expect(servers).toEqual([[{ url: "/" }]]);
+    114 114 │       expect(spec["security"]).toEqual([{ LocalBearer: [] }]);
+    115     │ - ····const·schemes·=·record.parse(record.parse(spec["components"])["securitySchemes"]);
+        115 │ + ····const·schemes·=·record.parse(record.parse(spec.components)["securitySchemes"]);
+    116 116 │       expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117 117 │       expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+  
+
+tests/openapi.test.ts:150:50 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    148 │       stream: true,
+    149 │     });
+  > 150 │     expect(post["responses"]).toEqual(sourcePost["responses"]);
+        │                                                  ^^^^^^^^^^^
+    151 │     expect(post["x-proxy-availability"]).toBe("verified");
+    152 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    148 148 │         stream: true,
+    149 149 │       });
+    150     │ - ····expect(post["responses"]).toEqual(sourcePost["responses"]);
+        150 │ + ····expect(post["responses"]).toEqual(sourcePost.responses);
+    151 151 │       expect(post["x-proxy-availability"]).toBe("verified");
+    152 152 │     });
+  
+
+tests/openapi.test.ts:25:50 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    23 │   test("retains every public schema when the local reference is generated", async () => {
+    24 │     // Given the full public source, including fields outside the proxy adapter.
+  > 25 │     const sourceComponents = record.parse(source["components"]);
+       │                                                  ^^^^^^^^^^^^
+    26 │     // When the local reference is generated.
+    27 │     const spec = await createOpenApi("test-default-model");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     23  23 │     test("retains every public schema when the local reference is generated", async () => {
+     24  24 │       // Given the full public source, including fields outside the proxy adapter.
+     25     │ - ····const·sourceComponents·=·record.parse(source["components"]);
+         25 │ + ····const·sourceComponents·=·record.parse(source.components);
+     26  26 │       // When the local reference is generated.
+     27  27 │       const spec = await createOpenApi("test-default-model");
+  
+
+tests/openapi.test.ts:29:42 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    27 │     const spec = await createOpenApi("test-default-model");
+    28 │     // Then the complete schemas and reusable responses remain literal.
+  > 29 │     const components = record.parse(spec["components"]);
+       │                                          ^^^^^^^^^^^^
+    30 │     expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+    31 │     expect(components["responses"]).toEqual(sourceComponents["responses"]);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     27  27 │       const spec = await createOpenApi("test-default-model");
+     28  28 │       // Then the complete schemas and reusable responses remain literal.
+     29     │ - ····const·components·=·record.parse(spec["components"]);
+         29 │ + ····const·components·=·record.parse(spec.components);
+     30  30 │       expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+     31  31 │       expect(components["responses"]).toEqual(sourceComponents["responses"]);
+  
+
+tests/openapi.test.ts:30:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    28 │     // Then the complete schemas and reusable responses remain literal.
+    29 │     const components = record.parse(spec["components"]);
+  > 30 │     expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+       │                       ^^^^^^^^^
+    31 │     expect(components["responses"]).toEqual(sourceComponents["responses"]);
+    32 │     expect(spec["openapi"]).toBe("3.1.0");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     28  28 │       // Then the complete schemas and reusable responses remain literal.
+     29  29 │       const components = record.parse(spec["components"]);
+     30     │ - ····expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+         30 │ + ····expect(components.schemas).toEqual(sourceComponents["schemas"]);
+     31  31 │       expect(components["responses"]).toEqual(sourceComponents["responses"]);
+     32  32 │       expect(spec["openapi"]).toBe("3.1.0");
+  
+
+tests/openapi.test.ts:30:60 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    28 │     // Then the complete schemas and reusable responses remain literal.
+    29 │     const components = record.parse(spec["components"]);
+  > 30 │     expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+       │                                                            ^^^^^^^^^
+    31 │     expect(components["responses"]).toEqual(sourceComponents["responses"]);
+    32 │     expect(spec["openapi"]).toBe("3.1.0");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     28  28 │       // Then the complete schemas and reusable responses remain literal.
+     29  29 │       const components = record.parse(spec["components"]);
+     30     │ - ····expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+         30 │ + ····expect(components["schemas"]).toEqual(sourceComponents.schemas);
+     31  31 │       expect(components["responses"]).toEqual(sourceComponents["responses"]);
+     32  32 │       expect(spec["openapi"]).toBe("3.1.0");
+  
+
+tests/openapi.test.ts:31:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    29 │     const components = record.parse(spec["components"]);
+    30 │     expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+  > 31 │     expect(components["responses"]).toEqual(sourceComponents["responses"]);
+       │                       ^^^^^^^^^^^
+    32 │     expect(spec["openapi"]).toBe("3.1.0");
+    33 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     29  29 │       const components = record.parse(spec["components"]);
+     30  30 │       expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+     31     │ - ····expect(components["responses"]).toEqual(sourceComponents["responses"]);
+         31 │ + ····expect(components.responses).toEqual(sourceComponents["responses"]);
+     32  32 │       expect(spec["openapi"]).toBe("3.1.0");
+     33  33 │     });
+  
+
+tests/openapi.test.ts:31:62 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    29 │     const components = record.parse(spec["components"]);
+    30 │     expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+  > 31 │     expect(components["responses"]).toEqual(sourceComponents["responses"]);
+       │                                                              ^^^^^^^^^^^
+    32 │     expect(spec["openapi"]).toBe("3.1.0");
+    33 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     29  29 │       const components = record.parse(spec["components"]);
+     30  30 │       expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+     31     │ - ····expect(components["responses"]).toEqual(sourceComponents["responses"]);
+         31 │ + ····expect(components["responses"]).toEqual(sourceComponents.responses);
+     32  32 │       expect(spec["openapi"]).toBe("3.1.0");
+     33  33 │     });
+  
+
+tests/openapi.test.ts:32:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    30 │     expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+    31 │     expect(components["responses"]).toEqual(sourceComponents["responses"]);
+  > 32 │     expect(spec["openapi"]).toBe("3.1.0");
+       │                 ^^^^^^^^^
+    33 │   });
+    34 │ 
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     30  30 │       expect(components["schemas"]).toEqual(sourceComponents["schemas"]);
+     31  31 │       expect(components["responses"]).toEqual(sourceComponents["responses"]);
+     32     │ - ····expect(spec["openapi"]).toBe("3.1.0");
+         32 │ + ····expect(spec.openapi).toBe("3.1.0");
+     33  33 │     });
+     34  34 │   
+  
+
+tests/openapi.test.ts:41:25 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    39 │     // When each JSON pointer is resolved against that document.
+    40 │     walk(spec, (entry) => {
+  > 41 │       const ref = entry["$ref"];
+       │                         ^^^^^^
+    42 │       if (typeof ref !== "string") return;
+    43 │       expect(ref.startsWith("#/")).toBe(true);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     39  39 │       // When each JSON pointer is resolved against that document.
+     40  40 │       walk(spec, (entry) => {
+     41     │ - ······const·ref·=·entry["$ref"];
+         41 │ + ······const·ref·=·entry.$ref;
+     42  42 │         if (typeof ref !== "string") return;
+     43  43 │         expect(ref.startsWith("#/")).toBe(true);
+  
+
+tests/openapi.test.ts:59:57 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    57 │   test("covers all selected source operations when beta aliases are excluded", async () => {
+    58 │     // Given every non-beta source path in the exposed families.
+  > 59 │     const expected = Object.entries(record.parse(source["paths"]))
+       │                                                         ^^^^^^^
+    60 │       .filter(
+    61 │         ([path]) =>
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     57  57 │     test("covers all selected source operations when beta aliases are excluded", async () => {
+     58  58 │       // Given every non-beta source path in the exposed families.
+     59     │ - ····const·expected·=·Object.entries(record.parse(source["paths"]))
+         59 │ + ····const·expected·=·Object.entries(record.parse(source.paths))
+     60  60 │         .filter(
+     61  61 │           ([path]) =>
+  
+
+tests/openapi.test.ts:89:53 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    87 │     const spec = await createOpenApi("test-default-model");
+    88 │     const ids: string[] = [];
+  > 89 │     const actual = Object.entries(record.parse(spec["paths"])).flatMap(([path, value]) =>
+       │                                                     ^^^^^^^
+    90 │       Object.entries(record.parse(value))
+    91 │         .filter(([method]) => methods.has(method))
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     87  87 │       const spec = await createOpenApi("test-default-model");
+     88  88 │       const ids: string[] = [];
+     89     │ - ····const·actual·=·Object.entries(record.parse(spec["paths"])).flatMap(([path,·value])·=>
+         89 │ + ····const·actual·=·Object.entries(record.parse(spec.paths)).flatMap(([path,·value])·=>
+     90  90 │         Object.entries(record.parse(value))
+     91  91 │           .filter(([method]) => methods.has(method))
+  
+
+tests/openapi.test.ts:94:47 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    92 │         .map(([method, value]) => {
+    93 │           const operation = record.parse(value);
+  > 94 │           ids.push(z.string().parse(operation["operationId"]));
+       │                                               ^^^^^^^^^^^^^
+    95 │           return `${method} ${path}`;
+    96 │         }),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     92  92 │           .map(([method, value]) => {
+     93  93 │             const operation = record.parse(value);
+     94     │ - ··········ids.push(z.string().parse(operation["operationId"]));
+         94 │ + ··········ids.push(z.string().parse(operation.operationId));
+     95  95 │             return `${method} ${path}`;
+     96  96 │           }),
+  
+
+tests/openapi.test.ts:109:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    107 │     // When runnable server declarations are collected.
+    108 │     walk(spec, (entry) => {
+  > 109 │       if (entry["servers"] !== undefined) servers.push(entry["servers"]);
+        │                 ^^^^^^^^^
+    110 │       expect(entry["proxyUrl"]).toBeUndefined();
+    111 │     });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    107 107 │       // When runnable server declarations are collected.
+    108 108 │       walk(spec, (entry) => {
+    109     │ - ······if·(entry["servers"]·!==·undefined)·servers.push(entry["servers"]);
+        109 │ + ······if·(entry.servers·!==·undefined)·servers.push(entry["servers"]);
+    110 110 │         expect(entry["proxyUrl"]).toBeUndefined();
+    111 111 │       });
+  
+
+tests/openapi.test.ts:109:62 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    107 │     // When runnable server declarations are collected.
+    108 │     walk(spec, (entry) => {
+  > 109 │       if (entry["servers"] !== undefined) servers.push(entry["servers"]);
+        │                                                              ^^^^^^^^^
+    110 │       expect(entry["proxyUrl"]).toBeUndefined();
+    111 │     });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    107 107 │       // When runnable server declarations are collected.
+    108 108 │       walk(spec, (entry) => {
+    109     │ - ······if·(entry["servers"]·!==·undefined)·servers.push(entry["servers"]);
+        109 │ + ······if·(entry["servers"]·!==·undefined)·servers.push(entry.servers);
+    110 110 │         expect(entry["proxyUrl"]).toBeUndefined();
+    111 111 │       });
+  
+
+tests/openapi.test.ts:114:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    112 │     // Then all requests target the same origin and use only the local token.
+    113 │     expect(servers).toEqual([[{ url: "/" }]]);
+  > 114 │     expect(spec["security"]).toEqual([{ LocalBearer: [] }]);
+        │                 ^^^^^^^^^^
+    115 │     const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+    116 │     expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    112 112 │       // Then all requests target the same origin and use only the local token.
+    113 113 │       expect(servers).toEqual([[{ url: "/" }]]);
+    114     │ - ····expect(spec["security"]).toEqual([{·LocalBearer:·[]·}]);
+        114 │ + ····expect(spec.security).toEqual([{·LocalBearer:·[]·}]);
+    115 115 │       const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+    116 116 │       expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+  
+
+tests/openapi.test.ts:115:67 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    113 │     expect(servers).toEqual([[{ url: "/" }]]);
+    114 │     expect(spec["security"]).toEqual([{ LocalBearer: [] }]);
+  > 115 │     const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+        │                                                                   ^^^^^^^^^^^^^^^^^
+    116 │     expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117 │     expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    113 113 │       expect(servers).toEqual([[{ url: "/" }]]);
+    114 114 │       expect(spec["security"]).toEqual([{ LocalBearer: [] }]);
+    115     │ - ····const·schemes·=·record.parse(record.parse(spec["components"])["securitySchemes"]);
+        115 │ + ····const·schemes·=·record.parse(record.parse(spec["components"]).securitySchemes);
+    116 116 │       expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117 117 │       expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+  
+
+tests/openapi.test.ts:117:33 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    115 │     const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+    116 │     expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+  > 117 │     expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+        │                                 ^^^^^^^^^^^^^
+    118 │     for (const item of Object.values(record.parse(spec["paths"]))) {
+    119 │       for (const [method, operation] of Object.entries(record.parse(item))) {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    115 115 │       const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+    116 116 │       expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117     │ - ····expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+        117 │ + ····expect(record.parse(schemes.LocalBearer)["scheme"]).toBe("bearer");
+    118 118 │       for (const item of Object.values(record.parse(spec["paths"]))) {
+    119 119 │         for (const [method, operation] of Object.entries(record.parse(item))) {
+  
+
+tests/openapi.test.ts:117:49 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    115 │     const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+    116 │     expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+  > 117 │     expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+        │                                                 ^^^^^^^^
+    118 │     for (const item of Object.values(record.parse(spec["paths"]))) {
+    119 │       for (const [method, operation] of Object.entries(record.parse(item))) {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    115 115 │       const schemes = record.parse(record.parse(spec["components"])["securitySchemes"]);
+    116 116 │       expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117     │ - ····expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+        117 │ + ····expect(record.parse(schemes["LocalBearer"]).scheme).toBe("bearer");
+    118 118 │       for (const item of Object.values(record.parse(spec["paths"]))) {
+    119 119 │         for (const [method, operation] of Object.entries(record.parse(item))) {
+  
+
+tests/openapi.test.ts:118:56 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    116 │     expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117 │     expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+  > 118 │     for (const item of Object.values(record.parse(spec["paths"]))) {
+        │                                                        ^^^^^^^
+    119 │       for (const [method, operation] of Object.entries(record.parse(item))) {
+    120 │         if (!methods.has(method)) continue;
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    116 116 │       expect(Object.keys(schemes)).toEqual(["LocalBearer"]);
+    117 117 │       expect(record.parse(schemes["LocalBearer"])["scheme"]).toBe("bearer");
+    118     │ - ····for·(const·item·of·Object.values(record.parse(spec["paths"])))·{
+        118 │ + ····for·(const·item·of·Object.values(record.parse(spec.paths)))·{
+    119 119 │         for (const [method, operation] of Object.entries(record.parse(item))) {
+    120 120 │           if (!methods.has(method)) continue;
+  
+
+tests/openapi.test.ts:122:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    120 │         if (!methods.has(method)) continue;
+    121 │         const detail = record.parse(operation);
+  > 122 │         expect(detail["security"]).toEqual(
+        │                       ^^^^^^^^^^
+    123 │           detail["operationId"] === "getHealth" ? [] : [{ LocalBearer: [] }],
+    124 │         );
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    120 120 │           if (!methods.has(method)) continue;
+    121 121 │           const detail = record.parse(operation);
+    122     │ - ········expect(detail["security"]).toEqual(
+        122 │ + ········expect(detail.security).toEqual(
+    123 123 │             detail["operationId"] === "getHealth" ? [] : [{ LocalBearer: [] }],
+    124 124 │           );
+  
+
+tests/openapi.test.ts:123:18 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    121 │         const detail = record.parse(operation);
+    122 │         expect(detail["security"]).toEqual(
+  > 123 │           detail["operationId"] === "getHealth" ? [] : [{ LocalBearer: [] }],
+        │                  ^^^^^^^^^^^^^
+    124 │         );
+    125 │       }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    121 121 │           const detail = record.parse(operation);
+    122 122 │           expect(detail["security"]).toEqual(
+    123     │ - ··········detail["operationId"]·===·"getHealth"·?·[]·:·[{·LocalBearer:·[]·}],
+        123 │ + ··········detail.operationId·===·"getHealth"·?·[]·:·[{·LocalBearer:·[]·}],
+    124 124 │           );
+    125 125 │         }
+  
+
+tests/openapi.test.ts:132:40 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    130 │     // Given a configured model different from the public source examples.
+    131 │     const sourcePost = record.parse(
+  > 132 │       record.parse(record.parse(source["paths"])["/responses"])["post"],
+        │                                        ^^^^^^^
+    133 │     );
+    134 │     // When the reference supplies its local request example.
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    130 130 │       // Given a configured model different from the public source examples.
+    131 131 │       const sourcePost = record.parse(
+    132     │ - ······record.parse(record.parse(source["paths"])["/responses"])["post"],
+        132 │ + ······record.parse(record.parse(source.paths)["/responses"])["post"],
+    133 133 │       );
+    134 134 │       // When the reference supplies its local request example.
+  
+
+tests/openapi.test.ts:132:65 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    130 │     // Given a configured model different from the public source examples.
+    131 │     const sourcePost = record.parse(
+  > 132 │       record.parse(record.parse(source["paths"])["/responses"])["post"],
+        │                                                                 ^^^^^^
+    133 │     );
+    134 │     // When the reference supplies its local request example.
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    130 130 │       // Given a configured model different from the public source examples.
+    131 131 │       const sourcePost = record.parse(
+    132     │ - ······record.parse(record.parse(source["paths"])["/responses"])["post"],
+        132 │ + ······record.parse(record.parse(source["paths"])["/responses"]).post,
+    133 133 │       );
+    134 134 │       // When the reference supplies its local request example.
+  
+
+tests/openapi.test.ts:136:62 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    134 │     // When the reference supplies its local request example.
+    135 │     const spec = await createOpenApi("configured-model");
+  > 136 │     const post = record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+        │                                                              ^^^^^^^
+    137 │     const body = record.parse(post["requestBody"]);
+    138 │     const json = record.parse(record.parse(body["content"])["application/json"]);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    134 134 │       // When the reference supplies its local request example.
+    135 135 │       const spec = await createOpenApi("configured-model");
+    136     │ - ····const·post·=·record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+        136 │ + ····const·post·=·record.parse(record.parse(record.parse(spec.paths)["/v1/responses"])["post"]);
+    137 137 │       const body = record.parse(post["requestBody"]);
+    138 138 │       const json = record.parse(record.parse(body["content"])["application/json"]);
+  
+
+tests/openapi.test.ts:136:90 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    134 │     // When the reference supplies its local request example.
+    135 │     const spec = await createOpenApi("configured-model");
+  > 136 │     const post = record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+        │                                                                                          ^^^^^^
+    137 │     const body = record.parse(post["requestBody"]);
+    138 │     const json = record.parse(record.parse(body["content"])["application/json"]);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    134 134 │       // When the reference supplies its local request example.
+    135 135 │       const spec = await createOpenApi("configured-model");
+    136     │ - ····const·post·=·record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+        136 │ + ····const·post·=·record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"]).post);
+    137 137 │       const body = record.parse(post["requestBody"]);
+    138 138 │       const json = record.parse(record.parse(body["content"])["application/json"]);
+  
+
+tests/openapi.test.ts:137:36 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    135 │     const spec = await createOpenApi("configured-model");
+    136 │     const post = record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+  > 137 │     const body = record.parse(post["requestBody"]);
+        │                                    ^^^^^^^^^^^^^
+    138 │     const json = record.parse(record.parse(body["content"])["application/json"]);
+    139 │     const original = record.parse(
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    135 135 │       const spec = await createOpenApi("configured-model");
+    136 136 │       const post = record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+    137     │ - ····const·body·=·record.parse(post["requestBody"]);
+        137 │ + ····const·body·=·record.parse(post.requestBody);
+    138 138 │       const json = record.parse(record.parse(body["content"])["application/json"]);
+    139 139 │       const original = record.parse(
+  
+
+tests/openapi.test.ts:138:49 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    136 │     const post = record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+    137 │     const body = record.parse(post["requestBody"]);
+  > 138 │     const json = record.parse(record.parse(body["content"])["application/json"]);
+        │                                                 ^^^^^^^^^
+    139 │     const original = record.parse(
+    140 │       record.parse(record.parse(sourcePost["requestBody"])["content"])["application/json"],
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    136 136 │       const post = record.parse(record.parse(record.parse(spec["paths"])["/v1/responses"])["post"]);
+    137 137 │       const body = record.parse(post["requestBody"]);
+    138     │ - ····const·json·=·record.parse(record.parse(body["content"])["application/json"]);
+        138 │ + ····const·json·=·record.parse(record.parse(body.content)["application/json"]);
+    139 139 │       const original = record.parse(
+    140 140 │         record.parse(record.parse(sourcePost["requestBody"])["content"])["application/json"],
+  
+
+tests/openapi.test.ts:140:44 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    138 │     const json = record.parse(record.parse(body["content"])["application/json"]);
+    139 │     const original = record.parse(
+  > 140 │       record.parse(record.parse(sourcePost["requestBody"])["content"])["application/json"],
+        │                                            ^^^^^^^^^^^^^
+    141 │     );
+    142 │     // Then the source schema survives and the example reflects local adaptation.
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    138 138 │       const json = record.parse(record.parse(body["content"])["application/json"]);
+    139 139 │       const original = record.parse(
+    140     │ - ······record.parse(record.parse(sourcePost["requestBody"])["content"])["application/json"],
+        140 │ + ······record.parse(record.parse(sourcePost.requestBody)["content"])["application/json"],
+    141 141 │       );
+    142 142 │       // Then the source schema survives and the example reflects local adaptation.
+  
+
+tests/openapi.test.ts:140:60 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    138 │     const json = record.parse(record.parse(body["content"])["application/json"]);
+    139 │     const original = record.parse(
+  > 140 │       record.parse(record.parse(sourcePost["requestBody"])["content"])["application/json"],
+        │                                                            ^^^^^^^^^
+    141 │     );
+    142 │     // Then the source schema survives and the example reflects local adaptation.
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    138 138 │       const json = record.parse(record.parse(body["content"])["application/json"]);
+    139 139 │       const original = record.parse(
+    140     │ - ······record.parse(record.parse(sourcePost["requestBody"])["content"])["application/json"],
+        140 │ + ······record.parse(record.parse(sourcePost["requestBody"]).content)["application/json"],
+    141 141 │       );
+    142 142 │       // Then the source schema survives and the example reflects local adaptation.
+  
+
+tests/openapi.test.ts:143:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    141 │     );
+    142 │     // Then the source schema survives and the example reflects local adaptation.
+  > 143 │     expect(json["schema"]).toEqual(original["schema"]);
+        │                 ^^^^^^^^
+    144 │     expect(json["example"]).toEqual({
+    145 │       model: "configured-model",
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    141 141 │       );
+    142 142 │       // Then the source schema survives and the example reflects local adaptation.
+    143     │ - ····expect(json["schema"]).toEqual(original["schema"]);
+        143 │ + ····expect(json.schema).toEqual(original["schema"]);
+    144 144 │       expect(json["example"]).toEqual({
+    145 145 │         model: "configured-model",
+  
+
+tests/openapi.test.ts:143:45 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    141 │     );
+    142 │     // Then the source schema survives and the example reflects local adaptation.
+  > 143 │     expect(json["schema"]).toEqual(original["schema"]);
+        │                                             ^^^^^^^^
+    144 │     expect(json["example"]).toEqual({
+    145 │       model: "configured-model",
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    141 141 │       );
+    142 142 │       // Then the source schema survives and the example reflects local adaptation.
+    143     │ - ····expect(json["schema"]).toEqual(original["schema"]);
+        143 │ + ····expect(json["schema"]).toEqual(original.schema);
+    144 144 │       expect(json["example"]).toEqual({
+    145 145 │         model: "configured-model",
+  
+
+tests/openapi.test.ts:144:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    142 │     // Then the source schema survives and the example reflects local adaptation.
+    143 │     expect(json["schema"]).toEqual(original["schema"]);
+  > 144 │     expect(json["example"]).toEqual({
+        │                 ^^^^^^^^^
+    145 │       model: "configured-model",
+    146 │       input: "Say hello in one sentence.",
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    142 142 │       // Then the source schema survives and the example reflects local adaptation.
+    143 143 │       expect(json["schema"]).toEqual(original["schema"]);
+    144     │ - ····expect(json["example"]).toEqual({
+        144 │ + ····expect(json.example).toEqual({
+    145 145 │         model: "configured-model",
+    146 146 │         input: "Say hello in one sentence.",
+  
+
+tests/openapi.test.ts:150:17 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    148 │       stream: true,
+    149 │     });
+  > 150 │     expect(post["responses"]).toEqual(sourcePost["responses"]);
+        │                 ^^^^^^^^^^^
+    151 │     expect(post["x-proxy-availability"]).toBe("verified");
+    152 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    148 148 │         stream: true,
+    149 149 │       });
+    150     │ - ····expect(post["responses"]).toEqual(sourcePost["responses"]);
+        150 │ + ····expect(post.responses).toEqual(sourcePost["responses"]);
+    151 151 │       expect(post["x-proxy-availability"]).toBe("verified");
+    152 152 │     });
+  
+
+tests/openapi.test.ts:110:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    108 │     walk(spec, (entry) => {
+    109 │       if (entry["servers"] !== undefined) servers.push(entry["servers"]);
+  > 110 │       expect(entry["proxyUrl"]).toBeUndefined();
+        │                    ^^^^^^^^^^
+    111 │     });
+    112 │     // Then all requests target the same origin and use only the local token.
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    108 108 │       walk(spec, (entry) => {
+    109 109 │         if (entry["servers"] !== undefined) servers.push(entry["servers"]);
+    110     │ - ······expect(entry["proxyUrl"]).toBeUndefined();
+        110 │ + ······expect(entry.proxyUrl).toBeUndefined();
+    111 111 │       });
+    112 112 │       // Then all requests target the same origin and use only the local token.
+  
+
+tests/responses-stream-cli.test.ts:54:39 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    52 │     pass: false,
+    53 │   },
+  > 54 │   { name: "invalid event JSON", wire: sse(events[0]) + "data: {broken\n\n", pass: false },
+       │                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    55 │   {
+    56 │     name: "out of order sequence",
+  
+  i Unsafe fix: Use a template literal.
+  
+     52  52 │       pass: false,
+     53  53 │     },
+     54     │ - ··{·name:·"invalid·event·JSON",·wire:·sse(events[0])·+·"data:·{broken\n\n",·pass:·false·},
+         54 │ + ··{·name:·"invalid·event·JSON",·wire:·`${sse(events[0])}data:·{broken\n\n`,·pass:·false·},
+     55  55 │     {
+     56  56 │       name: "out of order sequence",
+  
+
+src/cli/main.ts:1:1 assist/source/organizeImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Sort these imports.
+  
+  > 1 │ import { Command, CommanderError } from "commander";
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 2 │ import { existsSync, mkdirSync, symlinkSync } from "node:fs";
+  > 3 │ import { dirname, resolve } from "node:path";
+  > 4 │ import { homedir } from "node:os";
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    5 │ import { loadServerToken } from "../server/access";
+    6 │ import { GatewayError } from "../shared/contracts";
+  
+  i Safe fix: Organize imports and exports (Biome)
+  
+      1     │ - import·{·Command,·CommanderError·}·from·"commander";
+      2     │ - import·{·existsSync,·mkdirSync,·symlinkSync·}·from·"node:fs";
+          1 │ + import·{·existsSync,·mkdirSync,·symlinkSync·}·from·"node:fs";
+          2 │ + import·{·homedir·}·from·"node:os";
+      3   3 │   import { dirname, resolve } from "node:path";
+      4     │ - import·{·homedir·}·from·"node:os";
+          4 │ + import·{·Command,·CommanderError·}·from·"commander";
+      5   5 │   import { loadServerToken } from "../server/access";
+      6   6 │   import { GatewayError } from "../shared/contracts";
+  
+
+src/cli/responses-scenarios.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+     9   9 │   
+    10  10 │   export const responsesScenarios = [
+    11     │ - ··{·id:·"create-text",·label:·"01·—·Texte·simple",·hint:·"POST·JSON·et·réponse·finale",·runner:·"uv",·script:·"responses/test_create_text.py"·},
+    12     │ - ··{·id:·"stream",·label:·"02·—·Streaming",·hint:·"Événements·SSE·et·texte·progressif",·runner:·"uv",·script:·"responses/test_stream.py"·},
+    13     │ - ··{·id:·"history",·label:·"03·—·Historique·explicite",·hint:·"Deux·tours·fournis·par·le·client",·runner:·"uv",·script:·"responses/test_history.py"·},
+    14     │ - ··{·id:·"previous-response",·label:·"04·—·previous_response_id",·hint:·"Continuité·native,·sans·historique·répété",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"previous-response"·},
+    15     │ - ··{·id:·"conversation",·label:·"05·—·Conversation",·hint:·"Continuité·par·identifiant·de·conversation",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"conversation"·},
+    16     │ - ··{·id:·"retrieve",·label:·"06·—·Lecture",·hint:·"Lire·une·réponse·et·ses·input·items",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"retrieve"·},
+    17     │ - ··{·id:·"delete",·label:·"07·—·Suppression",·hint:·"Supprimer·puis·relire·la·réponse·créée",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"delete"·},
+    18     │ - ··{·id:·"background-cancel",·label:·"08·—·Background·et·annulation",·hint:·"Cycle·de·vie·natif·et·cancel·public",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"background-cancel"·},
+    19     │ - ··{·id:·"input-tokens",·label:·"09·—·Comptage·de·tokens",·hint:·"Compteurs·retournés·par·l’amont",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"input-tokens"·},
+    20     │ - ··{·id:·"compact",·label:·"10·—·Compaction",·hint:·"Continuité·après·compaction·native",·runner:·"uv",·script:·"responses/test_lifecycle.py",·scenario:·"compact"·},
+    21     │ - ··{·id:·"websocket",·label:·"11·—·WebSocket",·hint:·"Frames·Responses·et·second·tour",·runner:·"bun",·script:·"responses/test_websocket.ts"·},
+    22     │ - ··{·id:·"node-sdk",·label:·"12·—·SDK·Node",·hint:·"Client·OpenAI·Node·contre·le·proxy",·runner:·"bun",·script:·"responses/test_node.ts"·},
+    23     │ - ··{·id:·"instructions",·label:·"13·—·Instructions",·hint:·"Omis,·null·et·valeur·explicite",·runner:·"uv",·script:·"responses/features.py",·scenario:·"instructions"·},
+    24     │ - ··{·id:·"parameters",·label:·"14·—·Paramètres",·hint:·"Paramètres·de·génération·et·verbosité",·runner:·"uv",·script:·"responses/features.py",·scenario:·"parameters"·},
+    25     │ - ··{·id:·"json-object",·label:·"15·—·JSON·object",·hint:·"Sortie·JSON·structurée",·runner:·"uv",·script:·"responses/features.py",·scenario:·"json-object"·},
+    26     │ - ··{·id:·"json-schema",·label:·"16·—·JSON·Schema",·hint:·"Sortie·conforme·au·schéma",·runner:·"uv",·script:·"responses/features.py",·scenario:·"json-schema"·},
+    27     │ - ··{·id:·"function",·label:·"17·—·Fonction",·hint:·"Aller-retour·function_call",·runner:·"uv",·script:·"responses/features.py",·scenario:·"function"·},
+    28     │ - ··{·id:·"tool-choice",·label:·"18·—·tool_choice",·hint:·"Sélection·explicite·d’outil",·runner:·"uv",·script:·"responses/features.py",·scenario:·"tool-choice"·},
+    29     │ - ··{·id:·"parallel-tools",·label:·"19·—·Outils·parallèles",·hint:·"Appels·d’outils·multiples",·runner:·"uv",·script:·"responses/features.py",·scenario:·"parallel-tools"·},
+    30     │ - ··{·id:·"reasoning-replay",·label:·"20·—·Raisonnement",·hint:·"Reprise·d’item·de·reasoning",·runner:·"uv",·script:·"responses/features.py",·scenario:·"reasoning-replay"·},
+    31     │ - ··{·id:·"cache",·label:·"21·—·Cache",·hint:·"Paramètres·de·cache·de·prompt",·runner:·"uv",·script:·"responses/features.py",·scenario:·"cache"·},
+    32     │ - ··{·id:·"image",·label:·"22·—·Image",·hint:·"Entrée·image·contrôlée",·runner:·"uv",·script:·"responses/features.py",·scenario:·"image"·},
+    33     │ - ··{·id:·"builtins",·label:·"23·—·Outils·natifs",·hint:·"Web·search,·fichiers,·code·et·MCP",·runner:·"uv",·script:·"responses/features.py",·scenario:·"builtins"·},
+    34     │ - ··{·id:·"native-media",·label:·"24·—·Médias·natifs",·hint:·"Sorties·image·et·audio·si·disponibles",·runner:·"uv",·script:·"responses/features.py",·scenario:·"native-media"·},
+        11 │ + ··{
+        12 │ + ····id:·"create-text",
+        13 │ + ····label:·"01·—·Texte·simple",
+        14 │ + ····hint:·"POST·JSON·et·réponse·finale",
+        15 │ + ····runner:·"uv",
+        16 │ + ····script:·"responses/test_create_text.py",
+        17 │ + ··},
+        18 │ + ··{
+        19 │ + ····id:·"stream",
+        20 │ + ····label:·"02·—·Streaming",
+        21 │ + ····hint:·"Événements·SSE·et·texte·progressif",
+        22 │ + ····runner:·"uv",
+        23 │ + ····script:·"responses/test_stream.py",
+        24 │ + ··},
+        25 │ + ··{
+        26 │ + ····id:·"history",
+        27 │ + ····label:·"03·—·Historique·explicite",
+        28 │ + ····hint:·"Deux·tours·fournis·par·le·client",
+        29 │ + ····runner:·"uv",
+        30 │ + ····script:·"responses/test_history.py",
+        31 │ + ··},
+        32 │ + ··{
+        33 │ + ····id:·"previous-response",
+        34 │ + ····label:·"04·—·previous_response_id",
+        35 │ + ····hint:·"Continuité·native,·sans·historique·répété",
+        36 │ + ····runner:·"uv",
+        37 │ + ····script:·"responses/test_lifecycle.py",
+        38 │ + ····scenario:·"previous-response",
+        39 │ + ··},
+        40 │ + ··{
+        41 │ + ····id:·"conversation",
+        42 │ + ····label:·"05·—·Conversation",
+        43 │ + ····hint:·"Continuité·par·identifiant·de·conversation",
+        44 │ + ····runner:·"uv",
+        45 │ + ····script:·"responses/test_lifecycle.py",
+        46 │ + ····scenario:·"conversation",
+        47 │ + ··},
+        48 │ + ··{
+        49 │ + ····id:·"retrieve",
+        50 │ + ····label:·"06·—·Lecture",
+        51 │ + ····hint:·"Lire·une·réponse·et·ses·input·items",
+        52 │ + ····runner:·"uv",
+        53 │ + ····script:·"responses/test_lifecycle.py",
+        54 │ + ····scenario:·"retrieve",
+        55 │ + ··},
+        56 │ + ··{
+        57 │ + ····id:·"delete",
+        58 │ + ····label:·"07·—·Suppression",
+        59 │ + ····hint:·"Supprimer·puis·relire·la·réponse·créée",
+        60 │ + ····runner:·"uv",
+        61 │ + ····script:·"responses/test_lifecycle.py",
+        62 │ + ····scenario:·"delete",
+        63 │ + ··},
+        64 │ + ··{
+        65 │ + ····id:·"background-cancel",
+        66 │ + ····label:·"08·—·Background·et·annulation",
+        67 │ + ····hint:·"Cycle·de·vie·natif·et·cancel·public",
+        68 │ + ····runner:·"uv",
+        69 │ + ····script:·"responses/test_lifecycle.py",
+        70 │ + ····scenario:·"background-cancel",
+        71 │ + ··},
+        72 │ + ··{
+        73 │ + ····id:·"input-tokens",
+        74 │ + ····label:·"09·—·Comptage·de·tokens",
+        75 │ + ····hint:·"Compteurs·retournés·par·l’amont",
+        76 │ + ····runner:·"uv",
+        77 │ + ····script:·"responses/test_lifecycle.py",
+        78 │ + ····scenario:·"input-tokens",
+        79 │ + ··},
+        80 │ + ··{
+        81 │ + ····id:·"compact",
+        82 │ + ····label:·"10·—·Compaction",
+        83 │ + ····hint:·"Continuité·après·compaction·native",
+        84 │ + ····runner:·"uv",
+        85 │ + ····script:·"responses/test_lifecycle.py",
+        86 │ + ····scenario:·"compact",
+        87 │ + ··},
+        88 │ + ··{
+        89 │ + ····id:·"websocket",
+        90 │ + ····label:·"11·—·WebSocket",
+        91 │ + ····hint:·"Frames·Responses·et·second·tour",
+        92 │ + ····runner:·"bun",
+        93 │ + ····script:·"responses/test_websocket.ts",
+        94 │ + ··},
+        95 │ + ··{
+        96 │ + ····id:·"node-sdk",
+        97 │ + ····label:·"12·—·SDK·Node",
+        98 │ + ····hint:·"Client·OpenAI·Node·contre·le·proxy",
+        99 │ + ····runner:·"bun",
+       100 │ + ····script:·"responses/test_node.ts",
+       101 │ + ··},
+       102 │ + ··{
+       103 │ + ····id:·"instructions",
+       104 │ + ····label:·"13·—·Instructions",
+       105 │ + ····hint:·"Omis,·null·et·valeur·explicite",
+       106 │ + ····runner:·"uv",
+       107 │ + ····script:·"responses/features.py",
+       108 │ + ····scenario:·"instructions",
+       109 │ + ··},
+       110 │ + ··{
+       111 │ + ····id:·"parameters",
+       112 │ + ····label:·"14·—·Paramètres",
+       113 │ + ····hint:·"Paramètres·de·génération·et·verbosité",
+       114 │ + ····runner:·"uv",
+       115 │ + ····script:·"responses/features.py",
+       116 │ + ····scenario:·"parameters",
+       117 │ + ··},
+       118 │ + ··{
+       119 │ + ····id:·"json-object",
+       120 │ + ····label:·"15·—·JSON·object",
+       121 │ + ····hint:·"Sortie·JSON·structurée",
+       122 │ + ····runner:·"uv",
+       123 │ + ····script:·"responses/features.py",
+       124 │ + ····scenario:·"json-object",
+       125 │ + ··},
+       126 │ + ··{
+       127 │ + ····id:·"json-schema",
+       128 │ + ····label:·"16·—·JSON·Schema",
+       129 │ + ····hint:·"Sortie·conforme·au·schéma",
+       130 │ + ····runner:·"uv",
+       131 │ + ····script:·"responses/features.py",
+       132 │ + ····scenario:·"json-schema",
+       133 │ + ··},
+       134 │ + ··{
+  65 more lines truncated
+  
+
+tests/responses-lifecycle-cli.test.ts format ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Formatter would have printed the following content:
+  
+    13 13 │       new Response(child.stderr).text(),
+    14 14 │     ]);
+    15    │ - ··expect({·code,·detail:·stdout·+·stderr·}).toEqual({·code:·0,·detail:·expect.stringContaining("previous-response")·});
+       15 │ + ··expect({·code,·detail:·stdout·+·stderr·}).toEqual({
+       16 │ + ····code:·0,
+       17 │ + ····detail:·expect.stringContaining("previous-response"),
+       18 │ + ··});
+    16 19 │     expect(stdout).toContain("conversation");
+    17 20 │     expect(stdout).toContain("retrieve");
+  
+
+Checked 77 files in 78ms. No fixes applied.
+Found 3 errors.
+Found 78 infos.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+

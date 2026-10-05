@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');const S=require('../src/schema.js');let count=0;
+function test(n,f){f();console.log('PASS '+n);count++;}
+const doc={openapi:'3.1.0',components:{schemas:{Base:{type:'object',properties:{id:{type:'string'},both:{type:['integer','null']}},required:['id']},Child:{allOf:[{$ref:'#/components/schemas/Base'},{type:'object',properties:{name:{type:'string'},both:{type:'integer',minimum:0}},required:['name']}]},Union:{oneOf:[{properties:{a:{type:'string'}},required:['a']},{properties:{b:{type:'boolean'}}}]},Loop:{properties:{next:{$ref:'#/components/schemas/Loop'}}},Esc:{properties:{'a/b~c':{type:'number'}}}}},paths:{'/responses':{post:{requestBody:{content:{'application/json':{schema:{$ref:'#/components/schemas/Child'}}}},responses:{200:{content:{'text/event-stream':{schema:{$ref:'#/components/schemas/Base'}}}}}}},'/files':{post:{responses:{200:{}}}}}};
+test('JSON pointer escapes slash and tilde',()=>assert.equal(S.get(doc,'#/components/schemas/Esc/properties/a~1b~0c/type'),'number'));
+test('allOf required is union, no overwrite',()=>assert.deepEqual([...S.requirements(doc,doc.components.schemas.Child)].sort(),['id','name']));
+test('allOf preserves conflicting constraints',()=>{const r=S.resolve(doc,'#/components/schemas/Child').schema;assert.equal(r.allOf.length,2);assert.deepEqual(r.allOf[0].properties.both.type,['integer','null']);assert.equal(r.allOf[1].properties.both.type,'integer');});
+test('allOf inherited requiredness applies across branches',()=>{const d={a:{allOf:[{properties:{x:{type:'string'}}},{required:['x']}]}};assert.equal(S.propertyInventory(d,'#/a').rows[0].required,true);});
+test('union branches remain conditional',()=>{const r=S.propertyInventory(doc,'#/components/schemas/Union');assert.equal(r.rows[0].conditional,true);assert.equal(r.rows[0].required,true);assert.equal(r.rows[1].required,false);});
+test('cycles remain refs and are reported',()=>assert.equal(S.resolve(doc,'#/components/schemas/Loop').cycles.length,1));
+test('external refs not silently fetched',()=>assert.equal(S.resolve({x:{$ref:'https://example.test/s.json'}},'#/x').unresolved[0].reason,'external_reference'));
+test('ref siblings remain conjunctive',()=>{const r=S.resolve({...doc,x:{$ref:'#/components/schemas/Base',maxProperties:3}},'#/x');assert.equal(r.schema.allOf[1].maxProperties,3);});
+test('example refs are data, not rewritten',()=>assert.deepEqual(S.resolve({x:{type:'string',examples:[{$ref:'not-a-reference'}]}},'#/x').schema.examples,[{$ref:'not-a-reference'}]));
+test('request + response media extracted; excluded Files',()=>{const ops=S.operations(doc);assert.equal(ops.length,1);assert.equal(ops[0].schemas.length,2);assert.equal(ops[0].schemas[1].media,'text/event-stream');});
+test('can include excluded routes explicitly',()=>assert.equal(S.operations(doc,{excludeOutOfScope:false}).length,2));
+test('ref resolution has trace',()=>assert.ok(S.resolve(doc,'#/paths/~1responses/post/requestBody/content/application~1json/schema').trace.length>=2));
+test('dangling refs reported',()=>assert.equal(S.resolve({x:{$ref:'#/missing'}},'#/x').unresolved.length,1));
+test('diff additions removals changes',()=>assert.deepEqual(S.diff({a:1,b:2},{a:2,c:3}).map(x=>x.kind).sort(),['added','changed','removed']));
+test('budget limit is explicit',()=>assert.throws(()=>S.resolve(doc,'#/components/schemas/Child',{maxNodes:1}),/Budget/));
+const data=require('../data/mapping.json');
+test('all IDs unique',()=>assert.equal(new Set(data.entries.map(e=>e.id)).size,data.entries.length));
+test('all evidence source IDs resolve',()=>{const ids=new Set(data.sources.map(s=>s.id));for(const e of data.entries)for(const side of ['openai','codex'])if(e[side])assert.ok(ids.has(e[side].sourceId),e.id);});
+test('no invented live verification or unified revision',()=>{assert.equal(data.meta.liveVerified,false);assert.equal(data.meta.exhaustive,false);for(const e of data.entries)assert.equal(e.liveVerified,false);for(const s of data.sources)assert.equal(s.revision,null);});
+test('roadmap entry links all valid',()=>{const ids=new Set(data.entries.map(e=>e.id));for(const lot of data.lots)for(const id of lot.entryIds)assert.ok(ids.has(id),id);});
+console.log(JSON.stringify({passed:count,failed:0}));

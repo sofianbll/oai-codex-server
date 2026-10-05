@@ -1,0 +1,98 @@
+{
+  "queries": [
+    {
+      "query": "developer API playground request console",
+      "results": [
+        {
+          "companyName": "hygraph",
+          "category": "GraphQL Headless CMS",
+          "screenshotName": "hygraph_15028b56122665fcf7d44fc7272754f6b0401411.png",
+          "path": "sites/hygraph/hygraph_15028b56122665fcf7d44fc7272754f6b0401411.png",
+          "pageUrl": null
+        },
+        {
+          "companyName": "postman-inc",
+          "category": "Developer Tools",
+          "screenshotName": "postman-inc_26e796d3566b9235d21912212ffea9577d5fd95c.jpg",
+          "path": "sites/postman-inc/postman-inc_26e796d3566b9235d21912212ffea9577d5fd95c.jpg",
+          "pageUrl": null
+        },
+        {
+          "companyName": "supabase",
+          "category": "No-Code Database",
+          "screenshotName": "supabase_1077cfc5-1ada-44f0-a29b-1ab3d39e5f7e.png",
+          "path": "sites/supabase/supabase_1077cfc5-1ada-44f0-a29b-1ab3d39e5f7e.png",
+          "pageUrl": null
+        },
+        {
+          "companyName": "retool",
+          "category": "Internal App Builder",
+          "screenshotName": "retool_978a3156-29f4-4bda-9413-76c8e8e129dd.png",
+          "path": "sites/retool/retool_978a3156-29f4-4bda-9413-76c8e8e129dd.png",
+          "pageUrl": null
+        },
+        {
+          "companyName": "airspace-link",
+          "category": "Travel",
+          "screenshotName": "airspace-link_bbda76ad85e78a08417e.png",
+          "path": "sites/airspace-link/airspace-link_bbda76ad85e78a08417e.png",
+          "pageUrl": "https://airspacelink.com/developers"
+        },
+        {
+          "companyName": "roadie",
+          "category": "Platform Engineering",
+          "screenshotName": "roadie_d926e302d4448a03ee07.png",
+          "path": "sites/roadie/roadie_d926e302d4448a03ee07.png",
+          "pageUrl": "https://roadie.io/"
+        }
+      ]
+    },
+    {
+      "query": "HTTP API client request builder response",
+      "results": [
+        {
+          "companyName": "fusionauth",
+          "category": "Customer Authentication Platform",
+          "screenshotName": "fusionauth_b15e4efd577952231600.png",
+          "path": "sites/fusionauth/fusionauth_b15e4efd577952231600.png",
+          "pageUrl": "https://fusionauth.io/docs/sdks/java"
+        },
+        {
+          "companyName": "httpie",
+          "category": "saas",
+          "screenshotName": "httpie_3e4b1f31-77ce-4dd2-a2b6-b05f072fb6b7.jpg",
+          "path": "sites/httpie/httpie_3e4b1f31-77ce-4dd2-a2b6-b05f072fb6b7.jpg",
+          "pageUrl": "https://httpie.io/docs/desktop/relative-urls"
+        },
+        {
+          "companyName": "postman-inc",
+          "category": "Developer Tools",
+          "screenshotName": "postman-inc_ba02e54ab52b813186b8246442be47639abd2e47.jpg",
+          "path": "sites/postman-inc/postman-inc_ba02e54ab52b813186b8246442be47639abd2e47.jpg",
+          "pageUrl": null
+        },
+        {
+          "companyName": "s2-data",
+          "category": "Serverless Streaming Datastore",
+          "screenshotName": "s2-data_622cae3c8fe8bfde3c3f.png",
+          "path": "sites/s2-data/s2-data_622cae3c8fe8bfde3c3f.png",
+          "pageUrl": "https://s2.dev/docs/api/protocol"
+        },
+        {
+          "companyName": "atatus",
+          "category": "Developer Tools",
+          "screenshotName": "atatus_f683457991d332773cc3.png",
+          "path": "sites/atatus/atatus_f683457991d332773cc3.png",
+          "pageUrl": "https://www.atatus.com/product/api-analytics/"
+        },
+        {
+          "companyName": "airspace-link",
+          "category": "Travel",
+          "screenshotName": "airspace-link_bbda76ad85e78a08417e.png",
+          "path": "sites/airspace-link/airspace-link_bbda76ad85e78a08417e.png",
+          "pageUrl": "https://airspacelink.com/developers"
+        }
+      ]
+    }
+  ]
+}

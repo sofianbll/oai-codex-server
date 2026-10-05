@@ -1,0 +1,12 @@
+Baseline snapshot: 2026-09-20 15:28:58 UTC
+bun run check: PASS (tsc --noEmit; tsc -p tsconfig.ui.json --noEmit)
+bun run build: PASS (Dashboard built; Scalar bundled locally)
+bun run test in sandbox: FAIL because Bun.serve port 0 is blocked with EADDRINUSE
+minimal Bun.serve port 0 with escalated local access: PASS (127.0.0.1:52944)
+bun run test with escalated local access: PASS (147 pass, 0 fail, 21,454 expectations, 19 files)
+bun run lint at baseline: FAIL (2 errors, 78 informational diagnostics; concurrent shared-tree edits)
+
+Relay slice after addition:
+bun test tests/proxy.test.ts tests/fixtures/proxy-*.test.ts with escalated local access: PASS (46 pass, 0 fail, 120 expectations, 7 files)
+bun run check: PASS
+Targeted Biome over relay source and fixture tests: PASS (0 errors, 2 informational useLiteralKeys notices)

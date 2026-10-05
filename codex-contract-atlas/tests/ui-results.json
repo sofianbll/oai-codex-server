@@ -1,0 +1,175 @@
+{
+  "suite": "documentation-ui",
+  "backendCalls": 0,
+  "environment": "Chromium, local set_content; network navigation blocked by environment policy",
+  "passed": 33,
+  "failed": 0,
+  "checks": [
+    {
+      "test": "Overview renders",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Counts computed from data",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Parameter search filters",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Entry provenance displayed",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Audit JSON tab",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Unexecuted backend tests labelled",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Family filter",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "JSON export matches filter",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "CSV export",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Reset filters",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Pagination",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Global search",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Global search opens entry",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "No invented public route for Codex extensions",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Nested schema inventory",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Cycle reporting",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Import real local file",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Transitive resolved schema diff",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "All 13 main views render",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Every record detail renders",
+      "status": "PASS",
+      "detail": "366 detail templates exercised"
+    },
+    {
+      "test": "Source search",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Roadmap expandable lots",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Dark mode",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile drawer opens",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile nav closes drawer",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile table rows accessible",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile no horizontal page overflow: overview",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile no horizontal page overflow: explore/parameter",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile no horizontal page overflow: entry/p-response-input",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile no horizontal page overflow: sources",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile no horizontal page overflow: roadmap",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "Mobile no horizontal page overflow: schemas",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "test": "No JavaScript page errors",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "consoleErrors": []
+}

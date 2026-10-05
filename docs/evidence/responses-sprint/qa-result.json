@@ -1,0 +1,16 @@
+{
+  "model_calls": 2,
+  "compact": {
+    "status": 200,
+    "envelope": true,
+    "one_item": true,
+    "encrypted_content_present": true,
+    "duration_ms": 3580
+  },
+  "replay": {
+    "status": 200,
+    "exact_output": true,
+    "duration_ms": 5458
+  },
+  "passed": true
+}

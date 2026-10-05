@@ -1,0 +1,112 @@
+.test-workbench {
+  display: grid;
+  grid-template-columns: minmax(var(--rail-floor), var(--rail-compact)) minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+.test-workbench > *,
+.test-workspace,
+.test-step {
+  min-width: 0;
+}
+.test-rail {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--s4);
+}
+.test-rail > summary {
+  font-weight: 600;
+  cursor: pointer;
+  padding-block: var(--s2);
+}
+.test-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-block: var(--s4);
+}
+.test-groups .button {
+  padding: var(--s2);
+  font-size: var(--text-xs);
+}
+.test-groups [aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.test-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  margin-top: var(--s3);
+}
+.test-step-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s1);
+  text-align: left;
+  width: 100%;
+}
+.test-step-link [class~="badge"] {
+  font-size: var(--text-xs);
+}
+.test-step-link[aria-current="step"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.test-title {
+  font-size: var(--text-lg);
+}
+.test-prompt {
+  min-height: var(--instructions-height);
+}
+.test-response {
+  padding: var(--s4);
+  background: var(--canvas);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  min-height: var(--instructions-height);
+  max-height: var(--output-height);
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.test-verdicts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+}
+.test-verdicts .stack {
+  align-items: start;
+  gap: var(--s2);
+}
+.test-exchanges > * + * {
+  margin-top: var(--s3);
+}
+.test-exchanges .code {
+  min-height: 0;
+  max-height: var(--raw-height);
+  overflow: auto;
+}
+.test-step .raw-editor {
+  width: 100%;
+}
+.test-workspace > .panel {
+  padding: var(--s5);
+}
+@media (max-width: 1023px) {
+  .test-workbench {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s4);
+  }
+  .test-steps {
+    max-height: var(--raw-height);
+    overflow: auto;
+  }
+}
+@media (max-width: 500px) {
+  .test-verdicts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

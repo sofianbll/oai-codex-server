@@ -1,0 +1,24 @@
+services:
+  oai-codex:
+    image: ghcr.io/sofianbll/oai-codex-server:edge
+    build: .
+    # OAI_CODEX_BIND=<ip Tailscale> pour exposer sur le tailnet ; localhost par défaut.
+    ports: ["${OAI_CODEX_BIND:-127.0.0.1}:8788:8788"]
+    volumes:
+      # auth.json en lecture-écriture : le rafraîchissement de session le réécrit.
+      - ${CODEX_HOME:-~/.codex}:/codex
+      - data:/data
+    restart: unless-stopped
+
+  # Reverse engineering : `docker compose --profile otel up -d otel` (voir docs/otel.md).
+  otel:
+    profiles: [otel]
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    command: ["--config=/etc/otelcol/collector.yaml"]
+    ports: ["127.0.0.1:4318:4318"]
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol/collector.yaml:ro
+      - ./otel/out:/out
+
+volumes:
+  data:

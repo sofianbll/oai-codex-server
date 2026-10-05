@@ -1,0 +1,81 @@
+name: Live (session Codex dédiée)
+
+# Choix assumé, contraire au guide OpenAI « Maintain Codex account auth in CI/CD » pour un dépôt public
+# (voir docs/research/2026-10-codex-devday-ci-auth.md §3). Mise en place, depuis le Mac :
+#   export CODEX_HOME=$(mktemp -d) && codex login          # session distincte de celle du Mac
+#   base64 < "$CODEX_HOME/auth.json" | gh secret set CODEX_AUTH_JSON_B64 --env live && rm -rf "$CODEX_HOME"
+#   gh secret set LIVE_SECRETS_TOKEN --env live             # PAT fine-grained : ce dépôt, « Environments » en écriture
+# Environnement `live` : restreindre les branches de déploiement à main.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Le refresh token tourne à chaque refresh : un seul run à la fois, sinon refresh_token_reused.
+concurrency:
+  group: live-codex-session
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    environment: live
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Snapshot du contrat
+        working-directory: codex-contract-atlas
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run snapshot || test -s snapshot/openapi.json
+      - name: CLI Codex (même version que l'image)
+        run: |
+          v=$(sed -n 's/^ARG CODEX_VERSION=//p' Dockerfile)
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL "https://github.com/openai/codex/releases/download/rust-v$v/codex-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz -O > "$RUNNER_TEMP/bin/codex"
+          chmod 755 "$RUNNER_TEMP/bin/codex"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # Encodé en base64 : GitHub masque mal un secret JSON. Chaque token est aussi masqué séparément.
+      - name: Restaurer la session
+        env:
+          AUTH_B64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/codex"
+          printf '%s' "$AUTH_B64" | base64 -d > "$RUNNER_TEMP/codex/auth.json"
+          jq -r '.OPENAI_API_KEY, .tokens.access_token, .tokens.refresh_token, .tokens.id_token
+            | select(type == "string" and . != "")' "$RUNNER_TEMP/codex/auth.json" \
+            | while read -r token; do echo "::add-mask::$token"; done
+          sha256sum "$RUNNER_TEMP/codex/auth.json" | cut -d' ' -f1 > "$RUNNER_TEMP/auth.sha"
+          echo "CODEX_HOME=$RUNNER_TEMP/codex" >> "$GITHUB_ENV"
+      - name: Tests live
+        run: |
+          ./oai-codex init --config "$RUNNER_TEMP/proxy/config.json" --host 127.0.0.1 --port 8788
+          ./oai-codex start --config "$RUNNER_TEMP/proxy/config.json"
+          bun scripts/live-smoke.ts "$RUNNER_TEMP/proxy/config.json"
+      - name: Arrêter le proxy
+        if: always()
+        run: ./oai-codex stop --config "$RUNNER_TEMP/proxy/config.json" || true
+      # Sans réécriture après un refresh, le prochain run échoue définitivement (refresh_token_reused).
+      - name: Réécrire la session si elle a tourné
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.LIVE_SECRETS_TOKEN }}
+        run: |
+          f="$RUNNER_TEMP/codex/auth.json"
+          [ -s "$f" ] || exit 0
+          if [ "$(sha256sum "$f" | cut -d' ' -f1)" = "$(cat "$RUNNER_TEMP/auth.sha")" ]; then
+            echo "Session inchangée."
+            exit 0
+          fi
+          base64 -w0 "$f" | gh secret set CODEX_AUTH_JSON_B64 --env live --repo "$GITHUB_REPOSITORY"
+          echo "Session tournée puis réécrite."
+      - name: Effacer la session du runner
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/codex"

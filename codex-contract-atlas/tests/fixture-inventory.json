@@ -1,0 +1,390 @@
+{
+  "meta": {
+    "createdAt": "2026-09-19T18:14:48.293Z",
+    "sourceFile": "fixture-openapi.json",
+    "sourceSha256": "dc8e8886e28c2be6947b8340f0113ecf758cbcbecd66a74dba638f0330269cae",
+    "openapi": "3.1.0",
+    "apiVersion": "1.0",
+    "scope": "Responses,Models,Images,Audio,Realtime,Live",
+    "backendValidated": false,
+    "semanticMappingCompleted": false,
+    "operationCount": 1,
+    "propertyDeclarations": 13,
+    "complete": false,
+    "limitations": [
+      "Local JSON pointers only; cycles reported.",
+      "Property requiredness is branch-specific; this is not an instance validator.",
+      "Primitive/root-only schemas are identified by rootType; no fabricated property.",
+      "Schema anchors, dynamicRef, external refs, and $id resolution are not fully implemented."
+    ]
+  },
+  "issues": [],
+  "operations": [
+    {
+      "method": "POST",
+      "path": "/responses",
+      "pointer": "#/paths/~1responses/post",
+      "operationId": "fixtureCreateResponse",
+      "summary": "",
+      "schemas": [
+        {
+          "kind": "request",
+          "status": null,
+          "media": "application/json",
+          "pointer": "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+          "rootType": "$ref",
+          "properties": [
+            {
+              "path": "model",
+              "pointer": "#/components/schemas/Base/properties/model",
+              "type": "string",
+              "required": true,
+              "conditional": false,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 0
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/0",
+                "#/components/schemas/FixtureRequest/allOf/0/$ref",
+                "#/components/schemas/Base",
+                "#/components/schemas/Base/properties/model"
+              ],
+              "constraints": {
+                "type": "string"
+              }
+            },
+            {
+              "path": "nullableIntersection",
+              "pointer": "#/components/schemas/Base/properties/nullableIntersection",
+              "type": "integer | null",
+              "required": false,
+              "conditional": false,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 0
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/0",
+                "#/components/schemas/FixtureRequest/allOf/0/$ref",
+                "#/components/schemas/Base",
+                "#/components/schemas/Base/properties/nullableIntersection"
+              ],
+              "constraints": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            {
+              "path": "nullableIntersection",
+              "pointer": "#/components/schemas/FixtureRequest/allOf/1/properties/nullableIntersection",
+              "type": "integer",
+              "required": false,
+              "conditional": false,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 1
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/nullableIntersection"
+              ],
+              "constraints": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            {
+              "path": "input",
+              "pointer": "#/components/schemas/FixtureRequest/allOf/1/properties/input",
+              "type": "oneOf",
+              "required": true,
+              "conditional": false,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 1
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input"
+              ],
+              "constraints": {}
+            },
+            {
+              "path": "input[].role",
+              "pointer": "#/components/schemas/Message/properties/role",
+              "type": "enum",
+              "required": true,
+              "conditional": true,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 1
+                },
+                {
+                  "operator": "oneOf",
+                  "index": 1
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1/items",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1/items/$ref",
+                "#/components/schemas/Message",
+                "#/components/schemas/Message/properties/role"
+              ],
+              "constraints": {
+                "enum": [
+                  "user",
+                  "assistant"
+                ]
+              }
+            },
+            {
+              "path": "input[].content",
+              "pointer": "#/components/schemas/Message/properties/content",
+              "type": "string",
+              "required": true,
+              "conditional": true,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 1
+                },
+                {
+                  "operator": "oneOf",
+                  "index": 1
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1/items",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1/items/$ref",
+                "#/components/schemas/Message",
+                "#/components/schemas/Message/properties/content"
+              ],
+              "constraints": {
+                "type": "string"
+              }
+            },
+            {
+              "path": "input[].parent",
+              "pointer": "#/components/schemas/Message/properties/parent",
+              "type": "$ref",
+              "required": false,
+              "conditional": true,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 1
+                },
+                {
+                  "operator": "oneOf",
+                  "index": 1
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1/items",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/input/oneOf/1/items/$ref",
+                "#/components/schemas/Message",
+                "#/components/schemas/Message/properties/parent"
+              ],
+              "constraints": {
+                "$ref": "#/components/schemas/Message"
+              }
+            },
+            {
+              "path": "stream",
+              "pointer": "#/components/schemas/FixtureRequest/allOf/1/properties/stream",
+              "type": "boolean",
+              "required": false,
+              "conditional": false,
+              "branches": [
+                {
+                  "operator": "allOf",
+                  "index": 1
+                }
+              ],
+              "originChain": [
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema",
+                "#/paths/~1responses/post/requestBody/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureRequest",
+                "#/components/schemas/FixtureRequest/allOf/1",
+                "#/components/schemas/FixtureRequest/allOf/1/properties/stream"
+              ],
+              "constraints": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          ],
+          "issues": [
+            {
+              "pointer": "#/components/schemas/Message/properties/parent",
+              "ref": "#/components/schemas/Message",
+              "reason": "cycle"
+            }
+          ],
+          "complete": false
+        },
+        {
+          "kind": "response",
+          "status": "200",
+          "media": "application/json",
+          "pointer": "#/paths/~1responses/post/responses/200/content/application~1json/schema",
+          "rootType": "$ref",
+          "properties": [
+            {
+              "path": "id",
+              "pointer": "#/components/schemas/FixtureResponse/properties/id",
+              "type": "string",
+              "required": true,
+              "conditional": false,
+              "branches": [],
+              "originChain": [
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema",
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureResponse",
+                "#/components/schemas/FixtureResponse/properties/id"
+              ],
+              "constraints": {
+                "type": "string"
+              }
+            },
+            {
+              "path": "output",
+              "pointer": "#/components/schemas/FixtureResponse/properties/output",
+              "type": "array",
+              "required": false,
+              "conditional": false,
+              "branches": [],
+              "originChain": [
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema",
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureResponse",
+                "#/components/schemas/FixtureResponse/properties/output"
+              ],
+              "constraints": {
+                "type": "array"
+              }
+            },
+            {
+              "path": "output[].role",
+              "pointer": "#/components/schemas/Message/properties/role",
+              "type": "enum",
+              "required": true,
+              "conditional": false,
+              "branches": [],
+              "originChain": [
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema",
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureResponse",
+                "#/components/schemas/FixtureResponse/properties/output",
+                "#/components/schemas/FixtureResponse/properties/output/items",
+                "#/components/schemas/FixtureResponse/properties/output/items/$ref",
+                "#/components/schemas/Message",
+                "#/components/schemas/Message/properties/role"
+              ],
+              "constraints": {
+                "enum": [
+                  "user",
+                  "assistant"
+                ]
+              }
+            },
+            {
+              "path": "output[].content",
+              "pointer": "#/components/schemas/Message/properties/content",
+              "type": "string",
+              "required": true,
+              "conditional": false,
+              "branches": [],
+              "originChain": [
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema",
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureResponse",
+                "#/components/schemas/FixtureResponse/properties/output",
+                "#/components/schemas/FixtureResponse/properties/output/items",
+                "#/components/schemas/FixtureResponse/properties/output/items/$ref",
+                "#/components/schemas/Message",
+                "#/components/schemas/Message/properties/content"
+              ],
+              "constraints": {
+                "type": "string"
+              }
+            },
+            {
+              "path": "output[].parent",
+              "pointer": "#/components/schemas/Message/properties/parent",
+              "type": "$ref",
+              "required": false,
+              "conditional": false,
+              "branches": [],
+              "originChain": [
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema",
+                "#/paths/~1responses/post/responses/200/content/application~1json/schema/$ref",
+                "#/components/schemas/FixtureResponse",
+                "#/components/schemas/FixtureResponse/properties/output",
+                "#/components/schemas/FixtureResponse/properties/output/items",
+                "#/components/schemas/FixtureResponse/properties/output/items/$ref",
+                "#/components/schemas/Message",
+                "#/components/schemas/Message/properties/parent"
+              ],
+              "constraints": {
+                "$ref": "#/components/schemas/Message"
+              }
+            }
+          ],
+          "issues": [
+            {
+              "pointer": "#/components/schemas/Message/properties/parent",
+              "ref": "#/components/schemas/Message",
+              "reason": "cycle"
+            }
+          ],
+          "complete": false
+        }
+      ],
+      "parameters": [],
+      "issues": []
+    }
+  ]
+}

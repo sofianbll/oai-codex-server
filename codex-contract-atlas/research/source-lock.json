@@ -1,0 +1,340 @@
+{
+  "version": 1,
+  "collectedAt": "2026-09-19T19:09:01.094617+00:00",
+  "commits": {
+    "openai/codex": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+    "openai/openai-openapi": "ddface9bd361f5fe37943291d23ee2ca72cbcc2b"
+  },
+  "sources": [
+    {
+      "sourceId": "openapi",
+      "repo": "openai/openai-openapi",
+      "path": "openapi.json",
+      "status": "fetched",
+      "commit": "ddface9bd361f5fe37943291d23ee2ca72cbcc2b",
+      "url": "https://raw.githubusercontent.com/openai/openai-openapi/ddface9bd361f5fe37943291d23ee2ca72cbcc2b/openapi.json",
+      "localPath": "openai/openai-openapi/openapi.json",
+      "sha256": "9b3fe0902e71ad60004949c1b4bef39b79503c39506466c283a613f9fa65aea9",
+      "bytes": 4235459,
+      "normalizedJson": {
+        "path": "openapi.json",
+        "sha256": "9050474c9217015eea50ed89af179be5cb05496f50ef119836ca4a28a94bc1fd",
+        "note": "Parsed/reformatted representation; source byte hash is separate."
+      }
+    },
+    {
+      "sourceId": "common",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/common.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/common.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/common.rs",
+      "sha256": "4cd518c771c1581a91558c9e6b61788a5a8112cf86b49e0d1f20c183ad0c3d66",
+      "bytes": 13426
+    },
+    {
+      "sourceId": "sse",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/sse/responses.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/sse/responses.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/sse/responses.rs",
+      "sha256": "a5cb3694cc305199dbcc2c82e0c10dc917dc512970b9c4417d555b21e626d8f1",
+      "bytes": 74333
+    },
+    {
+      "sourceId": "items",
+      "repo": "openai/codex",
+      "path": "codex-rs/protocol/src/models.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/protocol/src/models.rs",
+      "localPath": "openai/codex/codex-rs/protocol/src/models.rs",
+      "sha256": "d34f7b4f81f189e3446f27bb58de90e9c3d6d473ba3fa9a9aaa64371b23ab671",
+      "bytes": 159653
+    },
+    {
+      "sourceId": "input",
+      "repo": "openai/codex",
+      "path": "codex-rs/protocol/src/user_input.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/protocol/src/user_input.rs",
+      "localPath": "openai/codex/codex-rs/protocol/src/user_input.rs",
+      "sha256": "735e8f4f8c531dbd99d495cea5602d8f7f5f5cc77b309db9b7c6b75661e7a368",
+      "bytes": 4335
+    },
+    {
+      "sourceId": "catalog",
+      "repo": "openai/codex",
+      "path": "codex-rs/protocol/src/openai_models.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/protocol/src/openai_models.rs",
+      "localPath": "openai/codex/codex-rs/protocol/src/openai_models.rs",
+      "sha256": "923355feda282394dfe98d56a05dd911d59a3b0b390c156c6f0efa2b831e62c7",
+      "bytes": 71292
+    },
+    {
+      "sourceId": "models",
+      "repo": "openai/codex",
+      "path": "codex-rs/model-provider/src/models_endpoint.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/model-provider/src/models_endpoint.rs",
+      "localPath": "openai/codex/codex-rs/model-provider/src/models_endpoint.rs",
+      "sha256": "5c9e448f600a871c814ba3125750c218771f927398ba273386943464d94396d6",
+      "bytes": 36738
+    },
+    {
+      "sourceId": "provider",
+      "repo": "openai/codex",
+      "path": "codex-rs/model-provider-info/src/lib.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/model-provider-info/src/lib.rs",
+      "localPath": "openai/codex/codex-rs/model-provider-info/src/lib.rs",
+      "sha256": "b13a7a905bf4b31c503228ea0f9ea016f9b6376da9473e77974e7fc13d28ec51",
+      "bytes": 30498
+    },
+    {
+      "sourceId": "headers",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/requests/headers.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/requests/headers.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/requests/headers.rs",
+      "sha256": "98c9579a8f17327fda1792ffbf22e8d09241fdc79620c37b699d94cd9637cd47",
+      "bytes": 1444
+    },
+    {
+      "sourceId": "images",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/images.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/images.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/endpoint/images.rs",
+      "sha256": "75970d27563733011cfe0225c1e243ed126dce432964bcfaf65aed9db4dc54e9",
+      "bytes": 12300
+    },
+    {
+      "sourceId": "imagetypes",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/images.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/images.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/images.rs",
+      "sha256": "6b295ae55f4169f96e5634b6c18b6ed03924d2301275f87686a02a2a2798f893",
+      "bytes": 1982
+    },
+    {
+      "sourceId": "imagebackend",
+      "repo": "openai/codex",
+      "path": "codex-rs/ext/image-generation/src/backend.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/ext/image-generation/src/backend.rs",
+      "localPath": "openai/codex/codex-rs/ext/image-generation/src/backend.rs",
+      "sha256": "e63c1a96ae3e2379b6f5ce2605c5f0a560cd947c6c787007ae852c661618e80c",
+      "bytes": 3612
+    },
+    {
+      "sourceId": "imagetool",
+      "repo": "openai/codex",
+      "path": "codex-rs/ext/image-generation/src/tool.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/ext/image-generation/src/tool.rs",
+      "localPath": "openai/codex/codex-rs/ext/image-generation/src/tool.rs",
+      "sha256": "66b992ca79053c7418c30230999d730bf85d0aa21208299facf45e2cd1674fe8",
+      "bytes": 26628
+    },
+    {
+      "sourceId": "rtc",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/realtime_call.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/realtime_call.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/endpoint/realtime_call.rs",
+      "sha256": "b08ffff66ba728d5275e52d5ac04b976a49b5eb1eb8efad9dd65ccafc49271b3",
+      "bytes": 27511
+    },
+    {
+      "sourceId": "rtcore",
+      "repo": "openai/codex",
+      "path": "codex-rs/core/src/realtime_conversation.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/core/src/realtime_conversation.rs",
+      "localPath": "openai/codex/codex-rs/core/src/realtime_conversation.rs",
+      "sha256": "b02faab2ee84804199d87ca2024d8418934ea9650cbee61b31134b39eceea927",
+      "bytes": 93274
+    },
+    {
+      "sourceId": "rtws",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/realtime_websocket/methods.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/realtime_websocket/methods.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/endpoint/realtime_websocket/methods.rs",
+      "sha256": "6ea49f7e3e101b011210a1939d9247d5036aec614c2b20f2c478c86c9e27981e",
+      "bytes": 109075
+    },
+    {
+      "sourceId": "rtprotocol",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/realtime_websocket/protocol.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/realtime_websocket/protocol.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/endpoint/realtime_websocket/protocol.rs",
+      "sha256": "2de304fccbfeae2baec2879308cdc4988872a56435ca0e666ecde65ffee367ce",
+      "bytes": 8416
+    },
+    {
+      "sourceId": "rtv2",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/realtime_websocket/methods_v2.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/realtime_websocket/methods_v2.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/endpoint/realtime_websocket/methods_v2.rs",
+      "sha256": "391ddf4fb4563ef780f2eacebd277920b56b8621083e228ac8ccb6f4a64d3e60",
+      "bytes": 8816
+    },
+    {
+      "sourceId": "compact",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/compact.rs",
+      "status": "failed",
+      "attempts": [
+        {
+          "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/compact.rs",
+          "error": "HTTP Error 404: Not Found"
+        }
+      ]
+    },
+    {
+      "sourceId": "memories",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-api/src/endpoint/memories.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-api/src/endpoint/memories.rs",
+      "localPath": "openai/codex/codex-rs/codex-api/src/endpoint/memories.rs",
+      "sha256": "45e9c9b3163f68aa4fe1fd7318afed95927c4c1b6ab73efabec31595504f89e7",
+      "bytes": 7025
+    },
+    {
+      "sourceId": "backend",
+      "repo": "openai/codex",
+      "path": "codex-rs/backend-client/src/client.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/backend-client/src/client.rs",
+      "localPath": "openai/codex/codex-rs/backend-client/src/client.rs",
+      "sha256": "6e7212a85be1770bff4c7e704ac3d9371f808f1561cfd49e296fc0d94041ab9e",
+      "bytes": 46889
+    },
+    {
+      "sourceId": "backendmodels",
+      "repo": "openai/codex",
+      "path": "codex-rs/codex-backend-openapi-models/src/models/mod.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/codex-backend-openapi-models/src/models/mod.rs",
+      "localPath": "openai/codex/codex-rs/codex-backend-openapi-models/src/models/mod.rs",
+      "sha256": "02d7c333e9c2309ef1cc155b3d8dfcd9f24bfe345634263fafc75988f82088c0",
+      "bytes": 2447
+    },
+    {
+      "sourceId": "spawn",
+      "repo": "openai/codex",
+      "path": "codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+      "localPath": "openai/codex/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs",
+      "sha256": "8a9dc77f43aa947ed61ded0847d6f5cbf94255175f44f937645760c08abf184e",
+      "bytes": 11924
+    },
+    {
+      "sourceId": "features",
+      "repo": "openai/codex",
+      "path": "codex-rs/features/src/lib.rs",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/features/src/lib.rs",
+      "localPath": "openai/codex/codex-rs/features/src/lib.rs",
+      "sha256": "f55f6b5d37679c2cce8384761293b1ff78a4672c15bdbfabc22a5d350cc4baad",
+      "bytes": 63629
+    },
+    {
+      "sourceId": "app",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    },
+    {
+      "sourceId": "multi",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    },
+    {
+      "sourceId": "proxy",
+      "repo": "openai/codex",
+      "path": "codex-rs/responses-api-proxy/README.md",
+      "status": "fetched",
+      "commit": "132c2be239ecbc1f2a9bb22d9210fefe887986a5",
+      "url": "https://raw.githubusercontent.com/openai/codex/132c2be239ecbc1f2a9bb22d9210fefe887986a5/codex-rs/responses-api-proxy/README.md",
+      "localPath": "openai/codex/codex-rs/responses-api-proxy/README.md",
+      "sha256": "e109f86c0acac8c829fe38f168d0a13dbab3b7d4d2e25bce25a0483046ac9517",
+      "bytes": 6549
+    },
+    {
+      "sourceId": "cliproxy",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    },
+    {
+      "sourceId": "community",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    },
+    {
+      "sourceId": "browser",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    },
+    {
+      "sourceId": "computer",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    },
+    {
+      "sourceId": "voice",
+      "repo": null,
+      "path": null,
+      "status": "not_fetched",
+      "reason": "Documentation URL, not a repository file."
+    }
+  ]
+}

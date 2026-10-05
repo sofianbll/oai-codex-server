@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-09-20T15:51:43.445Z",
+  "sdk_version": "openai@7.20.0",
+  "scenario": "responses/node-sdk",
+  "model": "gpt-6-astra",
+  "request": {
+    "base_url": "http://127.0.0.1:54820/v1",
+    "auth": "[REDACTED]"
+  },
+  "continuity_response_id": "resp_0ccf8f5c4c289878016ab0010d997087d282b59c7065458c29",
+  "checks": [
+    {
+      "name": "JSON SDK",
+      "passed": true,
+      "detail": "id=resp_02c87165b348dbc0016ab001080a4487d28cfb2415fb1e2b45, status=completed"
+    },
+    {
+      "name": "SSE SDK",
+      "passed": true,
+      "detail": "response.created,response.in_progress,response.output_item.added,response.content_part.added,response.output_text.delta,response.output_text.delta,response.output_text.delta,response.output_text.delta,response.output_text.done,response.content_part.done,response.output_item.done,response.completed"
+    },
+    {
+      "name": "Structured SDK",
+      "passed": true,
+      "detail": "id=resp_0549e2845b645781016ab0010bad1c87d28fda7d219e0f4ffe, parsed_answer=42"
+    },
+    {
+      "name": "previous_response_id store:false",
+      "passed": false,
+      "detail": "HTTP 400, code=unknown"
+    },
+    {
+      "name": "store:true minimal guard",
+      "passed": null,
+      "detail": "HTTP 400, code=store_not_supported"
+    }
+  ],
+  "technical_passed": false,
+  "behavior_passed": false,
+  "exit_code": 1
+}

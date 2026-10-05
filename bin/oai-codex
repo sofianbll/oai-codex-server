@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+set -eu
+# Resolve symlinks to find the real script location
+target="$0"
+while [ -L "$target" ]; do
+  link_dir=$(CDPATH= cd -- "$(dirname -- "$target")" && pwd)
+  target=$(readlink "$target")
+  case "$target" in /*) ;; *) target="$link_dir/$target" ;; esac
+done
+script_dir=$(CDPATH= cd -- "$(dirname -- "$target")" && pwd)
+exec bun "$script_dir/../src/cli/main.ts" "$@"

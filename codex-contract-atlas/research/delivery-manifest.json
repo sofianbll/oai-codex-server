@@ -1,0 +1,15 @@
+{
+  "artifact": "Codex Contract Atlas",
+  "records": 366,
+  "backendTestsRun": 0,
+  "unitTests": 19,
+  "uiChecks": 33,
+  "sourceSnapshotPinned": false,
+  "exhaustiveMapping": false,
+  "excluded": [
+    "Video",
+    "Files API",
+    "Uploads API"
+  ],
+  "htmlSha256": "d47c3be7912ea993848ed2aeafd433f61f628f8f359fb7c810a0644aea6ddf46"
+}

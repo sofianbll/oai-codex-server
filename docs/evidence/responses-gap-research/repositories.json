@@ -1,0 +1,10 @@
+{
+  "observed_at": "2026-09-20",
+  "source": "GitHub public repository REST API",
+  "selection": "Activity, adoption, concrete Codex OAuth/Responses implementations and relevant tests; stars are context, not quality proof.",
+  "repositories": [
+    {"repo":"router-for-me/CLIProxyAPI","stars":52606,"forks":7944,"last_push":"2026-09-20T16:14:07Z","license":"MIT","archived":false},
+    {"repo":"Wei-Shaw/sub2api","stars":42140,"forks":8987,"last_push":"2026-09-20T12:59:14Z","license":"LGPL-3.0","archived":false},
+    {"repo":"Soju06/codex-lb","stars":3196,"forks":477,"last_push":"2026-09-19T06:42:22Z","license":"MIT","archived":false}
+  ]
+}

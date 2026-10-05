@@ -1,0 +1,27 @@
+node_modules/
+dist/
+.local/
+oai-codex.config.json
+*.tsbuildinfo
+artifacts/qa/raw/
+
+# Références tierces récupérables : conservées hors du dépôt
+# (récupération : `npm run snapshot` dans codex-contract-atlas/)
+upstream/
+
+# Sous-projet versionné par son propre dépôt git
+compatibility-tests/
+
+.DS_Store
+
+# Code du projet capturé par le motif global `*credentials*` (~/.config/git/ignore)
+!src/server/credentials.ts
+!tests/credentials.test.ts
+
+# Sorties générées : journaux bruts (payloads complets), QA, rapports de scénarios
+logs/
+artifacts/
+api-tests/*/results/
+
+# Sorties du collecteur OTel
+otel/out/

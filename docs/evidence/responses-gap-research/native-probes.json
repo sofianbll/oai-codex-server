@@ -1,0 +1,100 @@
+{
+  "probe_version": 1,
+  "model": "gpt-6-astra",
+  "calls_made": 7,
+  "initial_calls_made": 3,
+  "compaction": {
+    "source_hypothesis": "streamed Responses input ends with compaction_trigger and emits exactly one compaction item",
+    "http_status": 200,
+    "transport_error_class": null,
+    "event_types": [
+      "response.compaction.compacting",
+      "response.completed",
+      "response.created",
+      "response.in_progress",
+      "response.output_item.added",
+      "response.output_item.done"
+    ],
+    "compaction_item_count": 1,
+    "compaction_item_contains_plaintext_secret": false,
+    "replay_attempted": true,
+    "replay_http_status": 200,
+    "replay_error_class": null,
+    "replay_event_types": [
+      "response.completed",
+      "response.content_part.added",
+      "response.content_part.done",
+      "response.created",
+      "response.in_progress",
+      "response.output_item.added",
+      "response.output_item.done",
+      "response.output_text.delta",
+      "response.output_text.done"
+    ],
+    "replay_output_exact_secret": true,
+    "replay_output_secret_occurrences": 1,
+    "live_proof": true
+  },
+  "web_search": {
+    "source_hypothesis": "hosted tool uses type web_search",
+    "http_status": 200,
+    "transport_error_class": null,
+    "event_types": [
+      "response.completed",
+      "response.content_part.added",
+      "response.content_part.done",
+      "response.created",
+      "response.in_progress",
+      "response.output_item.added",
+      "response.output_item.done",
+      "response.output_text.annotation.added",
+      "response.output_text.delta",
+      "response.output_text.done",
+      "response.web_search_call.completed",
+      "response.web_search_call.in_progress",
+      "response.web_search_call.searching"
+    ],
+    "web_search_call_count": 1,
+    "url_citation_count": 1,
+    "live_proof": true
+  },
+  "additional_probes": {
+    "calls_made": 4,
+    "image_input": {
+      "source_hypothesis": "a verified 64x64 RGB PNG red square is accepted as input_image",
+      "http_status": 200,
+      "transport_error_class": null,
+      "output_mentions_rouge": true,
+      "live_proof": true,
+      "limit": "This retest does not identify the cause of the earlier inconsistent image result."
+    },
+    "reasoning_replay": {
+      "source_hypothesis": "high-effort reasoning includes an encrypted reasoning item that can be replayed",
+      "http_status": 200,
+      "transport_error_class": null,
+      "reasoning_item_count": 0,
+      "encrypted_item_present": false,
+      "source_output_exact_323": true,
+      "replay_attempted": false,
+      "live_proof": false,
+      "limit": "No encrypted item was exposed, so no replay request was made; this is not a rejection."
+    },
+    "prompt_cache": {
+      "source_hypothesis": "the repeated same-key prompt has a 1800-word stable prefix and clears the documented visible-token precondition",
+      "same_key_used": true,
+      "same_payload_bytes_reused": true,
+      "stable_prefix_words": 1800,
+      "first_http_status": 200,
+      "second_http_status": 200,
+      "first_output_exact_42": true,
+      "second_output_exact_42": true,
+      "first_cached_tokens": 0,
+      "second_cached_tokens": 0,
+      "cached_tokens_field_present": true,
+      "input_tokens_not_retained": true,
+      "cache_hit_observed": false,
+      "limit": "The controlled run did not retain input_tokens, and no additional model calls were authorized to recover them."
+    }
+  },
+  "redaction": "No credentials, random secret, encrypted compaction contents, response text, or base64 payloads are persisted."
+}

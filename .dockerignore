@@ -1,0 +1,8 @@
+# Liste blanche : jamais de .local/, de config, de journaux ni de sources tierces dans le contexte de build.
+*
+!package.json
+!bun.lock
+!bin
+!src
+!scripts/build.ts
+!codex-contract-atlas/snapshot/openapi.json

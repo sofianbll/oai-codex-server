@@ -1,0 +1,102 @@
+{
+  "timestamp": "2026-09-20T17:08:35.138029+00:00",
+  "scenario": "responses/features/cache",
+  "sdk_version": "3.16.2",
+  "model": "gpt-6-astra",
+  "runtime": "fresh temporary minimal gateway on 127.0.0.1:62101",
+  "model_calls": 2,
+  "technical_passed": true,
+  "behavior_passed": true,
+  "exit_code": 0,
+  "manual_session_id_supplied": false,
+  "serialized_requests_equal": true,
+  "request_fingerprint_sha256": "df373d4e8673e0796b3dca3022de368ff825ef28f7fd0efd7aee28d17a4df52f",
+  "results": [
+    {
+      "ordinal": 1,
+      "status": 200,
+      "content_type": "application/json",
+      "verdict": "accepted",
+      "duration_seconds": 2.249,
+      "output_exact": true,
+      "input_tokens": 2893,
+      "output_tokens": 6,
+      "total_tokens": 2899,
+      "input_tokens_details": {
+        "cache_write_tokens": 0,
+        "cached_tokens": 0
+      },
+      "usage_observation": {
+        "raw_usage_present": true,
+        "input_tokens": 2893,
+        "cached_read": {
+          "state": "value",
+          "value": 0
+        },
+        "cache_write": {
+          "state": "value",
+          "value": 0
+        }
+      },
+      "echoed_key_matches_request": true,
+      "valid_cache_hit_count": false
+    },
+    {
+      "ordinal": 2,
+      "status": 200,
+      "content_type": "application/json",
+      "verdict": "accepted",
+      "duration_seconds": 1.662,
+      "output_exact": true,
+      "input_tokens": 2893,
+      "output_tokens": 6,
+      "total_tokens": 2899,
+      "input_tokens_details": {
+        "cache_write_tokens": 0,
+        "cached_tokens": 2688
+      },
+      "usage_observation": {
+        "raw_usage_present": true,
+        "input_tokens": 2893,
+        "cached_read": {
+          "state": "value",
+          "value": 2688
+        },
+        "cache_write": {
+          "state": "value",
+          "value": 0
+        }
+      },
+      "echoed_key_matches_request": true,
+      "valid_cache_hit_count": true
+    }
+  ],
+  "gateway_source_sha256": {
+    "src/server/upstream.ts": "859f6a5c7e2d290841332afc48019b96991ececf7a40c8902f0455a4ca6a09a2",
+    "src/server/response-adapter.ts": "0cb24f4dec4f321b0266b1a5dfe42fa67caf31c8643b598ace0c69f1c2331ad4"
+  },
+  "other_checks": [
+    {
+      "check": "health",
+      "status": 200
+    },
+    {
+      "check": "invalid_json",
+      "status": 400,
+      "error_code": "invalid_json"
+    }
+  ],
+  "evidence_boundary": "Standard SDK client response and serialized request capture; gateway outbound mapping is covered independently by recording fixtures. Raw bodies remain temporary and are removed after extracting this redacted subset.",
+  "final_predicate_replay": {
+    "network_calls": 0,
+    "hit_by_attempt": [
+      false,
+      true
+    ],
+    "second_hit_and_exact_outputs": true,
+    "benchmark_source_sha256": {
+      "api-tests/responses/features.py": "ad0904308359cd78eb52e313a6a240a2e6a9239b880c2c839c3211f0d10a5466",
+      "api-tests/responses/test_features.py": "d3f7a1476de177e52d6ee194eea364859633414e47fea577a18c546e56ea0b9d"
+    }
+  }
+}

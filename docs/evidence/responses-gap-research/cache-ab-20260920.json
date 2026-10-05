@@ -1,0 +1,92 @@
+{
+  "probe": "cache-session-id-ab",
+  "model": "gpt-6-astra",
+  "model_calls": 4,
+  "runtime_identity": {
+    "active_service": "127.0.0.1:8788",
+    "verified_by": "gap_local authenticated status/config readback",
+    "upstream_origin": "https://chatgpt.com/backend-api/codex",
+    "translation_mode": "minimal",
+    "client_version": "0.155.0",
+    "account_fingerprint": "not observable from proxy client"
+  },
+  "shared_request": {
+    "source_input_utf8_bytes": 10818,
+    "source_input_sha256": "sha256:ccd9e986614dce63",
+    "actual_input_tokens": 1822,
+    "public_documented_probe_sizing_threshold": 1024,
+    "complete_codex_oauth_cache_eligibility_contract": "not proven",
+    "prompt_cache_key_sha256": "sha256:f324053c5095dfa9",
+    "request_body_sha256": "sha256:3f729be2d56c9e1d",
+    "same_body_hash_all_calls": true,
+    "store": false,
+    "stream": true
+  },
+  "header_manifest": {
+    "all_calls": {
+      "accept": "application/json",
+      "accept-encoding": "[PRESENT]",
+      "authorization": "[REDACTED]",
+      "connection": "[PRESENT]",
+      "content-length": "[PRESENT]",
+      "content-type": "application/json",
+      "host": "127.0.0.1:8788",
+      "user-agent": "OpenAI/Python 3.16.2",
+      "x-stainless-arch": "[PRESENT]",
+      "x-stainless-async": "[PRESENT]",
+      "x-stainless-lang": "[PRESENT]",
+      "x-stainless-os": "[PRESENT]",
+      "x-stainless-package-version": "[PRESENT]",
+      "x-stainless-raw-response": "[PRESENT]",
+      "x-stainless-read-timeout": "[PRESENT]",
+      "x-stainless-retry-count": "[PRESENT]",
+      "x-stainless-runtime": "[PRESENT]",
+      "x-stainless-runtime-version": "[PRESENT]"
+    },
+    "baseline": { "session-id": "[ABSENT]" },
+    "treatment": { "session-id": "sha256:f324053c5095dfa9" }
+  },
+  "usage_classes": {
+    "no_cache_hit": {
+      "input_tokens": 1822,
+      "input_tokens_details": { "cache_write_tokens": 0, "cached_tokens": 0 },
+      "output_tokens": 5,
+      "output_tokens_details": { "reasoning_tokens": 0 },
+      "total_tokens": 1827,
+      "attribution": {
+        "items": {
+          "[REDACTED_ITEM_1]": { "cache_write_tokens": 0, "cached_tokens": 0, "content": [{ "cache_write_tokens": 0, "cached_tokens": 0, "input_tokens": 1810, "output_tokens": 0 }], "input_tokens": 1810, "output_tokens": 0 },
+          "[REDACTED_ITEM_2]": { "cache_write_tokens": 0, "cached_tokens": 0, "content": [{ "cache_write_tokens": 0, "cached_tokens": 0, "input_tokens": 2, "output_tokens": 5 }], "input_tokens": 2, "output_tokens": 5 }
+        },
+        "request_fields": { "instructions": { "cache_write_tokens": 0, "cached_tokens": 0, "input_tokens": 10, "output_tokens": 0 } }
+      },
+      "cache_read_input_tokens": { "present": false, "value": null },
+      "cache_write_input_tokens": { "present": false, "value": null }
+    },
+    "cache_hit": {
+      "input_tokens": 1822,
+      "input_tokens_details": { "cache_write_tokens": 0, "cached_tokens": 1664 },
+      "output_tokens": 5,
+      "output_tokens_details": { "reasoning_tokens": 0 },
+      "total_tokens": 1827,
+      "attribution": {
+        "items": {
+          "[REDACTED_ITEM_1]": { "cache_write_tokens": 0, "cached_tokens": 1654, "content": [{ "cache_write_tokens": 0, "cached_tokens": 1654, "input_tokens": 1810, "output_tokens": 0 }], "input_tokens": 1810, "output_tokens": 0 },
+          "[REDACTED_ITEM_2]": { "cache_write_tokens": 0, "cached_tokens": 0, "content": [{ "cache_write_tokens": 0, "cached_tokens": 0, "input_tokens": 2, "output_tokens": 5 }], "input_tokens": 2, "output_tokens": 5 }
+        },
+        "request_fields": { "instructions": { "cache_write_tokens": 0, "cached_tokens": 10, "input_tokens": 10, "output_tokens": 0 } }
+      },
+      "cache_read_input_tokens": { "present": false, "value": null },
+      "cache_write_input_tokens": { "present": false, "value": null }
+    }
+  },
+  "results": [
+    { "variant": "baseline", "ordinal": 1, "response_status": 200, "response_content_type": "text/event-stream", "duration_seconds": 2.721156, "usage_class": "no_cache_hit" },
+    { "variant": "baseline", "ordinal": 2, "response_status": 200, "response_content_type": "text/event-stream", "duration_seconds": 3.271303, "usage_class": "no_cache_hit" },
+    { "variant": "session_id_equals_key", "ordinal": 1, "response_status": 200, "response_content_type": "text/event-stream", "duration_seconds": 2.070346, "usage_class": "no_cache_hit" },
+    { "variant": "session_id_equals_key", "ordinal": 2, "response_status": 200, "response_content_type": "text/event-stream", "duration_seconds": 2.495702, "usage_class": "cache_hit" }
+  ],
+  "evidence_boundary": "Client-side SDK request-header/body capture plus response usage and separately verified local runtime configuration; this is not a direct upstream wire capture.",
+  "conclusion": "A cache hit was observed only after the matching session-id treatment, but the sequence lacks an A-B-A reversal because the fresh raw cache key was intentionally held only in process memory and was discarded at process exit.",
+  "redaction": "Credentials, raw cache key, prompt, response text, account identifiers, and response item identifiers are absent."
+}

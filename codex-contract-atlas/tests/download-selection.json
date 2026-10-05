@@ -1,0 +1,188 @@
+{
+  "meta": {
+    "title": "Codex Contract Atlas",
+    "date": "2026-09-19",
+    "version": "0.1-source-audit",
+    "objective": "OpenAI-compatible, traduction minimale, capacités Codex accessibles préservées.",
+    "exhaustive": false,
+    "liveVerified": false,
+    "snapshotMode": "Sources main non figées ; aucun SHA unique garanti.",
+    "sourceByteHashesAvailable": false,
+    "scope": [
+      "Responses",
+      "Models",
+      "Images",
+      "Audio",
+      "Realtime",
+      "Live",
+      "Tools",
+      "Runtime",
+      "Extensions",
+      "Multi-Agent",
+      "Memory",
+      "Control plane"
+    ],
+    "excluded": [
+      "Vidéo",
+      "Files API générique",
+      "Uploads API générique"
+    ],
+    "coverageNote": "Inventaire éditorial sourcé des surfaces majeures ; pas une extraction exhaustive de toutes les branches OpenAPI. Les limites, sources non revues et expériences sont explicites.",
+    "rootFieldsReviewed": 31,
+    "upstreamTotalFields": null,
+    "limitations": [
+      "Aucun appel authentifié effectué.",
+      "Pas de snapshot unifié figé au SHA ; les pages main peuvent représenter des révisions différentes.",
+      "OpenAPI JSON intégral non copié dans cet environnement (limite du lecteur web). Sections YAML consultées ; projection et outil d’import fournis.",
+      "Types et schémas imbriqués non tous résolus dans le jeu éditorial ; l’import/extracteur complète un inventaire structurel, pas sa validation backend.",
+      "Authentification, quotas et disponibilité réelle restent dépendants du compte, du modèle et de la surface.",
+      "Les expériences décrites sont à exécuter ; aucune ne porte un résultat inventé."
+    ]
+  },
+  "filters": {
+    "category": "endpoint",
+    "query": "",
+    "family": "Images",
+    "mapping": "",
+    "location": "",
+    "lot": ""
+  },
+  "entries": [
+    {
+      "id": "ep-images-generations",
+      "category": "endpoint",
+      "family": "Images",
+      "name": "POST /v1/images/generations",
+      "openai": {
+        "name": "POST /v1/images/generations",
+        "sourceId": "openapi",
+        "pointer": "#/paths/~1images~1generations/post",
+        "symbol": "CreateImageRequest",
+        "type": null,
+        "required": null,
+        "nullable": null,
+        "values": null,
+        "originChain": [
+          "servers[0].url + path",
+          "/images/generations",
+          "POST",
+          "CreateImageRequest"
+        ]
+      },
+      "codex": {
+        "name": "POST /backend-api/codex/images/generations",
+        "sourceId": "images",
+        "pointer": null,
+        "symbol": "ImagesClient::generate",
+        "type": null,
+        "required": null,
+        "nullable": null,
+        "values": null,
+        "originChain": [
+          "codex-rs/codex-api/src/endpoint/images.rs",
+          "ImagesClient::generate"
+        ]
+      },
+      "mapping": "candidate",
+      "executionLocation": "BACKEND_NATIVE",
+      "transport": [
+        "HTTP"
+      ],
+      "lot": 5,
+      "confidence": "HIGH",
+      "evidenceBasis": "schema + code",
+      "liveVerified": false,
+      "scope": "OPENAI_AND_CODEX_REVIEWED",
+      "transformation": "Relayer le sous-ensemble validé sans reconstruire le JSON.",
+      "lossRisk": "medium",
+      "researchComplexity": 2,
+      "implementationComplexity": 2,
+      "maintenanceRisk": "medium",
+      "notes": [
+        "Le JSON est présent des deux côtés, y compris pour edits. Adapter uniquement les clients multipart et les champs sans équivalent. Le type ImageResponse perd certaines métadonnées : relayer la réponse brute."
+      ],
+      "authRequirements": "Authentification légitime du provider ; accès du compte non testé.",
+      "modelRequirements": "À déterminer dans le catalogue du compte, puis par test authentifié.",
+      "tests": [
+        "Comparer un appel direct autorisé et un appel via la façade : requête, réponse, erreurs et métadonnées."
+      ],
+      "endpoint": {
+        "method": "POST",
+        "publicPath": "/images/generations",
+        "upstream": "/backend-api/codex/images/generations",
+        "request": "CreateImageRequest",
+        "response": "ImagesResponse",
+        "auth": "API publique : credential Platform autorisé. Backend Codex : credential fournisseur accepté par cette route, à vérifier séparément.",
+        "httpStatus": "Statuts exacts à résoudre dans OpenAPI et vérifier sur le backend ; aucune capture authentifiée."
+      }
+    },
+    {
+      "id": "ep-images-edits",
+      "category": "endpoint",
+      "family": "Images",
+      "name": "POST /v1/images/edits",
+      "openai": {
+        "name": "POST /v1/images/edits",
+        "sourceId": "openapi",
+        "pointer": "#/paths/~1images~1edits/post",
+        "symbol": "EditImageBodyJsonParam / CreateImageEditRequest",
+        "type": null,
+        "required": null,
+        "nullable": null,
+        "values": null,
+        "originChain": [
+          "servers[0].url + path",
+          "/images/edits",
+          "POST",
+          "EditImageBodyJsonParam / CreateImageEditRequest"
+        ]
+      },
+      "codex": {
+        "name": "POST /backend-api/codex/images/edits",
+        "sourceId": "images",
+        "pointer": null,
+        "symbol": "ImagesClient::edit",
+        "type": null,
+        "required": null,
+        "nullable": null,
+        "values": null,
+        "originChain": [
+          "codex-rs/codex-api/src/endpoint/images.rs",
+          "ImagesClient::edit"
+        ]
+      },
+      "mapping": "candidate",
+      "executionLocation": "BACKEND_NATIVE",
+      "transport": [
+        "HTTP"
+      ],
+      "lot": 5,
+      "confidence": "HIGH",
+      "evidenceBasis": "schema + code",
+      "liveVerified": false,
+      "scope": "OPENAI_AND_CODEX_REVIEWED",
+      "transformation": "Relayer le sous-ensemble validé sans reconstruire le JSON.",
+      "lossRisk": "medium",
+      "researchComplexity": 2,
+      "implementationComplexity": 2,
+      "maintenanceRisk": "medium",
+      "notes": [
+        "Le JSON est présent des deux côtés, y compris pour edits. Adapter uniquement les clients multipart et les champs sans équivalent. Le type ImageResponse perd certaines métadonnées : relayer la réponse brute."
+      ],
+      "authRequirements": "Authentification légitime du provider ; accès du compte non testé.",
+      "modelRequirements": "À déterminer dans le catalogue du compte, puis par test authentifié.",
+      "tests": [
+        "Comparer un appel direct autorisé et un appel via la façade : requête, réponse, erreurs et métadonnées."
+      ],
+      "endpoint": {
+        "method": "POST",
+        "publicPath": "/images/edits",
+        "upstream": "/backend-api/codex/images/edits",
+        "request": "EditImageBodyJsonParam / CreateImageEditRequest",
+        "response": "ImagesResponse",
+        "auth": "API publique : credential Platform autorisé. Backend Codex : credential fournisseur accepté par cette route, à vérifier séparément.",
+        "httpStatus": "Statuts exacts à résoudre dans OpenAPI et vérifier sur le backend ; aucune capture authentifiée."
+      }
+    }
+  ]
+}

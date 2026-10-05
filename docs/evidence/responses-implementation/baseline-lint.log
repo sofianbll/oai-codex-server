@@ -1,0 +1,437 @@
+$ biome check src tests scripts
+scripts/live-smoke.ts:30:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    28 │   const unauthorized = await fetch(`${state.url}/v1/models`);
+    29 │   assert.equal(unauthorized.status, 401);
+  > 30 │   report["unauthorized"] = unauthorized.status;
+       │          ^^^^^^^^^^^^^^
+    31 │   const models = await client.models.list();
+    32 │   assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    28 28 │     const unauthorized = await fetch(`${state.url}/v1/models`);
+    29 29 │     assert.equal(unauthorized.status, 401);
+    30    │ - ··report["unauthorized"]·=·unauthorized.status;
+       30 │ + ··report.unauthorized·=·unauthorized.status;
+    31 31 │     const models = await client.models.list();
+    32 32 │     assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+  
+
+scripts/live-smoke.ts:33:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    31 │   const models = await client.models.list();
+    32 │   assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+  > 33 │   report["models"] = { count: models.data.length, defaultModelFound: true };
+       │          ^^^^^^^^
+    34 │   const started = performance.now();
+    35 │   const response = await client.responses.create({
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    31 31 │     const models = await client.models.list();
+    32 32 │     assert.ok(models.data.some((model) => model.id === config.proxy.defaultModel));
+    33    │ - ··report["models"]·=·{·count:·models.data.length,·defaultModelFound:·true·};
+       33 │ + ··report.models·=·{·count:·models.data.length,·defaultModelFound:·true·};
+    34 34 │     const started = performance.now();
+    35 35 │     const response = await client.responses.create({
+  
+
+scripts/live-smoke.ts:40:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    38 │     reasoning: { effort: "low" },
+    39 │   });
+  > 40 │   report["jsonObserved"] = {
+       │          ^^^^^^^^^^^^^^
+    41 │     status: response.status,
+    42 │     output: response.output_text,
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    38 38 │       reasoning: { effort: "low" },
+    39 39 │     });
+    40    │ - ··report["jsonObserved"]·=·{
+       40 │ + ··report.jsonObserved·=·{
+    41 41 │       status: response.status,
+    42 42 │       output: response.output_text,
+  
+
+scripts/live-smoke.ts:47:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    45 │   assert.equal(response.status, "completed");
+    46 │   assert.equal(response.output_text.trim(), "PROXY_JSON_OK");
+  > 47 │   report["json"] = {
+       │          ^^^^^^
+    48 │     output: response.output_text,
+    49 │     durationMs: Math.round(performance.now() - started),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    45 45 │     assert.equal(response.status, "completed");
+    46 46 │     assert.equal(response.output_text.trim(), "PROXY_JSON_OK");
+    47    │ - ··report["json"]·=·{
+       47 │ + ··report.json·=·{
+    48 48 │       output: response.output_text,
+    49 49 │       durationMs: Math.round(performance.now() - started),
+  
+
+scripts/live-smoke.ts:69:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    67 │   assert.equal(text.trim(), "PROXY_SSE_OK");
+    68 │   assert.ok(completed);
+  > 69 │   report["stream"] = {
+       │          ^^^^^^^^
+    70 │     output: text,
+    71 │     events,
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    67 67 │     assert.equal(text.trim(), "PROXY_SSE_OK");
+    68 68 │     assert.ok(completed);
+    69    │ - ··report["stream"]·=·{
+       69 │ + ··report.stream·=·{
+    70 70 │       output: text,
+    71 71 │       events,
+  
+
+scripts/live-smoke.ts:75:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    73 │     durationMs: Math.round(performance.now() - streamStart),
+    74 │   };
+  > 75 │   report["passed"] = true;
+       │          ^^^^^^^^
+    76 │ } catch (error) {
+    77 │   report["passed"] = false;
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    73 73 │       durationMs: Math.round(performance.now() - streamStart),
+    74 74 │     };
+    75    │ - ··report["passed"]·=·true;
+       75 │ + ··report.passed·=·true;
+    76 76 │   } catch (error) {
+    77 77 │     report["passed"] = false;
+  
+
+scripts/live-smoke.ts:77:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    75 │   report["passed"] = true;
+    76 │ } catch (error) {
+  > 77 │   report["passed"] = false;
+       │          ^^^^^^^^
+    78 │   report["error"] =
+    79 │     error instanceof OpenAI.APIError
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    75 75 │     report["passed"] = true;
+    76 76 │   } catch (error) {
+    77    │ - ··report["passed"]·=·false;
+       77 │ + ··report.passed·=·false;
+    78 78 │     report["error"] =
+    79 79 │       error instanceof OpenAI.APIError
+  
+
+scripts/live-smoke.ts:78:10 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    76 │ } catch (error) {
+    77 │   report["passed"] = false;
+  > 78 │   report["error"] =
+       │          ^^^^^^^
+    79 │     error instanceof OpenAI.APIError
+    80 │       ? { status: error.status, code: error.code, type: error.type }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    76 76 │   } catch (error) {
+    77 77 │     report["passed"] = false;
+    78    │ - ··report["error"]·=
+       78 │ + ··report.error·=
+    79 79 │       error instanceof OpenAI.APIError
+    80 80 │         ? { status: error.status, code: error.code, type: error.type }
+  
+
+scripts/qa-api-tests-surfaces.mjs:15:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    13 │   );
+    14 │   const page = await context.newPage();
+  > 15 │   await page.goto(base + "/#tests");
+       │                   ^^^^^^^^^^^^^^^^
+    16 │   await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeEnabled();
+    17 │   await page.getByRole("button", { name: /02\. Streaming SSE/ }).click();
+  
+  i Unsafe fix: Use a template literal.
+  
+    13 13 │     );
+    14 14 │     const page = await context.newPage();
+    15    │ - ··await·page.goto(base·+·"/#tests");
+       15 │ + ··await·page.goto(`${base}/#tests`);
+    16 16 │     await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeEnabled();
+    17 17 │     await page.getByRole("button", { name: /02\. Streaming SSE/ }).click();
+  
+
+scripts/qa-api-tests-surfaces.mjs:26:33 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    24 │   await expect(output).not.toContainText("En attente", { timeout: 120000 });
+    25 │   await expect(page.getByRole("button", { name: "Interrompre", exact: true })).toBeVisible();
+  > 26 │   await page.screenshot({ path: out + "/stream-in-progress.png", fullPage: true });
+       │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    27 │   const partial = await output.textContent();
+    28 │   await page.getByRole("button", { name: "Interrompre", exact: true }).click();
+  
+  i Unsafe fix: Use a template literal.
+  
+    24 24 │     await expect(output).not.toContainText("En attente", { timeout: 120000 });
+    25 25 │     await expect(page.getByRole("button", { name: "Interrompre", exact: true })).toBeVisible();
+    26    │ - ··await·page.screenshot({·path:·out·+·"/stream-in-progress.png",·fullPage:·true·});
+       26 │ + ··await·page.screenshot({·path:·`${out}/stream-in-progress.png`,·fullPage:·true·});
+    27 27 │     const partial = await output.textContent();
+    28 28 │     await page.getByRole("button", { name: "Interrompre", exact: true }).click();
+  
+
+scripts/qa-api-tests-surfaces.mjs:32:33 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    30 │   await expect(output).toContainText(partial);
+    31 │   await expect(page.locator("[data-testid=behavior]:visible")).toContainText("Non vérifié");
+  > 32 │   await page.screenshot({ path: out + "/stream-interrupted.png", fullPage: true });
+       │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    33 │   log.push(
+    34 │     "PASS incremental text observed while request active; cancel retained text and never passed",
+  
+  i Unsafe fix: Use a template literal.
+  
+    30 30 │     await expect(output).toContainText(partial);
+    31 31 │     await expect(page.locator("[data-testid=behavior]:visible")).toContainText("Non vérifié");
+    32    │ - ··await·page.screenshot({·path:·out·+·"/stream-interrupted.png",·fullPage:·true·});
+       32 │ + ··await·page.screenshot({·path:·`${out}/stream-interrupted.png`,·fullPage:·true·});
+    33 33 │     log.push(
+    34 34 │       "PASS incremental text observed while request active; cancel retained text and never passed",
+  
+
+scripts/qa-api-tests-surfaces.mjs:66:33 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    64 │   await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeDisabled();
+    65 │   await expect(page.locator("[data-testid=test-feedback]:visible")).toContainText("indisponibles");
+  > 66 │   await page.screenshot({ path: out + "/models-empty.png", fullPage: true });
+       │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+    67 │   log.push("PASS empty models blocks execution");
+    68 │ } finally {
+  
+  i Unsafe fix: Use a template literal.
+  
+    64 64 │     await expect(page.getByRole("button", { name: "Lancer le test", exact: true })).toBeDisabled();
+    65 65 │     await expect(page.locator("[data-testid=test-feedback]:visible")).toContainText("indisponibles");
+    66    │ - ··await·page.screenshot({·path:·out·+·"/models-empty.png",·fullPage:·true·});
+       66 │ + ··await·page.screenshot({·path:·`${out}/models-empty.png`,·fullPage:·true·});
+    67 67 │     log.push("PASS empty models blocks execution");
+    68 68 │   } finally {
+  
+
+scripts/qa-api-tests-surfaces.mjs:71:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    69 │   await browser.close();
+    70 │   log.push("CLEANUP browser closed");
+  > 71 │   await writeFile(out + "/surfaces.json", JSON.stringify(log, null, 2));
+       │                   ^^^^^^^^^^^^^^^^^^^^^^
+    72 │   console.log(log.join("\n"));
+    73 │ }
+  
+  i Unsafe fix: Use a template literal.
+  
+    69 69 │     await browser.close();
+    70 70 │     log.push("CLEANUP browser closed");
+    71    │ - ··await·writeFile(out·+·"/surfaces.json",·JSON.stringify(log,·null,·2));
+       71 │ + ··await·writeFile(`${out}/surfaces.json`,·JSON.stringify(log,·null,·2));
+    72 72 │     console.log(log.join("\n"));
+    73 73 │   }
+  
+
+scripts/qa-api-tests.mjs:58:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    56 │     });
+    57 │   }
+  > 58 │   await page.goto(base + "/#explorer");
+       │                   ^^^^^^^^^^^^^^^^^^^
+    59 │   await expect(page.getByRole("heading", { name: "Explorateur API", exact: true })).toBeVisible();
+    60 │   await page.getByPlaceholder("Rechercher une route…").fill("input_tokens");
+  
+  i Unsafe fix: Use a template literal.
+  
+     56  56 │       });
+     57  57 │     }
+     58     │ - ··await·page.goto(base·+·"/#explorer");
+         58 │ + ··await·page.goto(`${base}/#explorer`);
+     59  59 │     await expect(page.getByRole("heading", { name: "Explorateur API", exact: true })).toBeVisible();
+     60  60 │     await page.getByPlaceholder("Rechercher une route…").fill("input_tokens");
+  
+
+scripts/qa-api-tests.mjs:63:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    61 │   await expect(page.locator(".operation")).toHaveCount(1);
+    62 │   log.push("PIN PASS Explorer filtering");
+  > 63 │   await page.goto(base + "/#activity");
+       │                   ^^^^^^^^^^^^^^^^^^^
+    64 │   await expect(
+    65 │     page.getByRole("heading", { name: "Journal des requêtes", exact: true }),
+  
+  i Unsafe fix: Use a template literal.
+  
+     61  61 │     await expect(page.locator(".operation")).toHaveCount(1);
+     62  62 │     log.push("PIN PASS Explorer filtering");
+     63     │ - ··await·page.goto(base·+·"/#activity");
+         63 │ + ··await·page.goto(`${base}/#activity`);
+     64  64 │     await expect(
+     65  65 │       page.getByRole("heading", { name: "Journal des requêtes", exact: true }),
+  
+
+scripts/qa-api-tests.mjs:68:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    66 │   ).toBeVisible();
+    67 │   log.push("PIN PASS Activity");
+  > 68 │   await page.goto(base + "/#tests");
+       │                   ^^^^^^^^^^^^^^^^
+    69 │   if (red) {
+    70 │     await page.screenshot({ path: out + "/red.png", fullPage: true });
+  
+  i Unsafe fix: Use a template literal.
+  
+     66  66 │     ).toBeVisible();
+     67  67 │     log.push("PIN PASS Activity");
+     68     │ - ··await·page.goto(base·+·"/#tests");
+         68 │ + ··await·page.goto(`${base}/#tests`);
+     69  69 │     if (red) {
+     70  70 │       await page.screenshot({ path: out + "/red.png", fullPage: true });
+  
+
+src/cli/main.ts:97:19 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    95 │     const linkPath = resolve(options.target, "oai-codex");
+    96 │     if (existsSync(linkPath)) {
+  > 97 │       console.log("Le lien existe déjà : " + linkPath);
+       │                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    98 │       return;
+    99 │     }
+  
+  i Unsafe fix: Use a template literal.
+  
+     95  95 │       const linkPath = resolve(options.target, "oai-codex");
+     96  96 │       if (existsSync(linkPath)) {
+     97     │ - ······console.log("Le·lien·existe·déjà·:·"·+·linkPath);
+         97 │ + ······console.log(`Le·lien·existe·déjà·:·${linkPath}`);
+     98  98 │         return;
+     99  99 │       }
+  
+
+src/cli/main.ts:102:17 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    100 │     mkdirSync(dirname(linkPath), { recursive: true });
+    101 │     symlinkSync(binScript, linkPath);
+  > 102 │     console.log("Lien créé : " + linkPath + " -> " + binScript);
+        │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    103 │     console.log("Vérifiez que " + options.target + " est dans votre PATH.");
+    104 │   });
+  
+  i Unsafe fix: Use a template literal.
+  
+    100 100 │       mkdirSync(dirname(linkPath), { recursive: true });
+    101 101 │       symlinkSync(binScript, linkPath);
+    102     │ - ····console.log("Lien·créé·:·"·+·linkPath·+·"·->·"·+·binScript);
+        102 │ + ····console.log(`Lien·créé·:·${linkPath}·->·${binScript}`);
+    103 103 │       console.log("Vérifiez que " + options.target + " est dans votre PATH.");
+    104 104 │     });
+  
+
+src/cli/main.ts:103:17 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    101 │     symlinkSync(binScript, linkPath);
+    102 │     console.log("Lien créé : " + linkPath + " -> " + binScript);
+  > 103 │     console.log("Vérifiez que " + options.target + " est dans votre PATH.");
+        │                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    104 │   });
+    105 │ 
+  
+  i Unsafe fix: Use a template literal.
+  
+    101 101 │       symlinkSync(binScript, linkPath);
+    102 102 │       console.log("Lien créé : " + linkPath + " -> " + binScript);
+    103     │ - ····console.log("Vérifiez·que·"·+·options.target·+·"·est·dans·votre·PATH.");
+        103 │ + ····console.log(`Vérifiez·que·${options.target}·est·dans·votre·PATH.`);
+    104 104 │     });
+    105 105 │   
+  
+
+src/cli/main.ts:1:1 assist/source/organizeImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Sort these imports.
+  
+  > 1 │ import { Command, CommanderError } from "commander";
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  > 2 │ import { existsSync, mkdirSync, symlinkSync } from "node:fs";
+  > 3 │ import { dirname, resolve } from "node:path";
+  > 4 │ import { homedir } from "node:os";
+      │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    5 │ import { loadServerToken } from "../server/access";
+    6 │ import { GatewayError } from "../shared/contracts";
+  
+  i Safe fix: Organize imports and exports (Biome)
+  
+      1     │ - import·{·Command,·CommanderError·}·from·"commander";
+      2     │ - import·{·existsSync,·mkdirSync,·symlinkSync·}·from·"node:fs";
+          1 │ + import·{·existsSync,·mkdirSync,·symlinkSync·}·from·"node:fs";
+          2 │ + import·{·homedir·}·from·"node:os";
+      3   3 │   import { dirname, resolve } from "node:path";
+      4     │ - import·{·homedir·}·from·"node:os";
+          4 │ + import·{·Command,·CommanderError·}·from·"commander";
+      5   5 │   import { loadServerToken } from "../server/access";
+      6   6 │   import { GatewayError } from "../shared/contracts";
+  
+
+The number of diagnostics exceeds the limit allowed. Use --max-diagnostics to increase it.
+Diagnostics not shown: 60.
+Checked 73 files in 32ms. No fixes applied.
+Found 2 errors.
+Found 78 infos.
+check ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+
+error: script "lint" exited with code 1

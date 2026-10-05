@@ -1,0 +1,134 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Fixture pédagogique — pas le contrat OpenAI officiel",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "https://example.invalid/v1"
+    }
+  ],
+  "paths": {
+    "/responses": {
+      "post": {
+        "operationId": "fixtureCreateResponse",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixtureRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixtureResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Base": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "nullableIntersection": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "model"
+        ]
+      },
+      "FixtureRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Base"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "nullableIntersection": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "input": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Message"
+                    }
+                  }
+                ]
+              },
+              "stream": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "required": [
+              "input"
+            ]
+          }
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "parent": {
+            "$ref": "#/components/schemas/Message"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ]
+      },
+      "FixtureResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    }
+  }
+}

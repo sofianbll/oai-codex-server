@@ -1,0 +1,67 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Snapshot du contrat
+        working-directory: codex-contract-atlas
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run snapshot || test -s snapshot/openapi.json
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build local (amd64) pour le test de fumée
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Test de fumée
+        run: |
+          docker run -d --name smoke -p 8788:8788 smoke
+          for i in $(seq 1 30); do curl -fsS localhost:8788/health && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8788/v1/models)" = 401
+          docker run --rm --entrypoint codex smoke --version
+          docker rm -f smoke
+      - if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=edge,branch=main
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+      - name: Release GitHub
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag

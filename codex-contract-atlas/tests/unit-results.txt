@@ -1,0 +1,20 @@
+PASS JSON pointer escapes slash and tilde
+PASS allOf required is union, no overwrite
+PASS allOf preserves conflicting constraints
+PASS allOf inherited requiredness applies across branches
+PASS union branches remain conditional
+PASS cycles remain refs and are reported
+PASS external refs not silently fetched
+PASS ref siblings remain conjunctive
+PASS example refs are data, not rewritten
+PASS request + response media extracted; excluded Files
+PASS can include excluded routes explicitly
+PASS ref resolution has trace
+PASS dangling refs reported
+PASS diff additions removals changes
+PASS budget limit is explicit
+PASS all IDs unique
+PASS all evidence source IDs resolve
+PASS no invented live verification or unified revision
+PASS roadmap entry links all valid
+{"passed":19,"failed":0}

@@ -1,0 +1,82 @@
+name: Suivi des releases Codex
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      # releases/latest exclut brouillons et pre-releases (alpha) ; tags au format rust-vX.Y.Z.
+      - name: Comparer avec la version épinglée
+        id: v
+        run: |
+          current=$(sed -n 's/^ARG CODEX_VERSION=//p' Dockerfile)
+          tag=$(gh api repos/openai/codex/releases/latest --jq .tag_name)
+          latest=${tag#rust-v}
+          old_sha=$(grep -o -- '--codex-ref [0-9a-f]\{40\}' codex-contract-atlas/package.json | cut -d' ' -f2)
+          new_sha=$(gh api "repos/openai/codex/commits/$tag" --jq .sha)
+          newer=$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1)
+          echo "current=$current latest=$latest"
+          if [ "$latest" = "$current" ] || [ "$newer" != "$latest" ]; then echo "bump=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          { echo "bump=true"; echo "current=$current"; echo "latest=$latest"; echo "tag=$tag"
+            echo "old_sha=$old_sha"; echo "new_sha=$new_sha"; } >> "$GITHUB_OUTPUT"
+      - name: Mettre à jour les épinglages
+        if: steps.v.outputs.bump == 'true'
+        run: |
+          sed -i "s/^ARG CODEX_VERSION=.*/ARG CODEX_VERSION=${{ steps.v.outputs.latest }}/" Dockerfile
+          sed -i "s/\.default(\"${{ steps.v.outputs.current }}\")/.default(\"${{ steps.v.outputs.latest }}\")/" src/server/config.ts
+          sed -i "s/${{ steps.v.outputs.old_sha }}/${{ steps.v.outputs.new_sha }}/" codex-contract-atlas/package.json
+          git diff --stat
+      - if: steps.v.outputs.bump == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      # Une PR créée avec GITHUB_TOKEN ne déclenche pas la CI : les vérifications tournent ici.
+      - name: Vérifier contre la nouvelle version
+        id: checks
+        if: steps.v.outputs.bump == 'true'
+        continue-on-error: true
+        run: |
+          bun install --frozen-lockfile
+          (cd codex-contract-atlas && npm run snapshot) > snapshot.log 2>&1 || test -s codex-contract-atlas/snapshot/openapi.json
+          bun run check && bun run lint && bun run test
+      - name: Corps de la PR
+        if: steps.v.outputs.bump == 'true'
+        run: |
+          compare="${{ steps.v.outputs.old_sha }}...${{ steps.v.outputs.new_sha }}"
+          {
+            echo "Codex \`${{ steps.v.outputs.current }}\` → [\`${{ steps.v.outputs.tag }}\`](https://github.com/openai/codex/releases/tag/${{ steps.v.outputs.tag }})."
+            echo
+            echo "Vérifications sur cette version : **${{ steps.checks.outcome }}**. Une PR ouverte par ce workflow ne déclenche pas la CI : la fermer puis la rouvrir pour la lancer."
+            echo
+            echo "Fichiers du contrat réseau modifiés ([diff complet](https://github.com/openai/codex/compare/$compare)) :"
+            echo
+            gh api "repos/openai/codex/compare/$compare" --paginate --jq '.files[]?.filename' \
+              | grep -E 'codex-api/|login/|protocol/|otel/|core/src/client' | sort -u | sed 's/^/- `/; s/$/`/' || echo "- aucun"
+            echo
+            echo "Fin du journal de snapshot :"
+            echo '```'
+            tail -n 5 snapshot.log 2>/dev/null
+            echo '```'
+          } > "$RUNNER_TEMP/pr-body.md"
+      - if: steps.v.outputs.bump == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: codex/bump
+          commit-message: "chore: suivre Codex ${{ steps.v.outputs.latest }}"
+          title: "chore: suivre Codex ${{ steps.v.outputs.latest }}"
+          add-paths: |
+            Dockerfile
+            src/server/config.ts
+            codex-contract-atlas/package.json
+          body-path: ${{ runner.temp }}/pr-body.md

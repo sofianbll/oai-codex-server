@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "generationsCompared": 2,
+  "comparison": "byte-for-byte",
+  "artifacts": [
+    {
+      "path": "REPORT.md",
+      "bytes": 1395,
+      "sha256": "572c8c624fba27db479b0ce5861e15be72f3b259c1a9b5766397653f9e812438"
+    },
+    {
+      "path": "openapi-graph.json",
+      "bytes": 2853745,
+      "sha256": "229ee0d392a121bb11b8db60164d25fb6ca43a04c18cc5607439be283a9e06a5"
+    },
+    {
+      "path": "report.json",
+      "bytes": 374324,
+      "sha256": "5958ebcd979df4b16ebbf2fae22d3c904b58c85f3189e57facad68f919bc4eca"
+    },
+    {
+      "path": "unknowns.json",
+      "bytes": 255875,
+      "sha256": "69a3cc3c7bedc3e54b8c758ada8e35e5374f7b44670a5be8580fbe71f67b6b04"
+    }
+  ],
+  "backendCalls": 0,
+  "semanticCompatibilityValidated": false
+}

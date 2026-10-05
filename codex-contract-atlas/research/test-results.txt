@@ -1,0 +1,82 @@
+
+> codex-contract-atlas@0.1.0 test
+> node tests/schema.test.js && node --test tests/audit.test.js
+
+PASS JSON pointer escapes slash and tilde
+PASS allOf required is union, no overwrite
+PASS allOf preserves conflicting constraints
+PASS allOf inherited requiredness applies across branches
+PASS union branches remain conditional
+PASS cycles remain refs and are reported
+PASS external refs not silently fetched
+PASS ref siblings remain conjunctive
+PASS example refs are data, not rewritten
+PASS request + response media extracted; excluded Files
+PASS can include excluded routes explicitly
+PASS ref resolution has trace
+PASS dangling refs reported
+PASS diff additions removals changes
+PASS budget limit is explicit
+PASS all IDs unique
+PASS all evidence source IDs resolve
+PASS no invented live verification or unified revision
+PASS roadmap entry links all valid
+{"passed":19,"failed":0}
+TAP version 13
+# Subtest: CLI produces identical bytes on repeated regeneration
+ok 1 - CLI produces identical bytes on repeated regeneration
+  ---
+  duration_ms: 89.728167
+  type: 'test'
+  ...
+# Subtest: graph retains cycles and conditional branches without expanding duplicates
+ok 2 - graph retains cycles and conditional branches without expanding duplicates
+  ---
+  duration_ms: 41.881125
+  type: 'test'
+  ...
+# Subtest: missing references make structural coverage incomplete
+ok 3 - missing references make structural coverage incomplete
+  ---
+  duration_ms: 43.679084
+  type: 'test'
+  ...
+# Subtest: tampered source fails before generating a report
+ok 4 - tampered source fails before generating a report
+  ---
+  duration_ms: 37.341083
+  type: 'test'
+  ...
+# Subtest: reference existence never upgrades semantic or backend evidence
+ok 5 - reference existence never upgrades semantic or backend evidence
+  ---
+  duration_ms: 40.199
+  type: 'test'
+  ...
+# Subtest: missing source and missing pointer remain distinct findings
+ok 6 - missing source and missing pointer remain distinct findings
+  ---
+  duration_ms: 39.441541
+  type: 'test'
+  ...
+# Subtest: snapshot path traversal is rejected
+ok 7 - snapshot path traversal is rejected
+  ---
+  duration_ms: 39.80675
+  type: 'test'
+  ...
+# Subtest: unknown schema keywords survive even when named like JavaScript prototypes
+ok 8 - unknown schema keywords survive even when named like JavaScript prototypes
+  ---
+  duration_ms: 39.322375
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 428.13975
