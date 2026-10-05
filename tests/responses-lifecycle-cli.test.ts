@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { stripVTControlCharacters } from "node:util";
 
 const script = new URL("../api-tests/responses/test_lifecycle.py", import.meta.url).pathname;
 
@@ -7,9 +8,10 @@ test("lifecycle runner exposes every native capability scenario", async () => {
     stdout: "pipe",
     stderr: "pipe",
   });
+  // Sur GitHub Actions, rich colore l'aide : les codes ANSI coupent « --base-url ».
   const [code, stdout, stderr] = await Promise.all([
     child.exited,
-    new Response(child.stdout).text(),
+    new Response(child.stdout).text().then(stripVTControlCharacters),
     new Response(child.stderr).text(),
   ]);
   expect({ code, detail: stdout + stderr }).toEqual({
