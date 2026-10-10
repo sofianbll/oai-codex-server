@@ -3,7 +3,7 @@ ARG BUN_VERSION=1.3.13
 
 # CLI Codex officielle : le proxy lance `codex app-server` pour rafraîchir la session.
 FROM --platform=$BUILDPLATFORM alpine:3 AS codex
-ARG CODEX_VERSION=0.160.0
+ARG CODEX_VERSION=0.162.1
 ARG TARGETARCH
 # ponytail: version épinglée sans vérification sigstore ; ajouter `cosign verify-blob` avec le .sigstore publié si exigé.
 RUN arch=$([ "$TARGETARCH" = arm64 ] && echo aarch64 || echo x86_64) \

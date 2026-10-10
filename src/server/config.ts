@@ -22,7 +22,7 @@ const schema = z.strictObject({
       clientVersion: z
         .string()
         .regex(/^\d+\.\d+\.\d+$/)
-        .default("0.160.0"),
+        .default("0.162.1"),
       translationMode: z.enum(["minimal", "raw"]).default("minimal"),
     })
     .prefault({}),
