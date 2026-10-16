@@ -218,4 +218,27 @@ describe("same-origin OpenAPI reference", () => {
       ]),
     );
   });
+  test("Audio REST keeps full multipart contracts and separate unverified prerequisites in Scalar", async () => {
+    const spec = await createOpenApi("configured-model");
+    const paths = record.parse(spec["paths"]);
+    for (const [path, purpose] of [
+      ["transcriptions", "original language"],
+      ["translations", "English"],
+    ] as const) {
+      const post = record.parse(record.parse(paths[`/v1/audio/${path}`])["post"]);
+      const original = record.parse(
+        record.parse(record.parse(source["paths"])[`/audio/${path}`])["post"],
+      );
+      expect(post["requestBody"]).toEqual(original["requestBody"]);
+      expect(post["responses"]).toEqual(original["responses"]);
+      expect(post["x-proxy-supported"]).toBe(true);
+      expect(post["x-proxy-availability"]).toBe("unverified");
+      expect(post["x-proxy-implementation"]).toBe("relay");
+      const evidence = record.parse(post["x-proxy-evidence"]);
+      expect(evidence["kind"]).toBe(path === "transcriptions" ? "historical-refusal" : "unknown");
+      expect(evidence["date"]).toBe(path === "transcriptions" ? "2026-10-16" : null);
+      expect(evidence["scope"]).toContain(purpose);
+      expect(post["description"]).toContain("REST mechanism under /backend-api/codex");
+    }
+  });
 });

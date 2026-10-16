@@ -95,6 +95,8 @@ Cette adaptation d'enveloppe est **vérifiée localement**, pas une négociation
 
 La génération Images conserve le relais JSON natif : `prompt`, `model`, `background`, `n`, `quality`, `size` sont présents dans le client Codex figé. Aucun modèle ni défaut n'est injecté. Les options publiques supplémentaires (formats/compression, URL/base64, modération, style, streaming, images partielles, utilisateur) et champs inconnus restent transmis, sans garantie d'acceptation. Les fixtures SDK vérifient le transport PNG/JPEG/WebP. L'unique probe du coordinateur (16 octobre 2026, minimal, `gpt-image-2`) a produit un cercle bleu sur blanc, opaque, sans texte, mais **1374×1145 au lieu des 1024×1024 demandés** : génération observée, conformité des dimensions échouée, pas de compatibilité complète. Budget Images **1/1 épuisé**, aucune relance. Le SDK ne valide pas les pixels ; le relais ne redimensionne ni ne recadre l'image. Voir [les qualifications et le résultat borné](docs/evidence/images-generation.md).
 
+Audio REST : la transcription conserve la langue d’origine ; la traduction vise l’anglais. Toutes deux restent des relais **non vérifiés**, sans mécanisme fidèle établi sous `/backend-api/codex`. Dans Explorer, choisir « Multipart avec fichier », conserver les champs de l’exemple et joindre l’audio sous `file`. La limite locale porte sur le multipart entier (16 Mio par défaut), pas seulement le fichier ; aucun texte, timestamp, langue détectée ou locuteur n’est fabriqué. La dictée Desktop hors préfixe et Realtime ne prouvent pas ces opérations. Voir la [matrice Audio REST, les limites et la requête synthétique archivée](docs/research/2026-10-17-audio-rest.md). L’unique tentative transcription du coordinateur, le **2026-10-16T22:31:26.788Z**, en QA loopback minimal (`gpt-4o-transcribe`, WAV synthétique sans indice de phrase), a reçu **403 HTML, 97 632 octets, sans transcript**, après une seule tentative upstream sous le préfixe Codex. Cause/strate inconnue, sans conclusion universelle ni attribution au TTS ; **budget transcription épuisé 1/1, aucune relance autorisée**. La traduction reste non essayée et non autorisée.
+
 ### Probes médias à réserver par le coordinateur
 
 Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live explicitement réservé, conserver modèle/version, mode, chemin, date, résultat métier et refus expurgés ; chaque tentative consomme le budget, sans retry automatique :
@@ -102,7 +104,7 @@ Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live expl
 | Probe préparée | Résultat à observer, pas seulement HTTP 200 |
 | --- | --- |
 | Une génération Images | Contenu image décodable et conforme à la consigne ; modèle/options et réponse réels. Ni édition ni variantes n'en héritent. |
-| Une transcription synthétique Audio REST | Transcription attendue d'un fichier synthétique connu, format et erreur qualifiés ; aucune dictée Desktop hors préfixe. |
+| Une transcription synthétique Audio REST — budget épuisé 1/1 | 403 HTML observé le 2026-10-16T22:31:26.788Z, aucun transcript ; cause inconnue, aucune relance ni dictée Desktop hors préfixe. |
 | Une synthèse vocale Audio REST | Audio décodable, texte/voix/format établis ; aucun fallback API payant. |
 | Une session Realtime, dix secondes maximum | Transport WS ou WebRTC identifié, négociation/événements et résultat audio établis ; l'autre transport reste non vérifié. Aucun appel téléphonique. |
 

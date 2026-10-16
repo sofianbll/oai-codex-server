@@ -149,7 +149,7 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
       implementation: "relay",
       availability: "unverified",
       evidence: {
-        kind: id === "createSpeech" ? "historical-refusal" : "unknown",
+        kind: id === "createTranslation" ? "unknown" : "historical-refusal",
         scope: expect.stringContaining("Audio REST"),
       },
       limitations: expect.arrayContaining([
@@ -186,6 +186,47 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
     expect(operations.find((operation) => operation.id === id)).toMatchObject({
       availability: "unverified",
       prerequisites: expect.arrayContaining([expect.stringContaining("explicit authorization")]),
+    });
+  }
+  expect(forwarded()).toBe(0);
+});
+test("Audio REST qualifies original-language transcription separately from English translation", async () => {
+  const { app, headers, forwarded } = await fixture();
+  const { operations } = operationsSchema.parse(
+    await (await app.request("/api/capabilities", { headers })).json(),
+  );
+  const transcription = operations.find((operation) => operation.id === "createTranscription");
+  expect(transcription?.evidence.scope).toContain("2026-10-16T22:31:26.788Z");
+  expect(transcription?.evidence.scope).toContain("97632 bytes, no transcript");
+  expect(transcription?.evidence.scope).toContain("layer/cause unknown");
+  expect(transcription?.prerequisites).toContainEqual(expect.stringContaining("exhausted (1/1)"));
+  expect(
+    operations.find((operation) => operation.id === "createTranslation")?.prerequisites,
+  ).toContainEqual(expect.stringContaining("No live translation attempt is authorized"));
+  for (const [id, purpose] of [
+    ["createTranscription", "original language"],
+    ["createTranslation", "English"],
+  ] as const) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      supported: true,
+      implementation: "relay",
+      availability: "unverified",
+      evidence: {
+        kind: id === "createTranscription" ? "historical-refusal" : "unknown",
+        date: id === "createTranscription" ? "2026-10-16" : null,
+        scope: expect.stringContaining(purpose),
+      },
+      prerequisites: expect.arrayContaining([
+        expect.stringContaining("REST mechanism under /backend-api/codex"),
+      ]),
+      limitations: expect.arrayContaining([
+        expect.stringContaining("timestamps, detected languages or speaker labels"),
+        expect.stringContaining("Realtime"),
+      ]),
+      requestBodyExample: {
+        model: id === "createTranscription" ? "gpt-4o-transcribe" : "whisper-1",
+        response_format: "json",
+      },
     });
   }
   expect(forwarded()).toBe(0);
