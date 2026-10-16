@@ -110,6 +110,7 @@ export class Exchange {
           if (settled) return;
           finish();
           this.controller.abort(error);
+          void reader.cancel(error).catch(() => undefined);
           fail(controller, error);
         }
       },

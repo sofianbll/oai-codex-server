@@ -15,7 +15,13 @@ export function renderSocket(container: HTMLElement, operation: Operation): () =
   message.value =
     operation.id === "connectResponsesWebSocket"
       ? JSON.stringify(
-          { type: "response.create", response: { input: "Bonjour", store: false } },
+          {
+            type: "response.create",
+            model: "gpt-6-astra",
+            instructions: "",
+            input: [{ role: "user", content: [{ type: "input_text", text: "Bonjour" }] }],
+            store: false,
+          },
           null,
           2,
         )
