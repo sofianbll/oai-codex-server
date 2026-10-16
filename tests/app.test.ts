@@ -154,6 +154,17 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
       implementation: "relay",
       availability: "source-backed",
       evidence: { kind: "source", date: "2026-10-16", scope: expect.stringContaining("WebSocket") },
+      prerequisites: expect.arrayContaining([
+        expect.stringContaining("API key auth"),
+        expect.stringContaining("ChatGPT bearer"),
+      ]),
+      limitations: expect.arrayContaining([
+        expect.stringContaining("RealtimeV2"),
+        expect.stringContaining("quicksilver"),
+        expect.stringContaining("Frameless Bidi"),
+        expect.stringContaining("thread/realtime"),
+        expect.stringContaining("SDK"),
+      ]),
     },
   );
   expect(operations.find((operation) => operation.id === "create-realtime-call")).toMatchObject({

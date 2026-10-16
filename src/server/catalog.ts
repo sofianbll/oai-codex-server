@@ -104,20 +104,45 @@ function qualification(id: string): Qualification {
       ],
     };
   }
-  if (id === "create-realtime-call" || id === "connectRealtimeWebSocket") {
+  if (id === "connectRealtimeWebSocket") {
     return {
       ...relayQualification,
       evidence: {
         kind: "source",
         date: "2026-10-16",
         scope:
-          id === "create-realtime-call"
-            ? "Codex has a native WebRTC call client; no public SDP negotiation or account result verified."
-            : "Codex has standalone and sideband Realtime WebSocket clients with distinct protocol versions; no live public-contract result verified.",
+          "Realtime WebSocket source distinguishes V1, RealtimeV2 and Frameless Bidi. Local SDK/wire tests establish transport only, not ChatGPT authentication or a backend audio result.",
         sources: [
-          `${codexSource}endpoint/${id === "create-realtime-call" ? "realtime_call.rs" : "realtime_websocket/methods.rs"}`,
-          research,
+          `${codexSource}endpoint/realtime_websocket/methods_v2.rs`,
+          `${codexSource}endpoint/realtime_websocket/protocol_v2.rs`,
+          "https://github.com/openai/codex/blob/83086188ae0614bd882818ff1aa23f3194962012/codex-rs/core/src/realtime_conversation.rs",
+          "docs/research/2026-10-17-realtime-ws-contract.md",
         ],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "Pinned Codex standalone WS startup requires API key auth, including a temporary API-key fallback for ChatGPT sessions. This proxy never uses that fallback.",
+        "A ChatGPT bearer authentication mechanism under /backend-api/codex/realtime is not established; backend access and a matching model/protocol remain prerequisites, not a universal impossibility claim.",
+      ],
+      limitations: [
+        "RealtimeV2 shares public session.update, input_audio_buffer.append (base64 PCM16 mono 24 kHz), conversation.item.create and response output audio events; unchanged frames are a relay, not an adapter or proof of every public option.",
+        "V1 uses intent=quicksilver, session.type=quicksilver, native handoffs and conversation.output_audio.delta. Minimal mode refuses this known incompatible intent with realtime_protocol_not_adapted (501); raw retains the native relay.",
+        "Frameless Bidi uses /live, input_audio.append, session.context.append and session.close. No public Realtime translation is established; its native relay is separate.",
+        "thread/realtime RPC is an app-server lifecycle, not public WebSocket frames. Sideband requires an existing authorized call; no WebRTC call, SDP or default api.openai.com destination is created here.",
+        "OpenAI Node SDK openai/realtime/ws uses bearer auth and WSS (TLS termination required). Browser SDK subprotocol authentication is not accepted; the same-origin Explorer uses oai-codex-token instead. HTTP/ws loopback alone is not a runnable SDK WSS endpoint.",
+        "Errors, unknown events/options and cancellation frames remain unchanged; cancellation acknowledgement, truncation semantics, audio quality and backend availability are unverified. One shared WS/WebRTC live session, ten seconds maximum, is reserved only by the coordinator.",
+      ],
+    };
+  }
+  if (id === "create-realtime-call") {
+    return {
+      ...relayQualification,
+      evidence: {
+        kind: "source",
+        date: "2026-10-16",
+        scope:
+          "Codex has a native WebRTC call client; no public SDP negotiation or account result verified.",
+        sources: [`${codexSource}endpoint/realtime_call.rs`, research],
       },
       prerequisites: [
         ...relayQualification.prerequisites,
@@ -339,11 +364,12 @@ export const operations: readonly Operation[] = [
     method: "GET",
     path: "/v1/realtime",
     summary: "Connect Realtime WebSocket",
-    description: `${transportDescription}\n\nNative standalone and sideband clients are source-backed, not live-verified public Realtime compatibility.`,
+    description: `${transportDescription}\n\nPublic Realtime and Codex V1/RealtimeV2/Frameless Bidi/thread RPC are distinct contracts. No ChatGPT-authenticated backend audio exchange is verified. Minimal rejects the known V1 quicksilver intent; raw remains an unadapted native relay. See prerequisites before connecting.`,
     category: "Realtime",
     availability: "source-backed",
     supported: true,
     ...qualification("connectRealtimeWebSocket"),
+    queryParameters: ["model", "intent", "call_id"],
   } satisfies Operation,
 ].sort((a, b) => {
   const catA = categoryOrder.indexOf(a.category.toLowerCase() as (typeof categoryOrder)[number]);
