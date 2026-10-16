@@ -36,6 +36,15 @@ export type Operation = {
   readonly category: string;
   readonly availability: "verified" | "source-backed" | "unverified";
   readonly supported: boolean;
+  readonly implementation: "relay" | "adaptation" | "local";
+  readonly evidence: {
+    readonly kind: "runtime" | "source" | "historical-refusal" | "unknown";
+    readonly date: string | null;
+    readonly scope: string;
+    readonly sources: readonly string[];
+  };
+  readonly prerequisites: readonly string[];
+  readonly limitations: readonly string[];
   readonly requestBodyExample?: Readonly<Record<string, unknown>>;
   readonly queryParameters?: readonly string[];
   readonly pathParameters?: readonly string[];

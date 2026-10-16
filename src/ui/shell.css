@@ -308,6 +308,10 @@
   border-radius: var(--radius);
   padding: var(--s3);
 }
+.capability-details {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .contract-details summary {
   color: var(--muted);
   cursor: pointer;

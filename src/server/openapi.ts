@@ -73,16 +73,20 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
       ...definition,
       operationId: operation.id,
       summary: operation.summary,
-      description: `${operation.description}${source?.description ? `\n\nPublic contract reference:\n${source.description}` : ""}`,
+      description: `${operation.description}\n\nImplementation: ${operation.implementation}. Evidence (${operation.evidence.kind}, ${operation.evidence.date ?? "undated"}): ${operation.evidence.scope}\nPrerequisites: ${operation.prerequisites.join(" ")}\nLimitations: ${operation.limitations.join(" ")}\nSources: ${operation.evidence.sources.join(", ")}${source?.description ? `\n\nPublic contract reference:\n${source.description}` : ""}`,
       tags: [operation.category],
       security: localSecurity,
       "x-proxy-availability": operation.availability,
       "x-proxy-supported": operation.supported,
+      "x-proxy-implementation": operation.implementation,
+      "x-proxy-evidence": operation.evidence,
+      "x-proxy-prerequisites": operation.prerequisites,
+      "x-proxy-limitations": operation.limitations,
       ...(requestBody ? { requestBody } : {}),
       responses: source?.responses ?? {
         "101": {
           description:
-            "WebSocket upgrade accepted; subsequent messages use the Responses protocol.",
+            "WebSocket upgrade accepted; subsequent messages use the selected native protocol.",
         },
         "400": { description: "A WebSocket upgrade request is required." },
         "502": { description: "The Codex backend could not establish the connection." },
