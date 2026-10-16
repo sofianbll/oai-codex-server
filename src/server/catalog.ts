@@ -266,25 +266,32 @@ function qualification(id: string): Qualification {
     return {
       ...relayQualification,
       evidence: {
-        kind: "source",
+        kind: id === "createImage" ? "runtime" : "source",
         date: "2026-10-16",
         scope:
           id === "createImage"
-            ? "Codex ImagesClient sends JSON to images/generations with prompt, model, background, n, quality, size; returns created and data[].b64_json (optional generation_id). No live account validation."
+            ? "Native JSON images/generations uses prompt, model, background, n, quality, size. Coordinator observation 2026-10-16T22:27:36.855Z, minimal, gpt-image-2, n=1, quality=low, background=opaque: HTTP 200 JSON with one decodable opaque PNG, blue circle on white without text. Requested 1024x1024 but decoded 1374x1145: dimension fidelity failed, not verified compatible."
             : "Codex ImagesClient sends JSON image references to images/edits; public multipart equivalence is not established.",
         sources: [
           `${codexSource}endpoint/images.rs`,
           `${codexSource}images.rs`,
           research,
           desktopResearch,
+          ...(id === "createImage"
+            ? [
+                "docs/evidence/images-generation.md",
+                "https://developers.openai.com/codex/image-generation.md",
+              ]
+            : []),
         ],
       },
       limitations: [
         ...(id === "createImage"
           ? [
-              "Native source: prompt/model are strings; background=transparent|opaque|auto, quality=low|medium|high|auto, n is an unsigned integer and size is a string. Accepted models, counts, dimensions and account access remain unverified; no defaults are injected.",
+              "Native source: prompt/model are strings; background=transparent|opaque|auto, quality=low|medium|high|auto, n is an unsigned integer and size is a string. One gpt-image-2 generation was observed for the coordinator account; other models/counts/dimensions/options and general account entitlement remain unverified. No defaults are injected.",
+              "Observed size mismatch: requested size=1024x1024, actual PNG=1374x1145 (1027860 bytes, opaque RGB). Declared/requested size is not proof of decoded dimensions; no resize/crop or metadata correction is applied. Availability remains source-backed, not verified compatible. Image probe budget 1/1 exhausted; no retry authorized.",
               "Public output_format (png/jpeg/webp), output_compression, response_format, moderation, style, user, stream, partial_images and quality=standard|hd|xhigh|max are not established by this native client. Unknown fields and explicit nulls are relayed unchanged, never silently dropped; backend errors are preserved. No URL fetch, format conversion or fabricated image is provided.",
-              "Local SDK fixtures verify JSON/base64 and binary transport, errors, request size limits and interruption, not actual backend generation or all image sizes/formats. Raw remains unchanged. See docs/evidence/images-generation.md.",
+              "Local SDK fixtures verify JSON/base64 and binary transport, errors, request size limits and interruption. The separate live observation establishes only the documented gpt-image-2 request, not other options/models, edits or variations. Raw remains unchanged. See docs/evidence/images-generation.md.",
             ]
           : [
               "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
@@ -303,7 +310,7 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: {
-    model: "gpt-image-1.5",
+    model: "gpt-image-2",
     prompt: "A single solid blue circle centered on a plain white background. No text.",
     n: 1,
     quality: "low",

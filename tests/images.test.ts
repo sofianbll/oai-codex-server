@@ -64,14 +64,21 @@ test("Images documentation distinguishes native JSON options from unverified pub
     expect(image["x-proxy-supported"]).toBe(true);
     expect(image["x-proxy-implementation"]).toBe("relay");
     expect(image["x-proxy-availability"]).toBe("source-backed");
+    expect(image["x-proxy-evidence"]).toMatchObject({
+      kind: "runtime",
+      date: "2026-10-16",
+      scope: expect.stringContaining("2026-10-16T22:27:36.855Z"),
+    });
     expect(image["description"]).toContain("prompt, model, background, n, quality, size");
     const limitations = z.array(z.string()).parse(image["x-proxy-limitations"]).join(" ");
     expect(limitations).toContain("output_compression");
     expect(limitations).toContain("Unknown fields");
+    expect(limitations).toContain("1374x1145");
+    expect(limitations).toContain("not verified compatible");
     const body = record.parse(image["requestBody"]);
     const media = record.parse(record.parse(body["content"])["application/json"]);
     expect(media["example"]).toEqual({
-      model: "gpt-image-1.5",
+      model: "gpt-image-2",
       prompt: "A single solid blue circle centered on a plain white background. No text.",
       n: 1,
       quality: "low",
