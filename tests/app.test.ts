@@ -157,12 +157,14 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
     },
   );
   expect(operations.find((operation) => operation.id === "create-realtime-call")).toMatchObject({
-    implementation: "relay",
+    implementation: "adaptation",
     availability: "source-backed",
+    evidence: { kind: "source", scope: expect.stringContaining("No real peer negotiation") },
     limitations: expect.arrayContaining([
-      expect.stringContaining("JSON {sdp, session}"),
-      expect.stringContaining("multipart"),
+      expect.stringContaining("Only the request envelope"),
+      expect.stringContaining("Raw mode remains byte relay"),
     ]),
+    requestBodyExample: { session: { type: "realtime" } },
   });
   for (const id of [
     "createVoice",
