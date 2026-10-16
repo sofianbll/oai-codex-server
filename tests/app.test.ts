@@ -122,9 +122,17 @@ test("capabilities retain exact-count uncertainty, historical option refusals an
       expect.stringContaining("Code Interpreter"),
     ]),
   });
-  expect(operations.some((operation) => /\/v1\/(chat|conversations)/.test(operation.path))).toBe(
+  expect(operations.some((operation) => operation.path.startsWith("/v1/conversations"))).toBe(
     false,
   );
+  expect(operations.find((operation) => operation.id === "createChatCompletion")).toMatchObject({
+    path: "/v1/chat/completions",
+    method: "POST",
+    supported: true,
+    implementation: "adaptation",
+    availability: "unverified",
+    limitations: expect.arrayContaining([expect.stringContaining("stream:true")]),
+  });
   expect(operations.find((operation) => operation.id === "createImageVariation")).toMatchObject({
     implementation: "relay",
     availability: "unverified",
