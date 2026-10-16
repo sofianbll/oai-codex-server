@@ -1,7 +1,7 @@
 # Audio HTTP speech — bounded qualification
 
 Date: 2026-10-17. Issue: [#24](https://github.com/sofianbll/oai-codex-server/issues/24).
-No backend request, credentials, quota reservation, microphone, playback or resource creation was used.
+The implementer made no backend request or quota reservation and used no credentials, microphone, playback or resource creation. The coordinator's separately authorized single probe is recorded below; its budget is exhausted.
 
 ## Established public contract, unestablished Codex mapping
 
@@ -29,11 +29,15 @@ No new full artifact audit was performed. Missing literals/exports do not prove 
 - Existing streaming relay uses deadline/cancellation and bounded per-chunk delivery, not a cumulative audio-output/decoded-duration limit. A raw non-SSE interruption can close a partial body with its initial HTTP 200 unchanged: clients must validate complete media; it is **not** a verified speech result.
 - Local SDK/HTTP tests exercise the runtime's integrated gateway and app with controlled loopback upstreams. A tiny valid two-sample WAV verifies transport only; it is not synthetic speech evidence. Capability and OpenAPI qualifications are consumed by the existing Explorer/Scalar without a new UI.
 
-## Exactly one proposed synthesis probe — coordinator only, NOT executed
+## Coordinator synthesis probe — executed once, budget exhausted (1/1)
 
-Reserve the sole synthesis attempt first, including failures. Use the coordinator's temporary loopback QA instance in **raw** mode (minimal refuses locally). No retry, redirects, other destination, resource creation or paid key. Candidate model/voice are from the public SDK, **not established Codex values**; a refusal is useful evidence, not a reason to try another model.
+The coordinator reported the single authorized attempt at **2026-10-16T22:25:55.432Z**, using a temporary loopback QA instance in **raw** mode, `POST /v1/audio/speech`, model `gpt-4o-mini-tts-2025-12-15`, voice `alloy`, requested format `wav`. The active service was unchanged. Exactly one upstream request used the authorized Codex prefix.
 
-Exact HTTP request (local proxy bearer only; do not publish its value):
+Observed result: **HTTP 403**, `Content-Type: text/html; charset=UTF-8`, **10611 bytes**, **no WAV**. The sanitized coordinator report was inspected; private paths, HTML payload and unnecessary hashes are not published. The refusal's layer and cause are **unknown**. This is neither proof of a universal TTS absence nor a successful quota/audio-semantic result. Backend availability remains unvalidated; no faithful synthesis mechanism is established.
+
+**The synthesis budget is exhausted (1/1). No retry, alternative model attempt or additional probe is authorized.** Qualification and the explicit minimal refusal are the approved bounded outcome, not a functional TTS implementation.
+
+Prepared HTTP request retained for provenance only, **not an execution instruction** (local proxy bearer placeholder only):
 
 ```http
 POST /v1/audio/speech HTTP/1.1
@@ -45,8 +49,8 @@ Accept: application/octet-stream
 ```
 
 The fixed relay target remains `https://chatgpt.com/backend-api/codex/audio/speech`.
-Coordinator execution must impose a 30-second timeout and 2 MiB response cap, stop after this one attempt and record sanitized status/content-type/request-id/error, mode, model and date. Do not launch this from an ordinary example or auto-run it from the dashboard.
+The preparation prescribed a 30-second timeout and 2 MiB response cap. These are preparation limits, not independently verified execution facts. Do not launch this request from an example or the dashboard; the one-attempt authorization has been consumed.
 
-Expected business outcome **to verify, not observed**: a complete decodable WAV containing the requested short synthetic utterance, no microphone or existing recording, with nonzero decoded samples and duration between 1 and 5 seconds. Verify RIFF/WAVE, bounded chunk sizes, format/sample rate/channel count, declared data length against received bytes, and decoded sample count/duration without playback. Reject JSON/HTML/text, empty audio, invalid/truncated media, or HTTP 200 without valid audio. An error/refusal remains verbatim and qualified.
+Expected business outcome **not achieved**: a complete decodable WAV containing the requested short synthetic utterance, with nonzero decoded samples and duration between 1 and 5 seconds. The HTML refusal supplies no audio to validate for RIFF/WAVE integrity, sample count, duration, words or voice. No playback or additional transcription is justified by this refusal.
 
-Binary structure/duration alone cannot prove the words or chosen voice were rendered faithfully. Without an independently authorized semantic check, preserve that uncertainty; do not spend the separate transcription budget or start playback to fill it. A successful raw probe would still require a subsequent faithful minimal adaptation and its own tests before marking speech compatible. This issue's essential live synthesis criteria remain unmet until the coordinator supplies evidence.
+Binary structure/duration alone would not prove the words or chosen voice were rendered faithfully. No such audio was obtained here. The public contract, local transport tests and dated refusal are separate evidence; none establishes functional TTS compatibility. Any further investigation requires a new explicit authorization, not reuse of this exhausted budget. Ticket qualification is left to the coordinator after integration; no closure is claimed here.

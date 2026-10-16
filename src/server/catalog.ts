@@ -77,9 +77,10 @@ function qualification(id: string): Qualification {
     return {
       ...relayQualification,
       evidence: {
-        ...relayQualification.evidence,
+        kind: "historical-refusal",
+        date: "2026-10-16",
         scope:
-          "Public Audio REST HTTP speech contract identified in OpenAI Node 7.20.0; no faithful Codex speech client or real synthesis result established by the bounded source research. Realtime voice is a separate contract.",
+          "Audio REST speech: one coordinator probe at 2026-10-16T22:25:55.432Z, temporary loopback raw mode, POST /v1/audio/speech, gpt-4o-mini-tts-2025-12-15, alloy, wav: HTTP 403 text/html; charset=UTF-8, 10611 bytes, no WAV. One upstream request under the Codex prefix; refusal layer/cause unknown, not a universal TTS limitation or successful synthesis.",
         sources: [research, desktopResearch, "docs/research/2026-10-17-audio-speech.md"],
       },
       prerequisites: [
@@ -89,6 +90,7 @@ function qualification(id: string): Qualification {
       ],
       limitations: [
         "Minimal mode returns HTTP 501 speech_contract_unverified before credentials or synthesis; raw remains an unadapted relay for separately authorized investigation, not verified compatibility.",
+        "The authorized synthesis probe budget is exhausted (1/1); no retry or additional probe is authorized. Backend availability and faithful speech synthesis remain unvalidated.",
         "mp3, opus, aac, flac, wav, pcm, speed, instructions and SSE audio events are public options, not established Codex capabilities; unknown options are never silently removed.",
         "No text-only simulation, Realtime substitution, media URL fetch, local engine or paid API fallback is provided.",
         "Desktop voice paths outside the authorized Codex prefix are research leads, not credential destinations or HTTP speech implementations.",

@@ -169,11 +169,20 @@ test("capabilities and OpenAPI expose the speech refusal and voice prerequisites
     );
     const operation = capabilities.operations.find((entry) => entry.id === "createSpeech");
     if (!operation) throw new Error("Missing speech operation");
-    expect(operation).toMatchObject({ supported: true, availability: "unverified" });
+    expect(operation).toMatchObject({
+      supported: true,
+      availability: "unverified",
+      evidence: {
+        kind: "historical-refusal",
+        date: "2026-10-16",
+        scope: expect.stringMatching(/raw.*gpt-4o-mini-tts-2025-12-15.*403/),
+      },
+    });
     expect(operation.limitations).toContainEqual(
       expect.stringContaining("speech_contract_unverified"),
     );
     expect(operation.prerequisites).toContainEqual(expect.stringContaining("consent"));
+    expect(operation.limitations).toContainEqual(expect.stringContaining("1/1"));
     const spec = z
       .object({
         paths: z.record(z.string(), z.record(z.string(), z.record(z.string(), z.unknown()))),
