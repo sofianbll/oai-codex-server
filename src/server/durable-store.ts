@@ -164,6 +164,14 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
             .query("SELECT token FROM durable_reservations WHERE token=? AND expires>?")
             .get(token, now());
           if (released || !valid) throw capacityError();
+          if (checkpoint && checkpointId === undefined) {
+            const count = db
+              .query<{ count: number }, []>(`SELECT
+              (SELECT count(*) FROM durable_objects) +
+              (SELECT count(*) FROM durable_reservations) AS count`)
+              .get();
+            if ((count?.count ?? 0) >= maxRecords) throw capacityError();
+          }
           db.query(
             "INSERT INTO durable_objects VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account,kind,id) DO UPDATE SET payload=excluded.payload, bytes=excluded.bytes, expires=excluded.expires",
           ).run(account, kind, id, serialized, bytes, expires);

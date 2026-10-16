@@ -109,7 +109,7 @@ export function createBackgroundResponses(
         );
       const reservation = store.reserve(auth.accountId, "background", options.timeoutMs + 60_000);
       try {
-        reservation.commit(id, job, now() + options.timeoutMs + TEMP_TTL, true);
+        reservation.commit(id, job, null, true);
       } catch (error) {
         reservation.release();
         throw error;
@@ -153,7 +153,7 @@ export function createBackgroundResponses(
           try {
             if (closed || settled) return;
             job.response = { ...response, status: "in_progress" };
-            reservation.commit(id, job, now() + options.timeoutMs + TEMP_TTL, true);
+            reservation.commit(id, job, null, true);
             const current = await exchange.wait(credentials());
             if (current.accountId !== auth.accountId)
               throw new GatewayError(

@@ -142,7 +142,7 @@ test("a crash before the queued producer starts recovers under a full reservatio
       `
     import { writeSync } from "node:fs";
     import { createResponsesGateway } from ${JSON.stringify(module)};
-    const gateway = createResponsesGateway({ baseUrl: "http://127.0.0.1:1/backend-api/codex", defaultModel: "fixture", clientVersion: "fixture", translationMode: "minimal", timeoutMs: 1000, maxBodyBytes: 4096 }, async () => ({ accountId: "a", accessToken: "fixture" }), { path: ${JSON.stringify(path)}, maxBytes: 4096, maxRecordBytes: 4096, maxRecords: 1 });
+    const gateway = createResponsesGateway({ baseUrl: "http://127.0.0.1:1/backend-api/codex", defaultModel: "fixture", clientVersion: "fixture", translationMode: "minimal", timeoutMs: 1000, maxBodyBytes: 4096 }, async () => ({ accountId: "a", accessToken: "fixture" }), { path: ${JSON.stringify(path)}, maxBytes: 4096, maxRecordBytes: 4096, maxRecords: 2 });
     const response = await gateway.forward(new Request("http://localhost/v1/responses", { method: "POST", body: JSON.stringify({ input: "never sent", background: true }) }));
     writeSync(1, JSON.stringify(await response.json()));
     process.kill(process.pid, "SIGKILL");
@@ -158,7 +158,13 @@ test("a crash before the queued producer starts recovers under a full reservatio
   expect(queued.status).toBe("queued");
   let f: Awaited<ReturnType<typeof fixture>> | undefined;
   try {
-    f = await fixture(undefined, { path, maxBytes: 4096, maxRecordBytes: 4096, maxRecords: 1 });
+    f = await fixture(undefined, {
+      path,
+      maxBytes: 4096,
+      maxRecordBytes: 4096,
+      maxRecords: 2,
+      now: () => Date.now() + 365 * 24 * 60 * 60_000,
+    });
     expect(await f.client.responses.retrieve(queued.id)).toMatchObject({
       status: "failed",
       error: { code: "background_interrupted" },
@@ -273,6 +279,17 @@ test("disconnect is not cancellation; concurrent explicit cancel is idempotent a
 });
 
 test("quota is reserved before generation and oversized output never appears as stored success", async () => {
+  const recordLimit = await fixture(undefined, { maxRecords: 1 });
+  try {
+    await expect(
+      recordLimit.client.responses
+        .create({ input: "requires object and reservation slots", background: true })
+        .asResponse(),
+    ).rejects.toMatchObject({ status: 507, code: "storage_capacity_exceeded" });
+    expect(recordLimit.emissions()).toBe(0);
+  } finally {
+    await recordLimit.close();
+  }
   const saturated = await fixture(undefined, { maxBytes: 4096, maxRecordBytes: 4096 });
   try {
     const queued = await saturated.client.responses.create({ input: "reserved", background: true });
