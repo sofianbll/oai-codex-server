@@ -1,4 +1,5 @@
 import { type CredentialProvider, GatewayError, type ProxyOptions } from "../shared/contracts";
+import { chatRequest, chatResponse } from "./chat-adapter";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
 import { restoreStreamOutput } from "./response-stream-adapter";
@@ -56,10 +57,21 @@ export function createResponsesGateway(
     async forward(request: Request): Promise<Response> {
       if (options.translationMode !== "minimal") return relay(request);
       const path = new URL(request.url).pathname;
-      if (path === "/v1/responses" || path.startsWith("/v1/responses/")) {
+      const chat = path === "/v1/chat/completions" && request.method === "POST";
+      if ((path === "/v1/chat/completions" || path.startsWith("/v1/chat/completions/")) && !chat)
+        return Response.json(
+          {
+            error: {
+              code: "unsupported_chat_contract",
+              message: "Stored Chat operations are not implemented",
+            },
+          },
+          { status: 501 },
+        );
+      if (chat || path === "/v1/responses" || path.startsWith("/v1/responses/")) {
         const exchange = new Exchange(request.signal, options.timeoutMs);
         try {
-          if (request.method === "POST" && path === "/v1/responses") {
+          if (chat || (request.method === "POST" && path === "/v1/responses")) {
             const declared = request.headers.get("content-length");
             if (
               declared !== null &&
@@ -79,11 +91,13 @@ export function createResponsesGateway(
                 ).arrayBuffer()
               : new ArrayBuffer(0);
             request = new Request(request, { body, signal: exchange.controller.signal });
+            if (chat) request = chatRequest(request, body);
           } else request = new Request(request, { signal: exchange.controller.signal });
           const current = await exchange.wait(credentials());
           if (accountId !== undefined && accountId !== current.accountId) bridge.reset();
           accountId = current.accountId;
-          const response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          let response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          if (chat) response = await exchange.wait(chatResponse(response));
           if (!response.body) {
             exchange.close();
             return response;

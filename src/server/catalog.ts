@@ -34,10 +34,14 @@ export const publicApi = documentSchema.parse(
 export const publicOperations = Object.entries(publicApi.paths)
   .filter(
     ([path]) =>
-      /^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) && !path.includes("?"),
+      (/^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) ||
+        path === "/chat/completions") &&
+      !path.includes("?"),
   )
   .flatMap(([path, item]) =>
-    Object.entries(item).map(([method, definition]) => ({ path, method, definition })),
+    Object.entries(item)
+      .filter(([method]) => path !== "/chat/completions" || method === "post")
+      .map(([method, definition]) => ({ path, method, definition })),
   );
 
 export const transportDescription =
@@ -73,7 +77,51 @@ const relayQualification: Qualification = {
 };
 
 function qualification(id: string): Qualification {
-  if (["createSpeech", "createTranscription", "createTranslation"].includes(id)) {
+  if (id === "createSpeech") {
+    return {
+      ...relayQualification,
+      evidence: {
+        kind: "historical-refusal",
+        date: "2026-10-16",
+        scope:
+          "Audio REST speech: one coordinator probe at 2026-10-16T22:25:55.432Z, temporary loopback raw mode, POST /v1/audio/speech, gpt-4o-mini-tts-2025-12-15, alloy, wav: HTTP 403 text/html; charset=UTF-8, 10611 bytes, no WAV. One upstream request under the Codex prefix; refusal layer/cause unknown, not a universal TTS limitation or successful synthesis.",
+        sources: [research, desktopResearch, "docs/research/2026-10-17-audio-speech.md"],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "An established speech model, built-in voice and binary/streaming contract under the authorized Codex prefix; none has been live-verified.",
+        "Custom voices require an existing authorized voice/consent resource; creating voices or consent is not implicitly authorized by a speech request or probe.",
+      ],
+      limitations: [
+        "Minimal mode returns HTTP 501 speech_contract_unverified before credentials or synthesis; raw remains an unadapted relay for separately authorized investigation, not verified compatibility.",
+        "The authorized synthesis probe budget is exhausted (1/1); no retry or additional probe is authorized. Backend availability and faithful speech synthesis remain unvalidated.",
+        "mp3, opus, aac, flac, wav, pcm, speed, instructions and SSE audio events are public options, not established Codex capabilities; unknown options are never silently removed.",
+        "No text-only simulation, Realtime substitution, media URL fetch, local engine or paid API fallback is provided.",
+        "Desktop voice paths outside the authorized Codex prefix are research leads, not credential destinations or HTTP speech implementations.",
+        "Raw binary interruption may yield a truncated body without an explicit terminal error; validate the complete audio file. No duration or decoded-output limit is claimed for raw relay.",
+      ],
+    };
+  }
+  if (id === "createChatCompletion") {
+    return {
+      ...relayQualification,
+      implementation: "adaptation",
+      evidence: {
+        kind: "source",
+        date: "2026-10-17",
+        scope:
+          "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
+        sources: ["src/server/chat-adapter.ts", "tests/chat-json.test.ts"],
+      },
+      limitations: [
+        "Minimal mode implements JSON text messages with system/developer/user/assistant roles, model, stream:false, store:false and n:1 only. Omitted store is false.",
+        "stream:true, tools/tool history, multimodal content, named messages, store:true, stored Chat CRUD, query parameters and all other options are explicitly refused, not silently removed.",
+        "Completed text/refusal output maps to finish_reason:stop. Failed/incomplete Responses keep their engine HTTP error status and payload. Unsupported structured or annotated output is refused.",
+        "Usage is mapped only when received; no counts are estimated. Raw mode remains an unadapted relay.",
+      ],
+    };
+  }
+  if (["createTranscription", "createTranslation"].includes(id)) {
     return {
       ...relayQualification,
       evidence: {
@@ -265,14 +313,25 @@ function qualification(id: string): Qualification {
   return relayQualification;
 }
 const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  createChatCompletion: {
+    messages: [{ role: "user", content: "Say hello in one sentence." }],
+    store: false,
+    stream: false,
+  },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: { model: "gpt-image-1", prompt: "A small blue robot on a white background", n: 1 },
-  createSpeech: { model: "gpt-4o-mini-tts", input: "Hello from the local proxy.", voice: "alloy" },
+  createSpeech: {
+    model: "gpt-4o-mini-tts",
+    input: "This is a synthetic speech test.",
+    voice: "alloy",
+    response_format: "wav",
+  },
   updateVoiceConsent: { name: "Updated consent name" },
   "reject-realtime-call": { status_code: 486 },
   "reject-live-session": { status_code: 486 },
 } as const;
 const categories: Readonly<Record<string, string>> = {
+  chat: "Chat",
   responses: "Responses",
   models: "Models",
   images: "Images",
@@ -281,7 +340,15 @@ const categories: Readonly<Record<string, string>> = {
   live: "Live",
 } as const;
 
-const categoryOrder = ["responses", "models", "images", "audio", "realtime", "live"] as const;
+const categoryOrder = [
+  "responses",
+  "chat",
+  "models",
+  "images",
+  "audio",
+  "realtime",
+  "live",
+] as const;
 const methodRank: Readonly<Record<string, number>> = {
   GET: 0,
   POST: 1,
