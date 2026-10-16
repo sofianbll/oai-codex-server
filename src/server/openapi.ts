@@ -55,10 +55,9 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     )?.definition;
     const body = source?.requestBody;
     const media = body?.content["application/json"];
-    const example =
-      operation.id === "createResponse"
-        ? { model: defaultModel, ...operation.requestBodyExample }
-        : operation.requestBodyExample;
+    const example = ["createResponse", "createChatCompletion"].includes(operation.id)
+      ? { model: defaultModel, ...operation.requestBodyExample }
+      : operation.requestBodyExample;
     let requestBody =
       body && media && example
         ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
@@ -152,12 +151,17 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     info: {
       title: "OAI Codex Server",
       version: "0.1.0",
-      description: `${transportDescription}\n\nThe reference covers the complete public Responses, Models, Images, Audio, Realtime and Live families in the pinned source, plus the source-backed Responses WebSocket transport. Public schemas are retained verbatim and do not establish backend support. Duplicate ?beta=true source paths are omitted; query strings remain relayable. Other /v1/* paths can be relayed even when absent from this reference.\n\nUse the local server bearer token below. Never enter a Codex access token. The server reads Codex credentials privately.`,
+      description: `${transportDescription}\n\nThe reference covers the complete public Responses, Models, Images, Audio, Realtime and Live families in the pinned source, Chat creation (minimal mode: restricted JSON text adaptation), plus the source-backed Responses WebSocket transport. Public schemas are retained verbatim and do not establish backend support. Duplicate ?beta=true source paths are omitted; query strings remain relayable except where an adaptation explicitly refuses them. Other /v1/* paths can be relayed even when absent from this reference; minimal-mode stored Chat operations are explicitly refused.\n\nUse the local server bearer token below. Never enter a Codex access token. The server reads Codex credentials privately.`,
     },
     servers: [{ url: "/" }],
     security: localSecurity,
     tags: [
       { name: "Responses", description: "Créer, lire, annuler et gérer les réponses du modèle." },
+      {
+        name: "Chat",
+        description:
+          "Adaptation JSON texte via Responses ; options non implémentées refusées explicitement.",
+      },
       { name: "Models", description: "Lister et inspecter les modèles disponibles." },
       { name: "Images", description: "Générer et modifier des images." },
       { name: "Audio", description: "Synthèse vocale, transcription et gestion des voix." },
