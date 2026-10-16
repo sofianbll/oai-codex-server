@@ -81,11 +81,9 @@ export function renderExplorer(container: HTMLElement, onComplete: () => void): 
       const itemsList = el("ul");
       for (const item of items) {
         const row = el("li");
-        if (title === "Sources") {
+        if (title === "Sources" && item.startsWith("https://")) {
           const link = el("a", "", item);
-          link.href = item.startsWith("https://")
-            ? item
-            : `https://github.com/sofianbll/oai-codex-server/blob/d46d975d49701fce69e764b318dfe2be946d1895/${item}`;
+          link.href = item;
           row.append(link);
         } else row.textContent = item;
         itemsList.append(row);
