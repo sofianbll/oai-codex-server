@@ -88,6 +88,8 @@ Le catalogue expose 40 opérations : 38 routes HTTP et les WebSockets Responses 
 
 Explorer affiche ces informations avant les contrôles d'exécution, y compris en WebSocket ; Scalar les conserve dans la description et les extensions `x-proxy-*`. Les exemples de corps restent des exemples du contrat, sans modèle ni paramètres garantis pour le compte. Images génération/édition/variantes, Audio REST et Realtime WS/WebRTC restent qualifiés séparément. Le JSON natif d'édition et le multipart public ne sont pas déclarés interchangeables ; aucun adaptateur média n'est ajouté.
 
+La génération Images conserve le relais JSON natif : `prompt`, `model`, `background`, `n`, `quality`, `size` sont présents dans le client Codex figé. Aucun modèle ni défaut n'est injecté. Les options publiques supplémentaires (formats/compression, URL/base64, modération, style, streaming, images partielles, utilisateur) et champs inconnus restent transmis, sans garantie d'acceptation. Enveloppe et images PNG/JPEG/WebP sont vérifiées avec le SDK contre des fixtures locales, pas le backend réel. Le SDK ne valide pas les pixels : un HTTP 200 ne prouve pas une génération correcte. Voir [les qualifications, limites et la probe unique préparée](docs/evidence/images-generation.md).
+
 ### Probes médias à réserver par le coordinateur
 
 Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live explicitement réservé, conserver modèle/version, mode, chemin, date, résultat métier et refus expurgés ; chaque tentative consomme le budget, sans retry automatique :

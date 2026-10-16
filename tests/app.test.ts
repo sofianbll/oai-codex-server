@@ -92,7 +92,7 @@ test("capabilities distinguish relayable Images from native source proof for das
       ]),
     },
     prerequisites: expect.arrayContaining([expect.stringContaining("account")]),
-    limitations: expect.arrayContaining([expect.stringContaining("mask")]),
+    limitations: expect.arrayContaining([expect.stringContaining("output_compression")]),
   });
   expect(forwarded()).toBe(0);
 });

@@ -247,7 +247,7 @@ function qualification(id: string): Qualification {
         date: "2026-10-16",
         scope:
           id === "createImage"
-            ? "Codex ImagesClient sends JSON to images/generations; no live account validation."
+            ? "Codex ImagesClient sends JSON to images/generations with prompt, model, background, n, quality, size; returns created and data[].b64_json (optional generation_id). No live account validation."
             : "Codex ImagesClient sends JSON image references to images/edits; public multipart equivalence is not established.",
         sources: [
           `${codexSource}endpoint/images.rs`,
@@ -257,7 +257,15 @@ function qualification(id: string): Qualification {
         ],
       },
       limitations: [
-        "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
+        ...(id === "createImage"
+          ? [
+              "Native source: prompt/model are strings; background=transparent|opaque|auto, quality=low|medium|high|auto, n is an unsigned integer and size is a string. Accepted models, counts, dimensions and account access remain unverified; no defaults are injected.",
+              "Public output_format (png/jpeg/webp), output_compression, response_format, moderation, style, user, stream, partial_images and quality=standard|hd|xhigh|max are not established by this native client. Unknown fields and explicit nulls are relayed unchanged, never silently dropped; backend errors are preserved. No URL fetch, format conversion or fabricated image is provided.",
+              "Local SDK fixtures verify JSON/base64 and binary transport, errors, request size limits and interruption, not actual backend generation or all image sizes/formats. Raw remains unchanged. See docs/evidence/images-generation.md.",
+            ]
+          : [
+              "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
+            ]),
         "Desktop /wham/images paths are research leads, not authorized credential destinations; no paid API fallback.",
       ],
     };
@@ -266,7 +274,14 @@ function qualification(id: string): Qualification {
 }
 const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
-  createImage: { model: "gpt-image-1", prompt: "A small blue robot on a white background", n: 1 },
+  createImage: {
+    model: "gpt-image-1.5",
+    prompt: "A single solid blue circle centered on a plain white background. No text.",
+    n: 1,
+    quality: "low",
+    size: "1024x1024",
+    background: "opaque",
+  },
   createSpeech: { model: "gpt-4o-mini-tts", input: "Hello from the local proxy.", voice: "alloy" },
   updateVoiceConsent: { name: "Updated consent name" },
   "reject-realtime-call": { status_code: 486 },
