@@ -145,19 +145,32 @@ export function createResponsesLifecycle(
         if (!id) return jsonError(400, "invalid_request", "Response ID is required");
 
         if (request.method === "GET" && !suffix) {
-          const saved = store.get(accountId, "response", id) as StoredResponse | undefined;
+          const saved = (store.get(accountId, "response", id) ??
+            store.get(accountId, "background", id)) as StoredResponse | undefined;
           return saved
             ? Response.json(saved.response)
             : jsonError(404, "not_found", `Response '${id}' was not found`);
         }
         if (request.method === "DELETE" && !suffix) {
-          const deleted = store.delete(accountId, "response", id);
+          const background = store.get(accountId, "background", id) as StoredResponse | undefined;
+          if (
+            background &&
+            ["queued", "in_progress"].includes(String(background.response["status"]))
+          )
+            return jsonError(
+              409,
+              "background_active",
+              "Cancel a background job before deleting it",
+            );
+          const deleted =
+            store.delete(accountId, "response", id) || store.delete(accountId, "background", id);
           return deleted
             ? Response.json({ id, object: "response.deleted", deleted: true })
             : jsonError(404, "not_found", `Response '${id}' was not found`);
         }
         if (request.method === "GET" && suffix) {
-          const saved = store.get(accountId, "response", id) as StoredResponse | undefined;
+          const saved = (store.get(accountId, "response", id) ??
+            store.get(accountId, "background", id)) as StoredResponse | undefined;
           return saved
             ? inputItemsPage(saved.input, url)
             : jsonError(404, "not_found", `Response '${id}' was not found`);

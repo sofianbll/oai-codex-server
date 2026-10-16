@@ -96,10 +96,18 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
   };
   return {
     maxRecordBytes,
-    reserve(account: string, kind: string, durationMs: number) {
+    reserve(account: string, kind: string, durationMs: number, replacingId?: string) {
       const token = crypto.randomUUID();
       transaction(() => {
         prune();
+        const replaced =
+          replacingId === undefined
+            ? 0
+            : (db
+                .query<{ bytes: number }, [string, string, string]>(
+                  "SELECT bytes FROM durable_objects WHERE account=? AND kind=? AND id=?",
+                )
+                .get(account, kind, replacingId)?.bytes ?? 0);
         const used = db
           .query<{ bytes: number }, []>(`SELECT
           (SELECT coalesce(sum(bytes),0) FROM durable_objects) +
@@ -110,20 +118,23 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
           (SELECT count(*) FROM durable_objects) +
           (SELECT count(*) FROM durable_reservations) AS count`)
           .get();
-        if ((used?.bytes ?? 0) + maxRecordBytes > maxBytes || (count?.count ?? 0) >= maxRecords)
+        if (
+          (used?.bytes ?? 0) + maxRecordBytes - replaced > maxBytes ||
+          (count?.count ?? 0) >= maxRecords
+        )
           throw capacityError();
         db.query("INSERT INTO durable_reservations VALUES (?, ?, ?, ?, ?)").run(
           token,
           account,
           kind,
-          maxRecordBytes,
+          maxRecordBytes - replaced,
           now() + durationMs,
         );
       });
       ownedReservations.add(token);
       let released = false;
       return {
-        commit(id: string, payload: unknown, expires: number | null) {
+        commit(id: string, payload: unknown, expires: number | null, checkpoint = false) {
           if (closed)
             throw new GatewayError(503, "storage_unavailable", "Local durable storage was closed");
           const serialized = JSON.stringify(payload);
@@ -143,10 +154,17 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
             db.query(
               "INSERT INTO durable_objects VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account,kind,id) DO UPDATE SET payload=excluded.payload, bytes=excluded.bytes, expires=excluded.expires",
             ).run(account, kind, id, serialized, bytes, expires);
-            db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
+            if (checkpoint)
+              db.query("UPDATE durable_reservations SET bytes=? WHERE token=?").run(
+                maxRecordBytes - bytes,
+                token,
+              );
+            else db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
           });
-          ownedReservations.delete(token);
-          released = true;
+          if (!checkpoint) {
+            ownedReservations.delete(token);
+            released = true;
+          }
         },
         release() {
           if (released || closed) return;
@@ -163,6 +181,17 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
         )
         .get(account, kind, id, now());
       return row ? JSON.parse(row.payload) : undefined;
+    },
+    // One record per read keeps startup recovery bounded independently of database size.
+    next(kind: string, after: readonly [string, string] = ["", ""]) {
+      const row = db
+        .query<{ account: string; id: string; payload: string }, [string, string, string, number]>(
+          "SELECT account,id,payload FROM durable_objects WHERE kind=? AND (account,id)>(?,?) AND (expires IS NULL OR expires>?) ORDER BY account,id LIMIT 1",
+        )
+        .get(kind, after[0], after[1], now());
+      return row
+        ? { account: row.account, id: row.id, payload: JSON.parse(row.payload) as unknown }
+        : undefined;
     },
     delete(account: string, kind: string, id: string): boolean {
       return (

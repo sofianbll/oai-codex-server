@@ -3,6 +3,7 @@ import { chatRequest, chatResponse } from "./chat-adapter";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
 import { restoreStreamOutput } from "./response-stream-adapter";
+import { createBackgroundResponses } from "./responses-background";
 import { createResponsesLifecycle, type ResponsesStoreOptions } from "./responses-store";
 import { createResponsesBridge } from "./responses-ws-bridge";
 import { forward } from "./upstream";
@@ -20,6 +21,11 @@ export function createResponsesGateway(
     options.translationMode === "minimal"
       ? (storage.store ?? createDurableStore(storage))
       : undefined;
+  const background = store
+    ? createBackgroundResponses(options, credentials, store, storage, (request, auth, beforeSend) =>
+        bridge.forward(request, auth, beforeSend),
+      )
+    : undefined;
   const lifecycleFor = (auth: Awaited<ReturnType<CredentialProvider>>) =>
     createResponsesLifecycle(
       async (request: Request) => {
@@ -96,7 +102,16 @@ export function createResponsesGateway(
           const current = await exchange.wait(credentials());
           if (accountId !== undefined && accountId !== current.accountId) bridge.reset();
           accountId = current.accountId;
-          let response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          let response: Response;
+          const cancel = path.match(/^\/v1\/responses\/([^/]+)\/cancel$/);
+          if (request.method === "POST" && cancel?.[1] && background) {
+            response = background.cancel(current.accountId, decodeURIComponent(cancel[1]));
+          } else if (!chat && request.method === "POST" && path === "/v1/responses" && background) {
+            const parsed = (await request.clone().json()) as Record<string, unknown>;
+            if (parsed["background"] === true)
+              response = await background.create(request, parsed, current);
+            else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          } else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (chat) response = await exchange.wait(chatResponse(response));
           if (!response.body) {
             exchange.close();
@@ -123,6 +138,7 @@ export function createResponsesGateway(
       return relay(request);
     },
     close() {
+      background?.close();
       bridge.close();
       if (!storage.store) store?.close();
     },

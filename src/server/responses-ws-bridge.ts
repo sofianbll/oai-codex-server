@@ -383,7 +383,11 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
     };
   };
 
-  async function forward(request: Request, pinnedAuth?: UpstreamCredentials): Promise<Response> {
+  async function forward(
+    request: Request,
+    pinnedAuth?: UpstreamCredentials,
+    beforeSend?: () => Promise<void>,
+  ): Promise<Response> {
     if (request.method !== "POST")
       return errorResponse(405, "method_not_allowed", "Responses bridge requires POST");
     try {
@@ -434,6 +438,26 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
       const active =
         session ??
         (await connect(request, auth, request.headers.get("session-id") ?? adapted.sessionId));
+      if (beforeSend) {
+        try {
+          await beforeSend();
+          if (active.closed || request.signal.aborted)
+            throw new GatewayError(
+              499,
+              "request_cancelled",
+              "Background job stopped before emission",
+            );
+          if (active.busy)
+            throw new GatewayError(
+              409,
+              "previous_response_busy",
+              "The previous response is still active",
+            );
+        } catch (error) {
+          if (!session) destroy(active);
+          throw error;
+        }
+      }
       const streaming = adapted.streaming;
       if (streaming) {
         let turn: ActiveTurn | undefined;
