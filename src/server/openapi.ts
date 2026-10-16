@@ -127,7 +127,7 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     info: {
       title: "OAI Codex Server",
       version: "0.1.0",
-      description: `${transportDescription}\n\nThe reference covers the complete public Responses, Models, Images, Audio, Realtime and Live families in the pinned source, Chat creation (minimal mode: restricted JSON text adaptation), plus the source-backed Responses WebSocket transport. Public schemas are retained verbatim and do not establish backend support. Duplicate ?beta=true source paths are omitted; query strings remain relayable except where an adaptation explicitly refuses them. Other /v1/* paths can be relayed even when absent from this reference; minimal-mode stored Chat operations are explicitly refused.\n\nUse the local server bearer token below. Never enter a Codex access token. The server reads Codex credentials privately.`,
+      description: `${transportDescription}\n\nThe reference covers the complete public Responses, Conversations, Models, Images, Audio, Realtime and Live families in the pinned source, Chat creation (minimal mode: restricted JSON text adaptation), plus the source-backed Responses WebSocket transport. Conversations are local durable objects in minimal mode, with the validated input subset and deletion limits documented per operation. Public schemas are retained verbatim and do not establish backend support. Duplicate ?beta=true source paths are omitted; query strings remain relayable except where an adaptation explicitly refuses them. Other /v1/* paths can be relayed even when absent from this reference; minimal-mode stored Chat operations are explicitly refused.\n\nUse the local server bearer token below. Never enter a Codex access token. The server reads Codex credentials privately.`,
     },
     servers: [{ url: "/" }],
     security: localSecurity,
@@ -137,6 +137,11 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
         name: "Chat",
         description:
           "Adaptation JSON texte via Responses ; options non implémentées refusées explicitement.",
+      },
+      {
+        name: "Conversations",
+        description:
+          "Historique local durable, distinct des Responses et de la continuité Codex. Supprimer le conteneur ne supprime pas ses items.",
       },
       { name: "Models", description: "Lister et inspecter les modèles disponibles." },
       { name: "Images", description: "Générer et modifier des images." },

@@ -122,9 +122,7 @@ test("capabilities retain exact-count uncertainty, historical option refusals an
       expect.stringContaining("Code Interpreter"),
     ]),
   });
-  expect(operations.some((operation) => operation.path.startsWith("/v1/conversations"))).toBe(
-    false,
-  );
+  expect(operations.some((operation) => operation.path.startsWith("/v1/conversations"))).toBe(true);
   expect(operations.find((operation) => operation.id === "createChatCompletion")).toMatchObject({
     path: "/v1/chat/completions",
     method: "POST",

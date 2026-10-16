@@ -94,9 +94,11 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       throw error;
     }
   };
-  return {
+  const store = {
     maxRecordBytes,
-    reserve(account: string, kind: string, durationMs: number) {
+    reserve(account: string, kind: string, durationMs: number, allocation = maxRecordBytes) {
+      if (!Number.isSafeInteger(allocation) || allocation <= 0 || allocation > maxRecordBytes)
+        throw capacityError();
       const token = crypto.randomUUID();
       transaction(() => {
         prune();
@@ -110,13 +112,13 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
           (SELECT count(*) FROM durable_objects) +
           (SELECT count(*) FROM durable_reservations) AS count`)
           .get();
-        if ((used?.bytes ?? 0) + maxRecordBytes > maxBytes || (count?.count ?? 0) >= maxRecords)
+        if ((used?.bytes ?? 0) + allocation > maxBytes || (count?.count ?? 0) >= maxRecords)
           throw capacityError();
         db.query("INSERT INTO durable_reservations VALUES (?, ?, ?, ?, ?)").run(
           token,
           account,
           kind,
-          maxRecordBytes,
+          allocation,
           now() + durationMs,
         );
       });
@@ -128,7 +130,7 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
             throw new GatewayError(503, "storage_unavailable", "Local durable storage was closed");
           const serialized = JSON.stringify(payload);
           const bytes = Buffer.byteLength(JSON.stringify([account, kind, id, serialized, expires]));
-          if (bytes > maxRecordBytes)
+          if (bytes > allocation)
             throw new GatewayError(
               507,
               "stored_response_too_large",
@@ -155,6 +157,58 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
           ownedReservations.delete(token);
         },
       };
+    },
+    /** Synchronous read/modify/write, serialized across store instances by SQLite. */
+    atomic<T>(operation: () => T): T {
+      return transaction(operation);
+    },
+    /** Exact-size reservation for already available content, under the same global budget. */
+    put(
+      account: string,
+      kind: string,
+      id: string,
+      payload: unknown,
+      expires: number | null = null,
+    ) {
+      const bytes = Buffer.byteLength(
+        JSON.stringify([account, kind, id, JSON.stringify(payload), expires]),
+      );
+      const reservation = store.reserve(account, kind, 60000, bytes);
+      try {
+        reservation.commit(id, payload, expires);
+      } finally {
+        reservation.release();
+      }
+    },
+    list(
+      account: string,
+      kind: string,
+      order: "asc" | "desc",
+      limit: number,
+      after?: string,
+    ): { id: string; payload: unknown }[] {
+      const cursor =
+        after === undefined
+          ? undefined
+          : db
+              .query<{ rowid: number }, [string, string, string, number]>(
+                "SELECT rowid FROM durable_objects WHERE account=? AND kind=? AND id=? AND (expires IS NULL OR expires>?)",
+              )
+              .get(account, kind, after, now());
+      if (after !== undefined && !cursor)
+        throw new GatewayError(400, "invalid_cursor", "Cursor does not belong to this collection");
+      const rows = db
+        .query<{ id: string; payload: string }, [string, string, number, number, number]>(
+          `SELECT id,payload FROM durable_objects WHERE account=? AND kind=? AND (expires IS NULL OR expires>?) AND rowid ${order === "asc" ? ">" : "<"} ? ORDER BY rowid ${order === "asc" ? "ASC" : "DESC"} LIMIT ?`,
+        )
+        .all(
+          account,
+          kind,
+          now(),
+          cursor?.rowid ?? (order === "asc" ? 0 : Number.MAX_SAFE_INTEGER),
+          limit,
+        );
+      return rows.map((row) => ({ id: row.id, payload: JSON.parse(row.payload) as unknown }));
     },
     get(account: string, kind: string, id: string): unknown {
       const row = db
@@ -193,6 +247,7 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       db.close();
     },
   };
+  return store;
 }
 
 export type DurableStore = ReturnType<typeof createDurableStore>;
