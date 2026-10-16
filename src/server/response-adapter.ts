@@ -10,6 +10,7 @@ const requestSchema = z.looseObject({
   input: z.unknown().optional(),
   store: z.boolean().optional(),
   stream: z.boolean().optional(),
+  background: z.boolean().optional(),
   prompt_cache_key: z.unknown().optional(),
   tools: z.unknown().optional(),
   tool_choice: z.unknown().optional(),

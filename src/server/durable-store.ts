@@ -94,86 +94,103 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       throw error;
     }
   };
-  return {
-    maxRecordBytes,
-    reserve(account: string, kind: string, durationMs: number, replacingId?: string) {
-      const token = crypto.randomUUID();
-      transaction(() => {
-        prune();
-        const replaced =
-          replacingId === undefined
-            ? 0
-            : (db
-                .query<{ bytes: number }, [string, string, string]>(
-                  "SELECT bytes FROM durable_objects WHERE account=? AND kind=? AND id=?",
-                )
-                .get(account, kind, replacingId)?.bytes ?? 0);
-        const used = db
-          .query<{ bytes: number }, []>(`SELECT
+  const reserve = (
+    account: string,
+    kind: string,
+    durationMs: number,
+    replacingId?: string,
+    capacityBytes = maxRecordBytes,
+  ) => {
+    if (!Number.isSafeInteger(capacityBytes) || capacityBytes < 0 || capacityBytes > maxRecordBytes)
+      throw capacityError();
+    const token = crypto.randomUUID();
+    transaction(() => {
+      prune();
+      const replaced =
+        replacingId === undefined
+          ? 0
+          : (db
+              .query<{ bytes: number }, [string, string, string]>(
+                "SELECT bytes FROM durable_objects WHERE account=? AND kind=? AND id=?",
+              )
+              .get(account, kind, replacingId)?.bytes ?? 0);
+      const used = db
+        .query<{ bytes: number }, []>(`SELECT
           (SELECT coalesce(sum(bytes),0) FROM durable_objects) +
           (SELECT coalesce(sum(bytes),0) FROM durable_reservations) AS bytes`)
-          .get();
-        const count = db
-          .query<{ count: number }, []>(`SELECT
+        .get();
+      const count = db
+        .query<{ count: number }, []>(`SELECT
           (SELECT count(*) FROM durable_objects) +
           (SELECT count(*) FROM durable_reservations) AS count`)
-          .get();
-        if (
-          (used?.bytes ?? 0) + maxRecordBytes - replaced > maxBytes ||
-          (count?.count ?? 0) >= maxRecords
-        )
-          throw capacityError();
-        db.query("INSERT INTO durable_reservations VALUES (?, ?, ?, ?, ?)").run(
-          token,
-          account,
-          kind,
-          maxRecordBytes - replaced,
-          now() + durationMs,
-        );
-      });
-      ownedReservations.add(token);
-      let released = false;
-      return {
-        commit(id: string, payload: unknown, expires: number | null, checkpoint = false) {
-          if (closed)
-            throw new GatewayError(503, "storage_unavailable", "Local durable storage was closed");
-          const serialized = JSON.stringify(payload);
-          const bytes = Buffer.byteLength(JSON.stringify([account, kind, id, serialized, expires]));
-          if (bytes > maxRecordBytes)
-            throw new GatewayError(
-              507,
-              "stored_response_too_large",
-              "Response and inputs exceed the per-object durable storage limit",
+        .get();
+      if (
+        (used?.bytes ?? 0) + Math.max(0, capacityBytes - replaced) > maxBytes ||
+        (count?.count ?? 0) + (replaced > 0 ? 0 : 1) > maxRecords
+      )
+        throw capacityError();
+      db.query("INSERT INTO durable_reservations VALUES (?, ?, ?, ?, ?)").run(
+        token,
+        account,
+        kind,
+        Math.max(0, capacityBytes - replaced),
+        now() + durationMs,
+      );
+    });
+    ownedReservations.add(token);
+    let released = false;
+    let checkpointId: string | undefined;
+    return {
+      commit(id: string, payload: unknown, expires: number | null, checkpoint = false) {
+        if (closed)
+          throw new GatewayError(503, "storage_unavailable", "Local durable storage was closed");
+        const serialized = JSON.stringify(payload);
+        if (checkpointId !== undefined && checkpointId !== id)
+          throw new GatewayError(
+            409,
+            "reservation_conflict",
+            "A checkpoint reservation belongs to one object",
+          );
+        const bytes = Buffer.byteLength(JSON.stringify([account, kind, id, serialized, expires]));
+        if (bytes > capacityBytes)
+          throw new GatewayError(
+            507,
+            "stored_response_too_large",
+            "Response and inputs exceed the per-object durable storage limit",
+          );
+        transaction(() => {
+          // Checked in the same write transaction as replacement and quota accounting.
+          const valid = db
+            .query("SELECT token FROM durable_reservations WHERE token=? AND expires>?")
+            .get(token, now());
+          if (released || !valid) throw capacityError();
+          db.query(
+            "INSERT INTO durable_objects VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account,kind,id) DO UPDATE SET payload=excluded.payload, bytes=excluded.bytes, expires=excluded.expires",
+          ).run(account, kind, id, serialized, bytes, expires);
+          if (checkpoint)
+            db.query("UPDATE durable_reservations SET bytes=? WHERE token=?").run(
+              capacityBytes - bytes,
+              token,
             );
-          transaction(() => {
-            // Checked in the same write transaction as replacement and quota accounting.
-            const valid = db
-              .query("SELECT token FROM durable_reservations WHERE token=? AND expires>?")
-              .get(token, now());
-            if (released || !valid) throw capacityError();
-            db.query(
-              "INSERT INTO durable_objects VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account,kind,id) DO UPDATE SET payload=excluded.payload, bytes=excluded.bytes, expires=excluded.expires",
-            ).run(account, kind, id, serialized, bytes, expires);
-            if (checkpoint)
-              db.query("UPDATE durable_reservations SET bytes=? WHERE token=?").run(
-                maxRecordBytes - bytes,
-                token,
-              );
-            else db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
-          });
-          if (!checkpoint) {
-            ownedReservations.delete(token);
-            released = true;
-          }
-        },
-        release() {
-          if (released || closed) return;
-          db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
-          released = true;
+          else db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
+        });
+        if (!checkpoint) {
           ownedReservations.delete(token);
-        },
-      };
-    },
+          released = true;
+        } else checkpointId = id;
+      },
+      release() {
+        if (released || closed) return;
+        db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
+        released = true;
+        ownedReservations.delete(token);
+      },
+    };
+  };
+  return {
+    maxRecordBytes,
+    reserve: (account: string, kind: string, durationMs: number) =>
+      reserve(account, kind, durationMs),
     get(account: string, kind: string, id: string): unknown {
       const row = db
         .query<{ payload: string }, [string, string, string, number]>(
@@ -192,6 +209,40 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       return row
         ? { account: row.account, id: row.id, payload: JSON.parse(row.payload) as unknown }
         : undefined;
+    },
+    /** Exclusive startup recovery: discard orphan producers, never execute retained work. */
+    recover(
+      kind: string,
+      rewrite: (payload: unknown) => { payload: unknown; expires: number | null } | undefined,
+    ) {
+      transaction(() => {
+        db.query("DELETE FROM durable_reservations WHERE kind=?").run(kind);
+      });
+      let cursor: readonly [string, string] | undefined;
+      for (;;) {
+        const row = this.next(kind, cursor);
+        if (!row) break;
+        cursor = [row.account, row.id];
+        const changed = rewrite(row.payload);
+        if (!changed) continue;
+        transaction(() => {
+          const bytes = Buffer.byteLength(
+            JSON.stringify([
+              row.account,
+              kind,
+              row.id,
+              JSON.stringify(changed.payload),
+              changed.expires,
+            ]),
+          );
+          const reservation = reserve(row.account, kind, 60_000, row.id, bytes);
+          try {
+            reservation.commit(row.id, changed.payload, changed.expires);
+          } finally {
+            reservation.release();
+          }
+        });
+      }
     },
     delete(account: string, kind: string, id: string): boolean {
       return (

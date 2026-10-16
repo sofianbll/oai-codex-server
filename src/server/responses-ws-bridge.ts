@@ -19,6 +19,7 @@ const terminalTypes = new Set([
   "response.completed",
   "response.failed",
   "response.incomplete",
+  "response.cancelled",
   "error",
 ]);
 

@@ -37,22 +37,12 @@ export function createBackgroundResponses(
   const expires = (response: Json) =>
     now() + (response["store"] === true ? (storage.ttlMs ?? DURABLE_TTL) : TEMP_TTL);
   // Recovery is synchronous and never schedules work, including queued jobs.
-  let cursor: readonly [string, string] | undefined;
-  for (;;) {
-    const row = store.next("background", cursor);
-    if (!row) break;
-    cursor = [row.account, row.id];
-    const job = row.payload as Job;
-    if (!terminal(job.response)) {
-      const reservation = store.reserve(row.account, "background", options.timeoutMs, row.id);
-      try {
-        job.response = { ...job.response, status: "failed", error: interruption };
-        reservation.commit(row.id, job, expires(job.response));
-      } finally {
-        reservation.release();
-      }
-    }
-  }
+  store.recover("background", (payload) => {
+    const job = payload as Job;
+    if (terminal(job.response)) return undefined;
+    const response = { ...job.response, status: "failed", error: interruption };
+    return { payload: { ...job, response }, expires: expires(response) };
+  });
 
   return {
     async create(request: Request, parsed: Json, auth: UpstreamCredentials): Promise<Response> {
@@ -70,8 +60,13 @@ export function createBackgroundResponses(
           "At most 16 local background jobs may be pending",
         );
       // Validate before reserving or detaching. Preserve unknown upstream fields.
+      adaptRequest(
+        new TextEncoder().encode(
+          JSON.stringify({ ...parsed, store: parsed["store"] === true ? false : parsed["store"] }),
+        ).buffer,
+        options,
+      );
       const body = { ...parsed, store: false, background: false, stream: false };
-      adaptRequest(new TextEncoder().encode(JSON.stringify(body)).buffer, options);
       const id = `resp_bg_${crypto.randomUUID()}`;
       const response: Json = {
         id,
@@ -105,6 +100,13 @@ export function createBackgroundResponses(
             : item,
         ),
       };
+      // Leave bounded room for terminal failure/interruption metadata even at saturation.
+      if (Buffer.byteLength(JSON.stringify(job)) + 1024 > store.maxRecordBytes)
+        throw new GatewayError(
+          507,
+          "stored_response_too_large",
+          "Background inputs and metadata exceed the local record limit",
+        );
       const reservation = store.reserve(auth.accountId, "background", options.timeoutMs + 60_000);
       try {
         reservation.commit(id, job, now() + options.timeoutMs + TEMP_TTL, true);
@@ -135,7 +137,7 @@ export function createBackgroundResponses(
               message: "Background result could not be retained locally",
             },
           };
-          reservation.commit(id, { response: failure, input: [] }, expires(failure));
+          reservation.commit(id, { response: failure, input: job.input }, expires(failure));
         }
         settled = true;
       };

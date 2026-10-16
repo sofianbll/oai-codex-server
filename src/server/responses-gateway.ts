@@ -107,9 +107,20 @@ export function createResponsesGateway(
           if (request.method === "POST" && cancel?.[1] && background) {
             response = background.cancel(current.accountId, decodeURIComponent(cancel[1]));
           } else if (!chat && request.method === "POST" && path === "/v1/responses" && background) {
-            const parsed = (await request.clone().json()) as Record<string, unknown>;
-            if (parsed["background"] === true)
-              response = await background.create(request, parsed, current);
+            let parsed: unknown;
+            try {
+              parsed = await request.clone().json();
+            } catch {
+              throw new GatewayError(400, "invalid_json", "Responses requires a JSON object");
+            }
+            if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+              throw new GatewayError(400, "invalid_request", "Responses requires a JSON object");
+            if ("background" in parsed && parsed.background === true)
+              response = await background.create(
+                request,
+                parsed as Record<string, unknown>,
+                current,
+              );
             else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           } else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (chat) response = await exchange.wait(chatResponse(response));
