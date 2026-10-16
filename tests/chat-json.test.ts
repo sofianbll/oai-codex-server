@@ -130,14 +130,15 @@ test("Chat rejects unimplemented options and malformed messages before any upstr
   const local = fixture();
   try {
     for (const extra of [
-      { stream: true },
       { store: true },
       { store: null },
       { n: 2 },
       { temperature: 0 },
       { response_format: { type: "json_object" } },
-      { tools: [] },
       { future_option: "keep-me" },
+      { stream_options: { include_usage: true } },
+      { stream: true, stream_options: { include_usage: true, future_option: 1 } },
+      { tools: [{ type: "function", function: { name: "lookup", future_option: 1 } }] },
       { messages: [{ role: "tool", content: "result", tool_call_id: "call_1" }] },
       {
         messages: [
@@ -148,6 +149,28 @@ test("Chat rejects unimplemented options and malformed messages before any upstr
         ],
       },
       { messages: [{ role: "assistant", content: null, tool_calls: [] }] },
+      {
+        messages: [
+          {
+            role: "assistant",
+            tool_calls: [
+              { id: "call_1", type: "function", function: { name: "lookup", arguments: "{}" } },
+            ],
+          },
+        ],
+      },
+      {
+        messages: [
+          {
+            role: "assistant",
+            tool_calls: [
+              { id: "call_1", type: "function", function: { name: "lookup", arguments: "{}" } },
+            ],
+          },
+          { role: "tool", tool_call_id: "call_1", content: "done" },
+          { role: "tool", tool_call_id: "call_1", content: "duplicate" },
+        ],
+      },
       { messages: [{ role: "user", name: "Ada", content: "hello" }] },
     ]) {
       await expect(
@@ -195,9 +218,9 @@ test("Chat retains refusal content and does not invent usage when upstream omits
   }
 });
 
-test("Chat refuses unexpected structured output instead of silently discarding tool calls", async () => {
+test("Chat refuses unsupported native structured output instead of silently discarding it", async () => {
   const local = fixture({
-    output: [{ type: "function_call", call_id: "call_1", name: "lookup", arguments: "{}" }],
+    output: [{ type: "web_search_call", id: "search_1" }],
   });
   try {
     await expect(
@@ -205,6 +228,46 @@ test("Chat refuses unexpected structured output instead of silently discarding t
         .create({ model: "fixture-model", messages: [{ role: "user", content: "hello" }] })
         .then((value) => value),
     ).rejects.toMatchObject({ status: 502, code: "unsupported_chat_output" });
+  } finally {
+    local.close();
+  }
+});
+
+test("Chat JSON returns structured functions with call ids, actual usage and tool_calls finish", async () => {
+  const local = fixture({
+    output: [
+      { type: "reasoning", summary: [{ text: "private" }] },
+      {
+        type: "function_call",
+        id: "fc_native",
+        call_id: "call_public",
+        name: "lookup",
+        arguments: '{"city":"Paris"}',
+      },
+    ],
+  });
+  try {
+    const result = await local.client.chat.completions.create({
+      model: "fixture-model",
+      messages: [{ role: "user", content: "lookup" }],
+      tools: [{ type: "function", function: { name: "lookup" } }],
+    });
+    expect(result.choices[0]).toMatchObject({
+      finish_reason: "tool_calls",
+      message: {
+        role: "assistant",
+        content: null,
+        refusal: null,
+        tool_calls: [
+          {
+            id: "call_public",
+            type: "function",
+            function: { name: "lookup", arguments: '{"city":"Paris"}' },
+          },
+        ],
+      },
+    });
+    expect(result.usage?.total_tokens).toBe(17);
   } finally {
     local.close();
   }

@@ -1,5 +1,6 @@
 import { type CredentialProvider, GatewayError, type ProxyOptions } from "../shared/contracts";
 import { chatRequest, chatResponse } from "./chat-adapter";
+import { chatStream } from "./chat-stream";
 import { conversations } from "./conversations";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
@@ -73,6 +74,7 @@ export function createResponsesGateway(
         );
       if (conversation || chat || path === "/v1/responses" || path.startsWith("/v1/responses/")) {
         const exchange = new Exchange(request.signal, options.timeoutMs);
+        let includeUsage = false;
         try {
           if (chat || (request.method === "POST" && (conversation || path === "/v1/responses"))) {
             const declared = request.headers.get("content-length");
@@ -95,7 +97,11 @@ export function createResponsesGateway(
               : new ArrayBuffer(0);
             request = new Request(request, { body, signal: exchange.controller.signal });
             if (conversation && body.byteLength) conversationBody = new TextDecoder().decode(body);
-            if (chat) request = chatRequest(request, body);
+            if (chat) {
+              const adapted = chatRequest(request, body);
+              request = adapted.request;
+              includeUsage = adapted.includeUsage;
+            }
           } else request = new Request(request, { signal: exchange.controller.signal });
           const current = await exchange.wait(credentials());
           if (accountId !== undefined && accountId !== current.accountId) bridge.reset();
@@ -110,7 +116,17 @@ export function createResponsesGateway(
                   storage.now,
                 )
               : await exchange.wait(lifecycleFor(current)(request, current.accountId));
-          if (chat) response = await exchange.wait(chatResponse(response));
+          if (chat) {
+            response =
+              response.ok &&
+              response.body &&
+              response.headers.get("content-type")?.includes("text/event-stream")
+                ? new Response(
+                    response.body.pipeThrough(chatStream(includeUsage, options.maxBodyBytes)),
+                    response,
+                  )
+                : await exchange.wait(chatResponse(response));
+          }
           if (!response.body) {
             exchange.close();
             return response;
