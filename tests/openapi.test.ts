@@ -188,6 +188,19 @@ describe("same-origin OpenAPI reference", () => {
     expect(record.parse(socket["responses"])["101"]).toBeDefined();
     expect(socket["x-proxy-availability"]).toBe("source-backed");
     expect(paths["/v1/conversations"]).toBeUndefined();
-    expect(paths["/v1/chat/completions"]).toBeUndefined();
+    const chat = record.parse(record.parse(paths["/v1/chat/completions"])["post"]);
+    expect(chat["x-proxy-implementation"]).toBe("adaptation");
+    expect(chat["x-proxy-availability"]).toBe("unverified");
+    const body = record.parse(chat["requestBody"]);
+    const json = record.parse(record.parse(body["content"])["application/json"]);
+    expect(json["example"]).toEqual({
+      model: "configured-model",
+      messages: [{ role: "user", content: "Say hello in one sentence." }],
+      store: false,
+      stream: false,
+    });
+    expect(chat["x-proxy-limitations"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("stream:true")]),
+    );
   });
 });
