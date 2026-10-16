@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { operations, publicApi, publicOperations, transportDescription } from "./catalog";
+import { imageEditSchema } from "./image-edits";
 
 const localSecurity = [{ LocalBearer: [] }] as const;
 const controls = [
@@ -59,9 +61,20 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
       ? { model: defaultModel, ...operation.requestBodyExample }
       : operation.requestBodyExample;
     let requestBody =
-      body && media && example
-        ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
-        : body;
+      operation.id === "createImageEdit" && body
+        ? {
+            ...body,
+            content: {
+              ...body.content,
+              "application/json": {
+                schema: z.toJSONSchema(imageEditSchema),
+                example,
+              },
+            },
+          }
+        : body && media && example
+          ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
+          : body;
     if (operation.id === "create-realtime-call" && body && example) {
       requestBody = {
         ...body,
@@ -112,6 +125,14 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
             "WebSocket upgrade accepted; subsequent messages use the selected native protocol.",
         },
         "400": { description: "A WebSocket upgrade request is required." },
+        ...(operation.id === "connectRealtimeWebSocket"
+          ? {
+              "501": {
+                description:
+                  "Minimal mode: realtime_protocol_not_adapted for the incompatible native V1 quicksilver intent. Raw mode remains a native relay.",
+              },
+            }
+          : {}),
         "502": { description: "The Codex backend could not establish the connection." },
       },
     };

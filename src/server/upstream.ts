@@ -1,5 +1,6 @@
 import ky, { TimeoutError } from "ky";
 import { type CredentialProvider, GatewayError, type ProxyOptions } from "../shared/contracts";
+import { adaptImageEdit } from "./image-edits";
 import { realtimeCallBody, realtimeCallLocation } from "./realtime-call";
 import { adaptRequest, completedResponse, modelList } from "./response-adapter";
 import { restoreStreamOutput } from "./response-stream-adapter";
@@ -108,6 +109,19 @@ export async function forward(
         "Audio HTTP speech has no established faithful Codex contract under the authorized prefix. No synthesis was attempted. Raw relay remains available for a separately authorized probe; model, voice, formats and account access remain unverified.",
       );
     }
+    if (minimal && request.method === "POST" && path === "/v1/images/variations") {
+      throw new GatewayError(
+        501,
+        "image_variation_contract_unverified",
+        "No faithful native variations contract is established. Generation and editing are not substitutes; no image operation was attempted. Raw remains an unadapted, unverified relay.",
+      );
+    }
+    const imageEdit = minimal && request.method === "POST" && path === "/v1/images/edits";
+    const imageBody = imageEdit
+      ? await exchange.wait(
+          adaptImageEdit(request, bytes ?? new ArrayBuffer(0), options.maxBodyBytes),
+        )
+      : undefined;
     const adapted = responses ? adaptRequest(bytes ?? new ArrayBuffer(0), options) : undefined;
     const headers = sanitizedHeaders(request.headers, true);
     const call = realtime
@@ -120,7 +134,7 @@ export async function forward(
     headers.set("authorization", `Bearer ${auth.accessToken}`);
     headers.set("chatgpt-account-id", auth.accountId);
     headers.set("accept-encoding", "identity");
-    if (adapted) {
+    if (adapted || imageEdit) {
       headers.set("content-type", "application/json");
       headers.delete("content-encoding");
     }
@@ -128,7 +142,7 @@ export async function forward(
       headers.set("content-type", call.contentType);
       headers.delete("content-encoding");
     }
-    const payload = call?.body ?? adapted?.body ?? bytes;
+    const payload = imageBody ?? call?.body ?? adapted?.body ?? bytes;
     if (call && new Blob([call.body]).size > options.maxBodyBytes)
       throw new GatewayError(
         413,

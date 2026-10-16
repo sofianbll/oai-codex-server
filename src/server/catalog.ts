@@ -227,15 +227,26 @@ function qualification(id: string): Qualification {
         kind: "source",
         date: "2026-10-16",
         scope:
-          "Codex has standalone and sideband Realtime WebSocket clients with distinct protocol versions; no live public-contract result verified.",
-        sources: [`${codexSource}endpoint/realtime_websocket/methods.rs`, research],
+          "Realtime WebSocket source distinguishes V1, RealtimeV2 and Frameless Bidi. Local SDK/wire tests establish transport only, not ChatGPT authentication or a backend audio result.",
+        sources: [
+          `${codexSource}endpoint/realtime_websocket/methods_v2.rs`,
+          `${codexSource}endpoint/realtime_websocket/protocol_v2.rs`,
+          "https://github.com/openai/codex/blob/83086188ae0614bd882818ff1aa23f3194962012/codex-rs/core/src/realtime_conversation.rs",
+          "docs/research/2026-10-17-realtime-ws-contract.md",
+        ],
       },
       prerequisites: [
         ...relayQualification.prerequisites,
-        "Eligible plan, rollout and workspace settings; matching realtime protocol, audio formats and authorized session/call.",
+        "Pinned Codex standalone WS startup requires API key auth, including a temporary API-key fallback for ChatGPT sessions. This proxy never uses that fallback.",
+        "A ChatGPT bearer authentication mechanism under /backend-api/codex/realtime is not established; backend access and a matching model/protocol remain prerequisites, not a universal impossibility claim.",
       ],
       limitations: [
-        "WebSocket standalone/sideband and WebRTC are not interchangeable; default public API sideband destinations are not used as credential fallbacks.",
+        "RealtimeV2 shares public session.update, input_audio_buffer.append (base64 PCM16 mono 24 kHz), conversation.item.create and response output audio events; unchanged frames are a relay, not an adapter or proof of every public option.",
+        "V1 uses intent=quicksilver, session.type=quicksilver, native handoffs and conversation.output_audio.delta. Minimal mode refuses this known incompatible intent with realtime_protocol_not_adapted (501); raw retains the native relay.",
+        "Frameless Bidi uses /live, input_audio.append, session.context.append and session.close. No public Realtime translation is established; its native relay is separate.",
+        "thread/realtime RPC is an app-server lifecycle, not public WebSocket frames. Sideband requires an existing authorized call; no WebRTC call, SDP or default api.openai.com destination is created here.",
+        "OpenAI Node SDK openai/realtime/ws uses bearer auth and WSS (TLS termination required). Browser SDK subprotocol authentication is not accepted; the same-origin Explorer uses oai-codex-token instead. HTTP/ws loopback alone is not a runnable SDK WSS endpoint.",
+        "Errors, unknown events/options and cancellation frames remain unchanged; cancellation acknowledgement, truncation semantics, audio quality and backend availability are unverified. One shared WS/WebRTC live session, ten seconds maximum, is reserved only by the coordinator.",
       ],
     };
   }
@@ -346,19 +357,21 @@ function qualification(id: string): Qualification {
       },
       limitations: [
         "No faithful variations adaptation or backend result is established; generation is not a substitute.",
+        "Minimal mode returns 501 image_variation_contract_unverified before credentials or upstream effects. Raw is unchanged; no variation probe is authorized.",
       ],
     };
   }
   if (id === "createImage" || id === "createImageEdit") {
     return {
       ...relayQualification,
+      implementation: id === "createImageEdit" ? "adaptation" : "relay",
       evidence: {
         kind: id === "createImage" ? "runtime" : "source",
         date: "2026-10-16",
         scope:
           id === "createImage"
             ? "Native JSON images/generations uses prompt, model, background, n, quality, size. Coordinator observation 2026-10-16T22:27:36.855Z, minimal, gpt-image-2, n=1, quality=low, background=opaque: HTTP 200 JSON with one decodable opaque PNG, blue circle on white without text. Requested 1024x1024 but decoded 1374x1145: dimension fidelity failed, not verified compatible."
-            : "Codex ImagesClient sends JSON image references to images/edits; public multipart equivalence is not established.",
+            : "Codex ImagesClient sends JSON images[] with image_url (inline base64 data URL) or file_id references. Minimal mode adapts public multipart image/image[] PNG/JPEG/WebP uploads into ordered inline references, preserving bytes. Native JSON references are validated; edits are not live-verified and do not inherit generation evidence.",
         sources: [
           `${codexSource}endpoint/images.rs`,
           `${codexSource}images.rs`,
@@ -369,7 +382,11 @@ function qualification(id: string): Qualification {
                 "docs/evidence/images-generation.md",
                 "https://developers.openai.com/codex/image-generation.md",
               ]
-            : []),
+            : [
+                "https://github.com/openai/codex/blob/83086188ae0614bd882818ff1aa23f3194962012/codex-rs/protocol/src/models.rs",
+                "https://github.com/openai/openai-node/blob/v7.20.0/src/resources/images.ts",
+                "docs/evidence/images-edits.md",
+              ]),
         ],
       },
       limitations: [
@@ -381,7 +398,10 @@ function qualification(id: string): Qualification {
               "Local SDK fixtures verify JSON/base64 and binary transport, errors, request size limits and interruption. The separate live observation establishes only the documented gpt-image-2 request, not other options/models, edits or variations. Raw remains unchanged. See docs/evidence/images-generation.md.",
             ]
           : [
-              "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
+              "Minimal accepts explicit prompt/model, ordered image/image[] multipart uploads or native JSON images[] with inline data URLs or existing authorized file_id. No default model, file upload/resolution, URL fetch, filesystem read or credential destination is introduced. file_id ownership/access is an upstream prerequisite, not locally verified.",
+              "mask, input_fidelity, response_format, output_format/output_compression, stream/partial_images, user, unknown options, nulls, duplicate scalar fields and query parameters are explicitly refused with 400 unsupported_image_edit_contract, never dropped. Public JSON image is not native images[].",
+              "n (unsigned safe integer), size (string), background and quality have source-backed serialization only, not verified count/dimension/output fidelity. PNG/JPEG/WebP signatures and canonical base64 are checked within request/encoded-body limits; no pixel decoding, resizing, transcoding or output validation is performed. Malformed image pixels can still be refused upstream.",
+              "Upload, multipart parsing, credentials and upstream response share the relay deadline/cancellation. Local HTTP/SDK fixtures are not backend availability or editing-result evidence. Raw retains unknown fields and original bytes; no edit or variation live probe is authorized.",
             ]),
         "Desktop /wham/images paths are research leads, not authorized credential destinations; no paid API fallback.",
       ],
@@ -390,6 +410,11 @@ function qualification(id: string): Qualification {
   return relayQualification;
 }
 const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  createImageEdit: {
+    images: [{ file_id: "file-existing-authorized-image" }],
+    model: "unverified-image-model",
+    prompt: "Keep the image unchanged.",
+  },
   createChatCompletion: {
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     store: false,
@@ -498,11 +523,12 @@ export const operations: readonly Operation[] = [
     method: "GET",
     path: "/v1/realtime",
     summary: "Connect Realtime WebSocket",
-    description: `${transportDescription}\n\nNative standalone and sideband clients are source-backed, not live-verified public Realtime compatibility.`,
+    description: `${transportDescription}\n\nPublic Realtime and Codex V1/RealtimeV2/Frameless Bidi/thread RPC are distinct contracts. No ChatGPT-authenticated backend audio exchange is verified. Minimal rejects the known V1 quicksilver intent; raw remains an unadapted native relay. See prerequisites before connecting.`,
     category: "Realtime",
     availability: "source-backed",
     supported: true,
     ...qualification("connectRealtimeWebSocket"),
+    queryParameters: ["model", "intent", "call_id"],
   } satisfies Operation,
 ].sort((a, b) => {
   const catA = categoryOrder.indexOf(a.category.toLowerCase() as (typeof categoryOrder)[number]);
