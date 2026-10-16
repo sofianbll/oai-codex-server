@@ -99,6 +99,13 @@ export async function forward(
           exchange.wrap(request.body, { maxBytes: options.maxBodyBytes, overflowStatus: 413 }),
         ).arrayBuffer()
       : undefined;
+    if (minimal && request.method === "POST" && path === "/v1/audio/speech") {
+      throw new GatewayError(
+        501,
+        "speech_contract_unverified",
+        "Audio HTTP speech has no established faithful Codex contract under the authorized prefix. No synthesis was attempted. Raw relay remains available for a separately authorized probe; model, voice, formats and account access remain unverified.",
+      );
+    }
     const adapted = responses ? adaptRequest(bytes ?? new ArrayBuffer(0), options) : undefined;
     const headers = sanitizedHeaders(request.headers, true);
     if (adapted?.sessionId !== undefined && !headers.has("session-id"))
