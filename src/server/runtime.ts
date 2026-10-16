@@ -1,5 +1,5 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { GatewayError } from "../shared/contracts";
 import { authorized, checkOrigin, loadServerToken } from "./access";
 import { createActivity } from "./activity";
@@ -15,7 +15,19 @@ export async function startServer(config: AppConfig, configPath: string) {
   const token = await loadServerToken(resolve(directory, config.auth.tokenFile));
   const credentials = createCredentialStore(resolve(directory, config.auth.codexHome));
   const websocket = createWebSocketProxy(config.proxy, credentials.get);
-  const responses = createResponsesGateway(config.proxy, credentials.get);
+  const storagePath = resolve(directory, config.storage.path);
+  const authPath = resolve(directory, config.auth.codexHome);
+  const withinAuth = relative(authPath, storagePath);
+  if (
+    config.proxy.translationMode === "minimal" &&
+    (withinAuth === "" || (!withinAuth.startsWith("..") && !withinAuth.startsWith("/")))
+  )
+    throw new GatewayError(
+      400,
+      "invalid_storage_path",
+      "Durable storage must not use the Codex credential directory",
+    );
+  const responses = createResponsesGateway(config.proxy, credentials.get, { path: storagePath });
   const host = resolveHost(config.server.host);
   let stopped = false;
   let server: Bun.Server<WebSocketData> | undefined;

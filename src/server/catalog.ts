@@ -146,17 +146,17 @@ function qualification(id: string): Qualification {
       ...relayQualification,
       implementation: "local",
       evidence: {
-        kind: "source",
-        date: "2026-10-16",
+        kind: "runtime",
+        date: "2026-10-17",
         scope:
-          "Existing minimal-mode local Responses storage, not native Codex persistence or a new live validation.",
-        sources: ["src/server/responses-store.ts", "docs/evidence/responses-sprint/RESULTAT.md"],
+          "Minimal-mode SQLite Responses persistence, verified with local SDK/runtime fixtures across restart; not native Codex persistence or a live backend validation.",
+        sources: ["src/server/responses-store.ts", "tests/responses-durable.test.ts"],
       },
       prerequisites: [
-        "A response created with store:true in minimal mode, under the same account and running process.",
+        "A response created with store:true in minimal mode, under the same account and server storage configuration.",
       ],
       limitations: [
-        "One-hour in-memory retention; 256 responses, 32 MiB total, 4 MiB per response. Restart/account change loses this state. Raw mode only relays.",
+        "Thirty-day local retention across restart; 1 GiB global application budget across accounts/kinds, 4 MiB per retained object including inputs. Capacity errors are explicit, without arbitrary eviction. Raw mode only relays. Durable data does not restore a native continuation.",
       ],
     };
   }
@@ -202,7 +202,7 @@ function qualification(id: string): Qualification {
       limitations: [
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
-        "store:true uses bounded one-hour in-memory storage in minimal mode, lost on restart/account change; background jobs and Conversations are not implemented.",
+        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Conversations and durable-context replay are not implemented.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };

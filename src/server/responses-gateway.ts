@@ -1,34 +1,57 @@
 import { type CredentialProvider, GatewayError, type ProxyOptions } from "../shared/contracts";
+import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
 import { restoreStreamOutput } from "./response-stream-adapter";
-import { createResponsesLifecycle } from "./responses-store";
+import { createResponsesLifecycle, type ResponsesStoreOptions } from "./responses-store";
 import { createResponsesBridge } from "./responses-ws-bridge";
 import { forward } from "./upstream";
 import { Exchange } from "./upstream-stream";
 
-export function createResponsesGateway(options: ProxyOptions, credentials: CredentialProvider) {
+export function createResponsesGateway(
+  options: ProxyOptions,
+  credentials: CredentialProvider,
+  storage: ResponsesStoreOptions = {},
+) {
   const bridge = createResponsesBridge(options, credentials);
   let accountId: string | undefined;
   const relay = (request: Request) => forward(request, options, credentials);
-  const lifecycle = createResponsesLifecycle(async (request: Request) => {
-    const path = new URL(request.url).pathname;
-    if (request.method === "POST" && path === "/v1/responses/compact")
-      return compactResponse(request, options, credentials, relay);
-    if (request.method === "POST" && path === "/v1/responses") {
-      const response = await bridge.forward(request);
-      if (
-        response.ok &&
-        response.body &&
-        response.headers.get("content-type")?.includes("text/event-stream")
-      )
-        return new Response(
-          response.body.pipeThrough(restoreStreamOutput(options.maxBodyBytes)),
-          response,
-        );
-      return response;
-    }
-    return relay(request);
-  });
+  const store =
+    options.translationMode === "minimal"
+      ? (storage.store ?? createDurableStore(storage))
+      : undefined;
+  const lifecycleFor = (auth: Awaited<ReturnType<CredentialProvider>>) =>
+    createResponsesLifecycle(
+      async (request: Request) => {
+        const path = new URL(request.url).pathname;
+        if (request.method === "POST" && path === "/v1/responses/compact")
+          return compactResponse(
+            request,
+            options,
+            async () => auth,
+            (req) => forward(req, options, async () => auth),
+          );
+        if (request.method === "POST" && path === "/v1/responses") {
+          const response = await bridge.forward(request, auth);
+          if (
+            response.ok &&
+            response.body &&
+            response.headers.get("content-type")?.includes("text/event-stream")
+          )
+            return new Response(
+              response.body.pipeThrough(restoreStreamOutput(options.maxBodyBytes)),
+              response,
+            );
+          return response;
+        }
+        return forward(request, options, async () => auth);
+      },
+      {
+        ...storage,
+        ...(store ? { store } : {}),
+        maxResponseBytes: options.maxBodyBytes,
+        reservationMs: options.timeoutMs,
+      },
+    );
   return {
     async forward(request: Request): Promise<Response> {
       if (options.translationMode !== "minimal") return relay(request);
@@ -58,9 +81,9 @@ export function createResponsesGateway(options: ProxyOptions, credentials: Crede
             request = new Request(request, { body, signal: exchange.controller.signal });
           } else request = new Request(request, { signal: exchange.controller.signal });
           const current = await exchange.wait(credentials());
-          if (accountId !== undefined && accountId !== current.accountId) lifecycle.clear();
+          if (accountId !== undefined && accountId !== current.accountId) bridge.reset();
           accountId = current.accountId;
-          const response = await exchange.wait(lifecycle(request));
+          const response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (!response.body) {
             exchange.close();
             return response;
@@ -83,11 +106,11 @@ export function createResponsesGateway(options: ProxyOptions, credentials: Crede
           throw error;
         }
       }
-      return lifecycle(request);
+      return relay(request);
     },
     close() {
       bridge.close();
-      lifecycle.clear();
+      if (!storage.store) store?.close();
     },
   };
 }

@@ -73,7 +73,7 @@ export function createTestResult() {
       sent.textContent = JSON.stringify(request, null, 2);
       adaptation.textContent =
         mode === "minimal" && request.path === "/v1/responses"
-          ? "Mode minimal : le proxy complète les champs absents, transforme input texte en message, refuse store:true et demande un flux à Codex. Sans streaming côté navigateur, il assemble la réponse finale. Explication issue de la configuration, pas une capture du trafic upstream."
+          ? "Mode minimal : le proxy complète les champs absents (store:false), transforme input texte en message et demande un flux à Codex. store:true active le stockage local privé pendant trente jours. Sans streaming côté navigateur, il assemble la réponse finale. Explication issue de la configuration, pas une capture du trafic upstream."
           : `Mode ${mode} : cette requête est relayée sans adaptation Responses. Explication issue de la configuration, pas une capture du trafic upstream.`;
     },
     event(event: StreamEvent): void {

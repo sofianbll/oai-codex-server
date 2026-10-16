@@ -306,13 +306,13 @@ test("the deadline is not restarted between upload and credential phases", async
     (socket) => completed(socket),
     { timeoutMs: 90 },
     async () => {
-      await Bun.sleep(35);
+      await Bun.sleep(60);
       return { accessToken: "fixture", accountId: "fixture" };
     },
   );
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
-      await Bun.sleep(35);
+      await Bun.sleep(60);
       controller.enqueue(new TextEncoder().encode('{"input":"hello"}'));
       controller.close();
     },

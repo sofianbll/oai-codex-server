@@ -138,6 +138,7 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
   const sessions = new Set<Session>();
   const responseSessions = new Map<string, Session>();
   let stopped = false;
+  let generation = 0;
 
   const destroy = (session: Session): void => {
     if (session.closed) return;
@@ -176,6 +177,7 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
     auth: UpstreamCredentials,
     sessionId: string | undefined,
   ): Promise<Session> {
+    const started = generation;
     if (stopped)
       throw new GatewayError(
         503,
@@ -249,6 +251,14 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
     } catch (error) {
       socket.terminate();
       throw error;
+    }
+    if (started !== generation || stopped) {
+      socket.close();
+      throw new GatewayError(
+        409,
+        "upstream_account_changed",
+        "Upstream account changed during connection",
+      );
     }
     sessions.add(session);
     socket.addEventListener("close", () => destroy(session), { once: true });
@@ -373,7 +383,7 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
     };
   };
 
-  async function forward(request: Request): Promise<Response> {
+  async function forward(request: Request, pinnedAuth?: UpstreamCredentials): Promise<Response> {
     if (request.method !== "POST")
       return errorResponse(405, "method_not_allowed", "Responses bridge requires POST");
     try {
@@ -406,7 +416,7 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
           "previous_response_busy",
           "The previous response is still active",
         );
-      const auth = await waitFor(credentials(), options.timeoutMs, request.signal);
+      const auth = pinnedAuth ?? (await waitFor(credentials(), options.timeoutMs, request.signal));
       if (session?.closed)
         return errorResponse(404, "previous_response_not_found", "Responses session expired");
       if (session?.busy)
@@ -514,6 +524,10 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
 
   return {
     forward,
+    reset: () => {
+      generation++;
+      for (const session of sessions) destroy(session);
+    },
     close: () => {
       stopped = true;
       for (const session of sessions) destroy(session);
