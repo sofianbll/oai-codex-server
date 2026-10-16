@@ -173,6 +173,86 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
           .run(account, kind, id, now()).changes > 0
       );
     },
+    list(
+      account: string,
+      kind: string,
+      options: {
+        limit: number;
+        order: "asc" | "desc";
+        after?: string;
+        sort: string;
+        equals: Record<string, string | Record<string, string>>;
+      },
+    ): unknown[] {
+      const direction = options.order === "asc" ? "ASC" : "DESC";
+      const comparison = options.order === "asc" ? ">" : "<";
+      const clauses: string[] = [];
+      const values: string[] = [];
+      for (const [path, value] of Object.entries(options.equals)) {
+        if (typeof value === "string") {
+          clauses.push("AND json_extract(payload,?) = ?");
+          values.push(path, value);
+        } else
+          for (const [key, item] of Object.entries(value)) {
+            clauses.push("AND EXISTS (SELECT 1 FROM json_each(payload,?) WHERE key=? AND atom=?)");
+            values.push(path, key, item);
+          }
+      }
+      const cursor = options.after
+        ? db
+            .query<{ payload: string; id: string }, [string, string, string, number]>(
+              "SELECT payload,id FROM durable_objects WHERE account=? AND kind=? AND id=? AND (expires IS NULL OR expires>?)",
+            )
+            .get(account, kind, options.after, now())
+        : undefined;
+      if (options.after && !cursor)
+        throw new GatewayError(400, "invalid_cursor", "Cursor was not found in this account");
+      return db
+        .query<{ payload: string }, (string | number)[]>(
+          `SELECT payload FROM durable_objects WHERE account=? AND kind=? AND (expires IS NULL OR expires>?) ${clauses.join(" ")} ${cursor ? `AND (json_extract(payload,?),id) ${comparison} (json_extract(?,?),?)` : ""} ORDER BY json_extract(payload,?) ${direction}, id ${direction} LIMIT ?`,
+        )
+        .all(
+          account,
+          kind,
+          now(),
+          ...values,
+          ...(cursor ? [options.sort, cursor.payload, options.sort, cursor.id] : []),
+          options.sort,
+          options.limit,
+        )
+        .map((row) => JSON.parse(row.payload));
+    },
+    update(
+      account: string,
+      kind: string,
+      id: string,
+      change: (value: unknown) => unknown,
+    ): unknown {
+      return transaction(() => {
+        prune();
+        const row = db
+          .query<
+            { payload: string; bytes: number; expires: number | null },
+            [string, string, string]
+          >("SELECT payload,bytes,expires FROM durable_objects WHERE account=? AND kind=? AND id=?")
+          .get(account, kind, id);
+        if (!row) return undefined;
+        const value = change(JSON.parse(row.payload));
+        const payload = JSON.stringify(value);
+        const bytes = Buffer.byteLength(JSON.stringify([account, kind, id, payload, row.expires]));
+        const used =
+          db
+            .query<{ bytes: number }, []>(
+              "SELECT (SELECT coalesce(sum(bytes),0) FROM durable_objects) + (SELECT coalesce(sum(bytes),0) FROM durable_reservations) AS bytes",
+            )
+            .get()?.bytes ?? 0;
+        if (bytes > maxRecordBytes || used - row.bytes + bytes > maxBytes) throw capacityError();
+        db.query(
+          "UPDATE durable_objects SET payload=?,bytes=? WHERE account=? AND kind=? AND id=?",
+        ).run(payload, bytes, account, kind, id);
+        return value;
+      });
+    },
     size() {
       return (
         db
