@@ -3,17 +3,14 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import OpenAI from "openai";
-import { createResponsesGateway } from "../src/server/responses-gateway";
-import type { CredentialProvider, ProxyOptions } from "../src/shared/contracts";
-import type { ResponsesStoreOptions } from "../src/server/responses-store";
 import { parseConfig } from "../src/server/config";
+import { createResponsesGateway } from "../src/server/responses-gateway";
+import type { ResponsesStoreOptions } from "../src/server/responses-store";
 import { startServer } from "../src/server/runtime";
+import type { CredentialProvider, ProxyOptions } from "../src/shared/contracts";
 
 async function fixture(
-  handler: (
-    socket: Bun.ServerWebSocket<undefined>,
-    data: string,
-  ) => void | Promise<void> = () => {},
+  handler: (socket: Bun.ServerWebSocket<undefined>, data: string) => unknown = () => {},
   storage: ResponsesStoreOptions = {},
   credentials: CredentialProvider = async () => ({ accessToken: "fixture", accountId: "a" }),
 ) {
@@ -380,7 +377,7 @@ test("pending concurrency and generation duration are bounded and release produc
     const results = await Promise.all(jobs.map((job) => terminal(f.client, job.id)));
     expect(
       results.every(
-        (result) => result.status === "failed" && result.error?.code === "upstream_timeout",
+        (result) => result.status === "failed" && String(result.error?.code) === "upstream_timeout",
       ),
     ).toBe(true);
     expect(f.emissions()).toBe(16);
@@ -415,6 +412,20 @@ test("integrated runtime stops producers before closing durable storage and neve
   let runtime = await startServer(config, configPath);
   const client = () => new OpenAI({ baseURL: `${runtime.url}/v1`, apiKey: token, maxRetries: 0 });
   try {
+    const spec = (await fetch(`${runtime.url}/openapi.json`).then((response) =>
+      response.json(),
+    )) as {
+      paths: Record<
+        string,
+        Record<string, { description: string; "x-proxy-implementation": string }>
+      >;
+    };
+    expect(spec.paths["/v1/responses/{response_id}/cancel"]?.["post"]).toMatchObject({
+      "x-proxy-implementation": "local",
+    });
+    expect(spec.paths["/v1/responses"]?.["post"]?.description).toContain(
+      "Local background JSON example",
+    );
     const queued = await client().responses.create({
       input: "runtime stop",
       background: true,

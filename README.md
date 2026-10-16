@@ -79,7 +79,7 @@ Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absente
 
 Pour bénéficier de l'affinité du cache Codex depuis un SDK OpenAI, fournissez une `prompt_cache_key` stable pour les appels partageant le même préfixe. En mode minimal HTTP, le proxy la recopie dans `session-id` si cet en-tête est absent. Un en-tête explicite reste prioritaire. La dérivation exige une chaîne ASCII imprimable non vide, sans espaces aux extrémités ; les autres valeurs restent transmises dans le corps sans dérivation. Le mode raw n'ajoute rien. Le cache reste décidé par Codex : un hit se constate dans `usage.input_tokens_details.cached_tokens`, qui est conservé tel que reçu. Cette clé ne stocke pas l'historique et ne remplace pas `previous_response_id`.
 
-Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses est émulé localement ; les conversations persistantes et tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON texte décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
+Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses et les tâches de fond JSON sont des adaptations locales ; les conversations persistantes ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON texte décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
 
 `GET /api/capabilities` conserve ses champs existants, notamment `supported` (route relayable uniquement), et ajoute par opération :
 
@@ -216,4 +216,24 @@ Le budget applicatif est global : 1 Gio, tous comptes et types de contenu retenu
 
 SQLite utilise un cache de pages de 2 Mio, des objets lus séparément, des transactions immédiates et un journal rollback supprimé à chaque commit, sans WAL cumulatif. Le fichier est plafonné à 1 152 Mio (294 912 pages de 4 Kio) ; avec le journal temporaire, le surcoût physique reste borné à environ 2 320 Mio au total, indépendamment du budget applicatif. Le dossier et le fichier doivent être privés (0700/0600). Expiration et suppression rendent les objets inaccessibles et libèrent le budget, mais ne promettent pas l'effacement physique de toutes leurs copies.
 
-Le stockage n'implémente pas le replay d'une continuité après expiration de socket. `background:true` avec stockage renvoie explicitement 501 ; les tâches de fond et Conversations ne sont pas implémentées ici. Les [tests SDK/runtime locaux](tests/responses-durable.test.ts) vérifient persistance et isolation, sans validation backend réelle ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.
+Le stockage n'implémente pas le replay d'une continuité après expiration de socket ni Conversations. Les [tests SDK/runtime locaux](tests/responses-durable.test.ts) vérifient persistance et isolation, sans validation backend réelle ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.
+
+### Responses en arrière-plan
+
+En mode minimal, `background:true` avec `stream:false` ou omis rend rapidement un identifiant local `resp_bg_*` et `status:queued`. Le producteur utilise le même pont Responses natif, sans scheduler Codex prétendu ni nouvelle session inventée. La déconnexion du client n'annule pas le job.
+
+```js
+const job = await client.responses.create({
+  model: 'gpt-6-astra', input: 'Dis bonjour', background: true, store: false,
+});
+const snapshot = await client.responses.retrieve(job.id); // queued / in_progress / terminal
+const final = await client.responses.cancel(job.id);     // idempotent, jamais de faux cancelled après completed
+```
+
+Le polling retourne `queued`, `in_progress`, puis le terminal fidèle `completed`, `failed`, `cancelled` ou `incomplete`, avec ses sorties, erreurs et détails. Cancel est réservé au background et ferme le tour natif localement ; il ne garantit pas l'annulation d'effets d'outils déjà émis. Une suppression pendant l'exécution renvoie 409 : annuler d'abord, puis supprimer.
+
+`store:false` **ou omis conserve temporairement** l'objet et ses inputs pendant l'exécution bornée, puis **dix minutes après le terminal**. `store:true` conserve l'objet trente jours après le terminal. Les lectures ne renouvellent pas ces délais. Le budget SQLite global de 1 Gio est partagé avec les Responses ordinaires ; la réservation reste acquise durant le job. Une marge conservatrice de 1 Kio est réservée aux métadonnées d'échec/interruption ; entrées ou sorties trop grandes produisent une erreur explicite, jamais un faux résultat stocké.
+
+Au plus **16 jobs en attente ou actifs**, chacun limité par `timeoutMs` depuis son acceptation (attentes des credentials comprises). Le compte est persisté avec le job, puis revalidé après la file et juste avant l'émission native ; les credentials restent épinglés à cette requête. Après redémarrage, **tous** les jobs non terminés, y compris `queued`, deviennent `failed` avec `background_interrupted`. Aucun travail n'est réémis, même s'il n'avait pas encore été envoyé.
+
+**Pas encore de journal/reprise SSE** : création background `stream:true` et lecture background `stream:true`/`starting_after` renvoient `501 background_stream_not_ready`. Les identifiants locaux de jobs ne fournissent pas encore de continuité native ni de replay durable. Le SSE synchrone et le mode raw restent inchangés. Les [tests background SDK/runtime](tests/responses-background.test.ts) utilisent uniquement des upstreams et identifiants synthétiques locaux, sans validation du compte réel.

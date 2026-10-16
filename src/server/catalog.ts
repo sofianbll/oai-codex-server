@@ -49,7 +49,7 @@ export const transportDescription =
 const publicDescription =
   "The schema is the public OpenAI contract, not proof of Codex backend availability. Upstream status codes and errors are returned to the caller.";
 const responsesDescription =
-  "In minimal mode, POST /v1/responses converts string input to a user message, supplies a missing model and instructions, sets store=false and requests stream=true upstream. stream=false callers receive the terminal response aggregated from SSE. For stream=true, the proxy restores terminal response.output only when the upstream terminal event omits or empties it; other event frames remain unchanged. Other fields, including tools, reasoning, metadata and future extensions, are retained. Raw mode bypasses these adaptations. Only basic text creation (JSON and SSE) and client-supplied history were observed against the real backend; lifecycle, server persistence and optional features remain backend-dependent.";
+  "In minimal mode, POST /v1/responses converts string input to a user message, supplies a missing model and instructions, sets store=false upstream and requests native streaming. Synchronous callers receive terminal JSON or SSE as requested. background:true with stream:false (or omitted) returns a local queued Response immediately; GET polls it and POST /responses/{id}/cancel cancels idempotently. Client disconnect does not cancel background work. Background streaming/replay returns 501 until its journal is implemented. For synchronous stream:true, the proxy restores terminal response.output only when the upstream terminal event omits or empties it. Other fields, including tools, reasoning, metadata and future extensions, are retained. Raw mode bypasses these adaptations. Only basic synchronous text creation and client-supplied history have historical live evidence; background is verified with local SDK/runtime fixtures only.";
 const sourceBacked = new Set([
   "listModels",
   "createImage",
@@ -189,6 +189,23 @@ function qualification(id: string): Qualification {
       ],
     };
   }
+  if (id === "cancelResponse") {
+    return {
+      ...relayQualification,
+      implementation: "local",
+      evidence: {
+        kind: "runtime",
+        date: "2026-10-17",
+        scope:
+          "Local background cancellation and completion races verified through SDK/runtime fixtures; not a native scheduler or live backend validation.",
+        sources: ["src/server/responses-background.ts", "tests/responses-background.test.ts"],
+      },
+      prerequisites: ["A minimal-mode background Response owned by the current Codex account."],
+      limitations: [
+        "Cancellation is idempotent and never rewrites an acquired terminal. It closes the native turn locally, without retry or a guarantee of undoing external tool effects. Client disconnect is not cancel. Raw only relays.",
+      ],
+    };
+  }
   if (["getResponse", "deleteResponse", "listInputItems"].includes(id)) {
     return {
       ...relayQualification,
@@ -198,13 +215,18 @@ function qualification(id: string): Qualification {
         date: "2026-10-17",
         scope:
           "Minimal-mode SQLite Responses persistence, verified with local SDK/runtime fixtures across restart; not native Codex persistence or a live backend validation.",
-        sources: ["src/server/responses-store.ts", "tests/responses-durable.test.ts"],
+        sources: [
+          "src/server/responses-store.ts",
+          "tests/responses-durable.test.ts",
+          "tests/responses-background.test.ts",
+        ],
       },
       prerequisites: [
-        "A response created with store:true in minimal mode, under the same account and server storage configuration.",
+        "A response created with store:true or background:true in minimal mode, under the same account and server storage configuration.",
       ],
       limitations: [
         "Thirty-day local retention across restart; 1 GiB global application budget across accounts/kinds, 4 MiB per retained object including inputs. Capacity errors are explicit, without arbitrary eviction. Raw mode only relays. Durable data does not restore a native continuation.",
+        "Background store:false/omitted retains data during bounded execution and ten minutes after terminal; store:true retains the Response thirty days. All queued/running jobs fail on restart without re-emission. Delete an active job only after cancel. Background SSE retrieval/replay returns 501 until its journal is implemented.",
       ],
     };
   }
@@ -250,7 +272,8 @@ function qualification(id: string): Qualification {
       limitations: [
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
-        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Conversations and durable-context replay are not implemented.",
+        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Conversations and durable-context replay are not implemented.",
+        "background:true is a local JSON/poll/cancel job, tested only against local upstreams: at most 16 pending jobs, each bounded by timeoutMs from acceptance. Credentials are pinned per request and the persisted account is revalidated before native emission. All unfinished jobs fail after restart; no automatic retry. Temporary retention is execution plus ten minutes after terminal, or thirty days with store:true. Background stream:true/replay returns 501 (journal not ready). Local job IDs do not yet provide native continuation or durable replay.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };
