@@ -88,6 +88,8 @@ Le catalogue expose 40 opérations : 38 routes HTTP et les WebSockets Responses 
 
 Explorer affiche ces informations avant les contrôles d'exécution, y compris en WebSocket ; Scalar les conserve dans la description et les extensions `x-proxy-*`. Les exemples de corps restent des exemples du contrat, sans modèle ni paramètres garantis pour le compte. Images génération/édition/variantes, Audio REST et Realtime WS/WebRTC restent qualifiés séparément. Le JSON natif d'édition et le multipart public ne sont pas déclarés interchangeables ; aucun adaptateur média n'est ajouté.
 
+Audio REST : la transcription conserve la langue d’origine ; la traduction vise l’anglais. Toutes deux restent des relais **non vérifiés**, sans mécanisme fidèle établi sous `/backend-api/codex`. Dans Explorer, choisir « Multipart avec fichier », conserver les champs de l’exemple et joindre l’audio sous `file`. La limite locale porte sur le multipart entier (16 Mio par défaut), pas seulement le fichier ; aucun texte, timestamp, langue détectée ou locuteur n’est fabriqué. La dictée Desktop hors préfixe et Realtime ne prouvent pas ces opérations. Voir la [matrice Audio REST, les limites et la requête synthétique réservée au coordinateur](docs/research/2026-10-17-audio-rest.md) ; aucun appel de traduction live n’est autorisé par cet exemple.
+
 ### Probes médias à réserver par le coordinateur
 
 Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live explicitement réservé, conserver modèle/version, mode, chemin, date, résultat métier et refus expurgés ; chaque tentative consomme le budget, sans retry automatique :

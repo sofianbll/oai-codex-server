@@ -73,7 +73,34 @@ const relayQualification: Qualification = {
 };
 
 function qualification(id: string): Qualification {
-  if (["createSpeech", "createTranscription", "createTranslation"].includes(id)) {
+  if (id === "createTranscription" || id === "createTranslation") {
+    return {
+      ...relayQualification,
+      evidence: {
+        ...relayQualification.evidence,
+        scope:
+          id === "createTranscription"
+            ? "Audio REST transcription preserves the original language. No faithful REST mechanism under /backend-api/codex or account result is established by the bounded CLI/Desktop research."
+            : "Audio REST translation returns English, not an arbitrary target language. No faithful REST mechanism under /backend-api/codex or account result is established independently of transcription.",
+        sources: [research, desktopResearch, "docs/research/2026-10-17-audio-rest.md"],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "Establish a faithful REST mechanism under /backend-api/codex, an eligible audio model and accepted file/options before claiming compatibility.",
+        id === "createTranscription"
+          ? "Only the coordinator may spend the single authorized synthetic transcription attempt; it has not been run by this implementation."
+          : "No live translation attempt is authorized; transcription results cannot establish translation access.",
+      ],
+      limitations: [
+        "Desktop dictation paths outside the authorized Codex prefix are not credential destinations. Realtime source presence does not establish either Audio REST operation.",
+        "Both modes preserve the existing multipart/response relay and upstream errors; no adapter, text-only simulation, local engine or paid API fallback is provided.",
+        "The proxy never fabricates timestamps, detected languages or speaker labels. Model-specific formats, streaming, diarization and backend limits remain unverified.",
+        "The configured maxBodyBytes limits the whole multipart request, including overhead (default 16 MiB); no decoding, duration detection, splitting or remote media fetching is performed.",
+        "Explorer: select Multipart with file, keep the example as form fields and attach the audio as file. Example models describe the public contract, not established Codex access.",
+      ],
+    };
+  }
+  if (id === "createSpeech") {
     return {
       ...relayQualification,
       evidence: {
@@ -268,6 +295,8 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: { model: "gpt-image-1", prompt: "A small blue robot on a white background", n: 1 },
   createSpeech: { model: "gpt-4o-mini-tts", input: "Hello from the local proxy.", voice: "alloy" },
+  createTranscription: { model: "gpt-4o-transcribe", response_format: "json" },
+  createTranslation: { model: "whisper-1", response_format: "json" },
   updateVoiceConsent: { name: "Updated consent name" },
   "reject-realtime-call": { status_code: 486 },
   "reject-live-session": { status_code: 486 },

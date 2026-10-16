@@ -177,6 +177,35 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
   }
   expect(forwarded()).toBe(0);
 });
+test("Audio REST qualifies original-language transcription separately from English translation", async () => {
+  const { app, headers, forwarded } = await fixture();
+  const { operations } = operationsSchema.parse(
+    await (await app.request("/api/capabilities", { headers })).json(),
+  );
+  for (const [id, purpose] of [
+    ["createTranscription", "original language"],
+    ["createTranslation", "English"],
+  ] as const) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      supported: true,
+      implementation: "relay",
+      availability: "unverified",
+      evidence: { kind: "unknown", date: null, scope: expect.stringContaining(purpose) },
+      prerequisites: expect.arrayContaining([
+        expect.stringContaining("REST mechanism under /backend-api/codex"),
+      ]),
+      limitations: expect.arrayContaining([
+        expect.stringContaining("timestamps, detected languages or speaker labels"),
+        expect.stringContaining("Realtime"),
+      ]),
+      requestBodyExample: {
+        model: id === "createTranscription" ? "gpt-4o-transcribe" : "whisper-1",
+        response_format: "json",
+      },
+    });
+  }
+  expect(forwarded()).toBe(0);
+});
 test("config validates, persists, requires restart and cannot alter auth", async () => {
   const { app, headers } = await fixture();
   const initial = publicConfig(parseConfig({}));
