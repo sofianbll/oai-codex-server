@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createActivity } from "../src/server/activity";
 import { createApp } from "../src/server/app";
 import { parseConfig, publicConfig, saveConfig } from "../src/server/config";
+import { operationsSchema } from "../src/ui/schemas";
 
 const temporary: string[] = [];
 afterEach(async () => {
@@ -72,6 +73,109 @@ test("authenticated route preserves response and records only metadata", async (
   expect(activity).toContain("/v1/future");
   expect(activity).not.toContain("private prompt");
   expect(activity).not.toContain("hidden");
+});
+test("capabilities distinguish relayable Images from native source proof for dashboard clients", async () => {
+  const { app, headers, forwarded } = await fixture();
+  const response = await app.request("/api/capabilities", { headers });
+  expect(response.status).toBe(200);
+  const { operations } = operationsSchema.parse(await response.json());
+  expect(operations.find((operation) => operation.id === "createImage")).toMatchObject({
+    supported: true,
+    availability: "source-backed",
+    implementation: "relay",
+    evidence: {
+      kind: "source",
+      date: "2026-10-16",
+      scope: expect.stringContaining("images/generations"),
+      sources: expect.arrayContaining([
+        expect.stringContaining("83086188ae0614bd882818ff1aa23f3194962012"),
+      ]),
+    },
+    prerequisites: expect.arrayContaining([expect.stringContaining("account")]),
+    limitations: expect.arrayContaining([expect.stringContaining("mask")]),
+  });
+  expect(forwarded()).toBe(0);
+});
+test("capabilities retain exact-count uncertainty, historical option refusals and tool prerequisites", async () => {
+  const { app, headers } = await fixture();
+  const { operations } = operationsSchema.parse(
+    await (await app.request("/api/capabilities", { headers })).json(),
+  );
+  const count = operations.find((operation) => operation.path === "/v1/responses/input_tokens");
+  expect(count).toMatchObject({
+    supported: true,
+    implementation: "relay",
+    availability: "unverified",
+    evidence: { kind: "historical-refusal", date: "2026-09-20" },
+    limitations: expect.arrayContaining([expect.stringContaining("not an exact preflight count")]),
+  });
+  const create = operations.find((operation) => operation.id === "createResponse");
+  expect(create).toMatchObject({
+    implementation: "adaptation",
+    evidence: { kind: "runtime", date: "2026-09-20", scope: expect.stringContaining("basic text") },
+    prerequisites: expect.arrayContaining([
+      expect.stringContaining("File Search"),
+      expect.stringContaining("MCP"),
+    ]),
+    limitations: expect.arrayContaining([
+      expect.stringContaining("temperature, top_p, max_output_tokens"),
+      expect.stringContaining("Code Interpreter"),
+    ]),
+  });
+  expect(operations.some((operation) => /\/v1\/(chat|conversations)/.test(operation.path))).toBe(
+    false,
+  );
+  expect(operations.find((operation) => operation.id === "createImageVariation")).toMatchObject({
+    implementation: "relay",
+    availability: "unverified",
+    evidence: { kind: "unknown", scope: expect.stringContaining("variations") },
+  });
+});
+test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful controls", async () => {
+  const { app, headers, forwarded } = await fixture();
+  const { operations } = operationsSchema.parse(
+    await (await app.request("/api/capabilities", { headers })).json(),
+  );
+  for (const id of ["createSpeech", "createTranscription", "createTranslation"]) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      implementation: "relay",
+      availability: "unverified",
+      evidence: { kind: "unknown", scope: expect.stringContaining("Audio REST") },
+      limitations: expect.arrayContaining([
+        expect.stringContaining("outside the authorized Codex prefix"),
+      ]),
+    });
+  }
+  expect(operations.find((operation) => operation.id === "connectRealtimeWebSocket")).toMatchObject(
+    {
+      method: "GET",
+      path: "/v1/realtime",
+      supported: true,
+      implementation: "relay",
+      availability: "source-backed",
+      evidence: { kind: "source", date: "2026-10-16", scope: expect.stringContaining("WebSocket") },
+    },
+  );
+  expect(operations.find((operation) => operation.id === "create-realtime-call")).toMatchObject({
+    implementation: "relay",
+    availability: "source-backed",
+    limitations: expect.arrayContaining([
+      expect.stringContaining("JSON {sdp, session}"),
+      expect.stringContaining("multipart"),
+    ]),
+  });
+  for (const id of [
+    "createVoice",
+    "createVoiceConsent",
+    "refer-realtime-call",
+    "refer-live-session",
+  ]) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      availability: "unverified",
+      prerequisites: expect.arrayContaining([expect.stringContaining("explicit authorization")]),
+    });
+  }
+  expect(forwarded()).toBe(0);
 });
 test("config validates, persists, requires restart and cannot alter auth", async () => {
   const { app, headers } = await fixture();

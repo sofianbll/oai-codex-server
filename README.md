@@ -78,7 +78,28 @@ Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absente
 
 Pour bénéficier de l'affinité du cache Codex depuis un SDK OpenAI, fournissez une `prompt_cache_key` stable pour les appels partageant le même préfixe. En mode minimal HTTP, le proxy la recopie dans `session-id` si cet en-tête est absent. Un en-tête explicite reste prioritaire. La dérivation exige une chaîne ASCII imprimable non vide, sans espaces aux extrémités ; les autres valeurs restent transmises dans le corps sans dérivation. Le mode raw n'ajoute rien. Le cache reste décidé par Codex : un hit se constate dans `usage.input_tokens_details.cached_tokens`, qui est conservé tel que reçu. Cette clé ne stocke pas l'historique et ne remplace pas `previous_response_id`.
 
-Le catalogue expose 39 opérations : 38 routes HTTP et le WebSocket Responses. « Vérifié » sur la création Responses signifie uniquement que le texte simple JSON/SSE et l'historique explicite ont été observés ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans le code Codex » et « à vérifier » indiquent aussi un niveau de preuve, jamais une promesse que l'abonnement accepte chaque route. Images, audio, realtime et autres routes peuvent être refusés par Codex. Le stockage Responses est émulé localement ; les conversations persistantes, tâches de fond et Chat Completions ne sont pas implémentés. La spec publique complète sert de référence et les endpoints non vérifiés le signalent.
+Le catalogue expose 40 opérations : 38 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses est émulé localement ; les conversations persistantes, tâches de fond et Chat Completions ne sont pas implémentés. La spec publique complète reste une référence, pas une garantie backend.
+
+`GET /api/capabilities` conserve ses champs existants, notamment `supported` (route relayable uniquement), et ajoute par opération :
+
+- `implementation` : `relay` sans adaptation du contrat, `adaptation` ou `local` en mode minimal ; raw reste un relais.
+- `evidence` : nature (`runtime`, `source`, `historical-refusal`, `unknown`), date d'observation ou `null` si inconnue, périmètre et sources. Une preuve statique du 16 octobre n'est pas un essai live ; les observations du 20 septembre ne sont pas des résultats actuels.
+- `prerequisites` et `limitations` : droits/ressources nécessaires, options non établies et refus bornés. Les champs refusés ne sont pas supprimés silencieusement.
+
+Explorer affiche ces informations avant les contrôles d'exécution, y compris en WebSocket ; Scalar les conserve dans la description et les extensions `x-proxy-*`. Les exemples de corps restent des exemples du contrat, sans modèle ni paramètres garantis pour le compte. Images génération/édition/variantes, Audio REST et Realtime WS/WebRTC restent qualifiés séparément. Le JSON natif d'édition et le multipart public ne sont pas déclarés interchangeables ; aucun adaptateur média n'est ajouté.
+
+### Probes médias à réserver par le coordinateur
+
+Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live explicitement réservé, conserver modèle/version, mode, chemin, date, résultat métier et refus expurgés ; chaque tentative consomme le budget, sans retry automatique :
+
+| Probe préparée | Résultat à observer, pas seulement HTTP 200 |
+| --- | --- |
+| Une génération Images | Contenu image décodable et conforme à la consigne ; modèle/options et réponse réels. Ni édition ni variantes n'en héritent. |
+| Une transcription synthétique Audio REST | Transcription attendue d'un fichier synthétique connu, format et erreur qualifiés ; aucune dictée Desktop hors préfixe. |
+| Une synthèse vocale Audio REST | Audio décodable, texte/voix/format établis ; aucun fallback API payant. |
+| Une session Realtime, dix secondes maximum | Transport WS ou WebRTC identifié, négociation/événements et résultat audio établis ; l'autre transport reste non vérifié. Aucun appel téléphonique. |
+
+Le comptage exact `input_tokens` reste non établi (ancien 403 HTML, origine du refus inconnue), jamais remplacé par une estimation ou l'usage après génération. Les contrôles `temperature`, `top_p`, `max_output_tokens` et Code Interpreter gardent leurs refus historiques qualifiés. File Search/MCP exigent des ressources existantes autorisées ; aucune n'est créée pour une probe. Masques/édition/variantes, consentements et effets de contrôle nécessitent leur propre mandat, hors de ce lot. Les pistes Desktop hors préfixe restent interdites pour l'envoi d'identifiants. Voir les [sources et leurs limites](docs/research/2026-10-16-codex-compatibility-frontier.md).
 
 ## Client OpenAI
 

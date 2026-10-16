@@ -171,4 +171,23 @@ describe("same-origin OpenAPI reference", () => {
         .every((operation) => operation.supported),
     ).toBe(true);
   });
+  test("publishes qualification without turning native source or public schemas into compatibility", async () => {
+    const spec = await createOpenApi("configured-model");
+    const paths = record.parse(spec["paths"]);
+    const image = record.parse(record.parse(paths["/v1/images/edits"])["post"]);
+    expect(image["x-proxy-supported"]).toBe(true);
+    expect(image["x-proxy-implementation"]).toBe("relay");
+    expect(image["x-proxy-evidence"]).toMatchObject({ kind: "source", date: "2026-10-16" });
+    expect(image["x-proxy-limitations"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("mask")]),
+    );
+    expect(image["x-proxy-prerequisites"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("account")]),
+    );
+    const socket = record.parse(record.parse(paths["/v1/realtime"])["get"]);
+    expect(record.parse(socket["responses"])["101"]).toBeDefined();
+    expect(socket["x-proxy-availability"]).toBe("source-backed");
+    expect(paths["/v1/conversations"]).toBeUndefined();
+    expect(paths["/v1/chat/completions"]).toBeUndefined();
+  });
 });
