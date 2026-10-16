@@ -148,7 +148,10 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
     expect(operations.find((operation) => operation.id === id)).toMatchObject({
       implementation: "relay",
       availability: "unverified",
-      evidence: { kind: "unknown", scope: expect.stringContaining("Audio REST") },
+      evidence: {
+        kind: id === "createSpeech" ? "historical-refusal" : "unknown",
+        scope: expect.stringContaining("Audio REST"),
+      },
       limitations: expect.arrayContaining([
         expect.stringContaining("outside the authorized Codex prefix"),
       ]),
