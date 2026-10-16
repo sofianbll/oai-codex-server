@@ -10,6 +10,11 @@ import { destination } from "./upstream";
 const MAX_SESSIONS = 64;
 const MAX_RESPONSE_IDS_PER_SESSION = 256;
 const SESSION_TTL_MS = 5 * 60_000;
+const internalTypes = new Set([
+  "codex.rate_limits",
+  "codex.response.metadata",
+  "responsesapi.websocket_timing",
+]);
 const terminalTypes = new Set([
   "response.completed",
   "response.failed",
@@ -260,6 +265,8 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
     session.touchedAt = Date.now();
     clearTimeout(session.expiry);
     const items = new Map<number, Readonly<Record<string, unknown>>>();
+    const itemSizes = new Map<number, number>();
+    let retainedBytes = 0;
     let settled = false;
     let rejectTurn: (reason: unknown) => void = () => undefined;
     let message: (event: MessageEvent<unknown>) => void = () => undefined;
@@ -304,18 +311,34 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
         }
         let parsed: WireEvent;
         try {
+          if (new TextEncoder().encode(event.data).byteLength > options.maxBodyBytes)
+            throw new GatewayError(
+              502,
+              "body_too_large",
+              "Upstream event exceeds the configured byte limit",
+            );
           parsed = parseEvent(event.data);
+          if (
+            parsed.type === "response.output_item.done" &&
+            parsed.item &&
+            parsed.output_index !== undefined
+          ) {
+            const size = new TextEncoder().encode(JSON.stringify(parsed.item)).byteLength;
+            retainedBytes += size - (itemSizes.get(parsed.output_index) ?? 0);
+            if (retainedBytes > options.maxBodyBytes)
+              throw new GatewayError(
+                502,
+                "body_too_large",
+                "Buffered response output exceeds the configured byte limit",
+              );
+            itemSizes.set(parsed.output_index, size);
+            items.set(parsed.output_index, parsed.item);
+          }
           onEvent(parsed, event.data);
         } catch (error) {
           fail(error);
           return;
         }
-        if (
-          parsed.type === "response.output_item.done" &&
-          parsed.item &&
-          parsed.output_index !== undefined
-        )
-          items.set(parsed.output_index, parsed.item);
         remember(session, parsed);
         if (!terminalTypes.has(parsed.type)) return;
         if (settled) return;
@@ -384,43 +407,67 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
           "The previous response is still active",
         );
       const auth = await waitFor(credentials(), options.timeoutMs, request.signal);
+      if (session?.closed)
+        return errorResponse(404, "previous_response_not_found", "Responses session expired");
+      if (session?.busy)
+        return errorResponse(
+          409,
+          "previous_response_busy",
+          "The previous response is still active",
+        );
       if (session && session.accountId !== auth.accountId)
         return errorResponse(
           409,
           "previous_response_account_mismatch",
           "The previous response belongs to another upstream account",
         );
-      const active = session ?? (await connect(request, auth, adapted.sessionId));
+      const active =
+        session ??
+        (await connect(request, auth, request.headers.get("session-id") ?? adapted.sessionId));
       const streaming = adapted.streaming;
       if (streaming) {
         let turn: ActiveTurn | undefined;
-        const body = new ReadableStream<Uint8Array>({
-          start(controller) {
-            turn = begin(active, websocketPayload, request, (event, raw) => {
-              controller.enqueue(
-                new TextEncoder().encode(`event: ${event.type}\ndata: ${raw}\n\n`),
+        let cancelled = false;
+        const body = new ReadableStream<Uint8Array>(
+          {
+            start(controller) {
+              turn = begin(active, websocketPayload, request, (event, raw) => {
+                if (internalTypes.has(event.type)) return;
+                const frame = new TextEncoder().encode(`event: ${event.type}\ndata: ${raw}\n\n`);
+                if (frame.byteLength > (controller.desiredSize ?? 0))
+                  throw new GatewayError(
+                    502,
+                    "slow_consumer",
+                    "SSE consumer exceeded the configured buffer limit",
+                  );
+                controller.enqueue(frame);
+              });
+              void turn.completion.then(
+                () => {
+                  if (!cancelled) controller.close();
+                },
+                (error: unknown) => {
+                  if (cancelled) return;
+                  const message =
+                    error instanceof GatewayError
+                      ? error.message
+                      : "Upstream Responses WebSocket failed";
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: error\ndata: ${JSON.stringify({ error: { code: error instanceof GatewayError ? error.code : "upstream_unavailable", message } })}\n\n`,
+                    ),
+                  );
+                  controller.close();
+                },
               );
-            });
-            void turn.completion.then(
-              () => controller.close(),
-              (error: unknown) => {
-                const message =
-                  error instanceof GatewayError
-                    ? error.message
-                    : "Upstream Responses WebSocket failed";
-                controller.enqueue(
-                  new TextEncoder().encode(
-                    `event: error\ndata: ${JSON.stringify({ error: { message } })}\n\n`,
-                  ),
-                );
-                controller.close();
-              },
-            );
+            },
+            cancel() {
+              cancelled = true;
+              turn?.cancel();
+            },
           },
-          cancel() {
-            turn?.cancel();
-          },
-        });
+          { highWaterMark: options.maxBodyBytes, size: (chunk) => chunk?.byteLength ?? 0 },
+        );
         return new Response(body, {
           headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
         });
@@ -443,8 +490,6 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
           "upstream_response_failed",
           "Upstream Responses WebSocket did not complete the response",
         );
-      if (terminal.event.type !== "response.completed")
-        return Response.json(terminal.event.response, { status: 502 });
       const output = terminal.event.response["output"];
       const finalResponse =
         terminal.items.size > 0 && (!Array.isArray(output) || output.length === 0)
@@ -455,7 +500,11 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
                 .map(([, item]) => item),
             }
           : terminal.event.response;
-      return Response.json(finalResponse);
+      if (new TextEncoder().encode(JSON.stringify(finalResponse)).byteLength > options.maxBodyBytes)
+        return errorResponse(502, "body_too_large", "Response exceeds the configured byte limit");
+      return Response.json(finalResponse, {
+        status: terminal.event.type === "response.completed" ? 200 : 502,
+      });
     } catch (error) {
       if (error instanceof GatewayError)
         return errorResponse(error.status, error.code, error.message);

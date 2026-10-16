@@ -12,7 +12,13 @@ export function renderSocket(container: HTMLElement): () => void {
   const message = el("textarea", "mono");
   message.spellcheck = false;
   message.value = JSON.stringify(
-    { type: "response.create", response: { input: "Bonjour", store: false } },
+    {
+      type: "response.create",
+      model: "gpt-6-astra",
+      instructions: "",
+      input: [{ role: "user", content: [{ type: "input_text", text: "Bonjour" }] }],
+      store: false,
+    },
     null,
     2,
   );
