@@ -6,7 +6,9 @@
 both modes; do not replace missing audio inference with Responses text, Realtime,
 Desktop dictation, a local engine or a paid API. `supported: true` still means
 relayable, not that the account accepts the request. Discovery sends no upstream
-request. No backend attempt, credential read or quota usage occurred in this work.
+request. The implementer made no backend attempt, credential read or quota usage.
+The coordinator's separately authorized single attempt is recorded below; its
+transcription budget is now exhausted (1/1), with no retry or additional target.
 
 The [CLI research](2026-10-16-codex-compatibility-frontier.md) and
 [Desktop REA findings](2026-10-16-codex-desktop-static.md) are reused, including their
@@ -28,7 +30,7 @@ retrieved on 2026-10-17. These describe the public API, not Codex subscription a
 
 | Contract | Public behavior | Authorized mechanism / prerequisite | Current result |
 | --- | --- | --- | --- |
-| `POST /v1/audio/transcriptions` | Multipart audio file + model; transcript in original language | Relay only to `/backend-api/codex/audio/transcriptions`; faithful native mechanism and account access not established | Unverified, no adapter; only coordinator may spend the one synthetic attempt |
+| `POST /v1/audio/transcriptions` | Multipart audio file + model; transcript in original language | Relay only to `/backend-api/codex/audio/transcriptions`; faithful native mechanism/account availability not established | One coordinator attempt: 403 HTML, no transcript; cause unknown, budget exhausted (1/1), no retry |
 | `POST /v1/audio/translations` | Multipart audio file + model; English translation, not arbitrary target language | Relay only to `/backend-api/codex/audio/translations`; requires independent mechanism/access proof | Unverified, no adapter; **no live attempt authorized** |
 | Transcription JSON / text / verbose / SRT / VTT | Formats depend on model; `whisper-1` supports timestamps/subtitles | Public options are not inferred from Codex text/realtime support | Local wire preservation only |
 | Diarization / detected languages / word or segment timestamps | Model-specific fields; `diarized_json` for speaker annotations, `verbose_json` for timestamp granularities | Must actually be supplied by an established audio mechanism | Never invented or derived from file duration, text or request hints |
@@ -74,17 +76,34 @@ Codex model. The bounded probe below selects the public `gpt-4o-transcribe`
 candidate deliberately; a model/route rejection consumes the attempt and remains
 an explicit prerequisite, not permission to try alternatives.
 
-## Coordinator-only single transcription request (prepared, NOT run)
+## Coordinator transcription attempt — executed once, budget exhausted (1/1)
 
-Use the already prepared local `qa-fixtures-01/speech-16000.wav`: canonical PCM WAV,
+The sanitized coordinator report was inspected. At **2026-10-16T22:31:26.788Z**,
+the temporary read-only loopback QA instance on source commit
+`2c9ce55eeb784f097ab269089e5fe022ea645c53`, **minimal** mode, received
+`POST /v1/audio/transcriptions` with model **`gpt-4o-transcribe`**,
+the canonical synthetic WAV described below, and **no prompt or phrase
+hints**. Exactly **one** upstream attempt used the authorized Codex prefix.
+
+Observed result: **HTTP 403**, **`text/html; charset=UTF-8`**, **97,632 bytes**,
+**no transcript**. The refusal layer and cause are **unknown**: this does not prove
+universal route/model absence, establish TTS behavior or validate transcription.
+Translation remains **unattempted and unauthorized**; it inherits no refusal or
+access evidence from transcription. Production and the active service were unchanged.
+No private report path, raw HTML or HTML hash is published.
+
+**The transcription budget is exhausted (1/1). No retry, alternate model, alternate
+target or additional attempt is authorized.** The following request is archived
+for provenance only, **not an instruction or permission to execute**.
+
+Input was the prepared synthetic `speech-16000.wav`: canonical PCM WAV,
 mono, 16-bit, 16 kHz, 2.289 seconds, 73,292 bytes, SHA-256
 `421921ed7e454088a28b0031c45e2e680c7e21a9b8cc2ba33dd01c57e29be113`.
 The synthetic spoken phrase is **“This is a local transcription test.”** No prompt
 containing that phrase or language hint is sent. The 24 kHz alternative must not
 be a second attempt.
 
-Only after the coordinator chooses to spend the reserved attempt on its temporary
-loopback QA instance (minimal mode; raw has the same Audio transport):
+Archived request shape (minimal mode; raw has the same Audio transport):
 
 ```sh
 curl --silent --show-error --retry 0 --max-time 120 \
@@ -101,7 +120,7 @@ Destination: exactly `POST https://chatgpt.com/backend-api/codex/audio/transcrip
 through the existing relay, never Desktop `/backend-api/transcribe`. No redirect
 following, alternate model, translation call or retry is authorized by this note.
 
-Expected business result: HTTP success **and** an actual JSON transcript matching
+Expected business result **not achieved**: HTTP success **and** an actual JSON transcript matching
 the known spoken phrase (case/punctuation differences may be reported separately).
 An HTTP 200 alone, empty/unrelated text, HTML, or text echoed from a prompt is not
 success. Record date, proxy mode, chosen model, input hash, content type, status,
@@ -150,3 +169,20 @@ must not be reported as a verified working transcription/translation feature.
   transport, authentication, persistence or deployment change. Spec self-review:
   bounded prerequisite delivered, not working Audio inference. Independent
   two-axis integration review remains the coordinator's responsibility.
+
+### Coordinator-refusal update and integration
+
+Merged integration source `2c9ce55` non-destructively, resolving the catalogue by
+operation ID: Chat, Speech, transcription and translation qualifications remain
+distinct. The speech 403 and its minimal-mode refusal are retained unchanged;
+neither is used as evidence for transcription or translation.
+
+Metadata red: **13 pass, 3 fail** before recording the coordinator observation.
+Green: **35 pass, 0 fail** across Audio REST, Speech, Chat, app and OpenAPI tests.
+`bun run check`, `bun run build`, `bun run lint` and `git diff --check` also passed
+after this merge and evidence update. The full suite and browser were not rerun
+for this metadata-only update; their earlier observations remain dated above.
+One test-only repair addressed Bun 1.3.13's asymmetric `toMatchObject` mutation
+(independently reproduced on a plain object): scalar OpenAPI assertions preserve
+shared catalogue evidence, and detailed app assertions run before partial matching.
+No product repair, live request or weakening of refusal expectations was needed.

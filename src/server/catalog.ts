@@ -82,9 +82,11 @@ function qualification(id: string): Qualification {
       ...relayQualification,
       evidence: {
         ...relayQualification.evidence,
+        kind: id === "createTranscription" ? "historical-refusal" : "unknown",
+        date: id === "createTranscription" ? "2026-10-16" : null,
         scope:
           id === "createTranscription"
-            ? "Audio REST transcription preserves the original language. No faithful REST mechanism under /backend-api/codex or account result is established by the bounded CLI/Desktop research."
+            ? "Audio REST transcription preserves the original language. One coordinator probe at 2026-10-16T22:31:26.788Z, temporary loopback minimal mode, POST /v1/audio/transcriptions, gpt-4o-transcribe, synthetic 2.289s 16kHz mono PCM WAV, no prompt or phrase hints: HTTP 403 text/html; charset=UTF-8, 97632 bytes, no transcript. One upstream attempt under /backend-api/codex; refusal layer/cause unknown. No faithful REST mechanism established; not a universal absence verdict, TTS evidence or verified compatibility."
             : "Audio REST translation returns English, not an arbitrary target language. No faithful REST mechanism under /backend-api/codex or account result is established independently of transcription.",
         sources: [research, desktopResearch, "docs/research/2026-10-17-audio-rest.md"],
       },
@@ -92,7 +94,7 @@ function qualification(id: string): Qualification {
         ...relayQualification.prerequisites,
         "Establish a faithful REST mechanism under /backend-api/codex, an eligible audio model and accepted file/options before claiming compatibility.",
         id === "createTranscription"
-          ? "Only the coordinator may spend the single authorized synthetic transcription attempt; it has not been run by this implementation."
+          ? "The coordinator's authorized synthetic transcription budget is exhausted (1/1); no retry, alternate model or additional target is authorized."
           : "No live translation attempt is authorized; transcription results cannot establish translation access.",
       ],
       limitations: [

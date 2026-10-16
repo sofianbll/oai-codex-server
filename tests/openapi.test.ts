@@ -219,11 +219,10 @@ describe("same-origin OpenAPI reference", () => {
       expect(post["x-proxy-supported"]).toBe(true);
       expect(post["x-proxy-availability"]).toBe("unverified");
       expect(post["x-proxy-implementation"]).toBe("relay");
-      expect(post["x-proxy-evidence"]).toMatchObject({
-        kind: "unknown",
-        date: null,
-        scope: expect.stringContaining(purpose),
-      });
+      const evidence = record.parse(post["x-proxy-evidence"]);
+      expect(evidence["kind"]).toBe(path === "transcriptions" ? "historical-refusal" : "unknown");
+      expect(evidence["date"]).toBe(path === "transcriptions" ? "2026-10-16" : null);
+      expect(evidence["scope"]).toContain(purpose);
       expect(post["description"]).toContain("REST mechanism under /backend-api/codex");
     }
   });

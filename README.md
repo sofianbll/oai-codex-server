@@ -88,7 +88,7 @@ Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses 
 
 Explorer affiche ces informations avant les contrôles d'exécution, y compris en WebSocket ; Scalar les conserve dans la description et les extensions `x-proxy-*`. Les exemples de corps restent des exemples du contrat, sans modèle ni paramètres garantis pour le compte. Images génération/édition/variantes, Audio REST et Realtime WS/WebRTC restent qualifiés séparément. Le JSON natif d'édition et le multipart public ne sont pas déclarés interchangeables ; aucun adaptateur média n'est ajouté.
 
-Audio REST : la transcription conserve la langue d’origine ; la traduction vise l’anglais. Toutes deux restent des relais **non vérifiés**, sans mécanisme fidèle établi sous `/backend-api/codex`. Dans Explorer, choisir « Multipart avec fichier », conserver les champs de l’exemple et joindre l’audio sous `file`. La limite locale porte sur le multipart entier (16 Mio par défaut), pas seulement le fichier ; aucun texte, timestamp, langue détectée ou locuteur n’est fabriqué. La dictée Desktop hors préfixe et Realtime ne prouvent pas ces opérations. Voir la [matrice Audio REST, les limites et la requête synthétique réservée au coordinateur](docs/research/2026-10-17-audio-rest.md) ; aucun appel de traduction live n’est autorisé par cet exemple.
+Audio REST : la transcription conserve la langue d’origine ; la traduction vise l’anglais. Toutes deux restent des relais **non vérifiés**, sans mécanisme fidèle établi sous `/backend-api/codex`. Dans Explorer, choisir « Multipart avec fichier », conserver les champs de l’exemple et joindre l’audio sous `file`. La limite locale porte sur le multipart entier (16 Mio par défaut), pas seulement le fichier ; aucun texte, timestamp, langue détectée ou locuteur n’est fabriqué. La dictée Desktop hors préfixe et Realtime ne prouvent pas ces opérations. Voir la [matrice Audio REST, les limites et la requête synthétique archivée](docs/research/2026-10-17-audio-rest.md). L’unique tentative transcription du coordinateur, le **2026-10-16T22:31:26.788Z**, en QA loopback minimal (`gpt-4o-transcribe`, WAV synthétique sans indice de phrase), a reçu **403 HTML, 97 632 octets, sans transcript**, après une seule tentative upstream sous le préfixe Codex. Cause/strate inconnue, sans conclusion universelle ni attribution au TTS ; **budget transcription épuisé 1/1, aucune relance autorisée**. La traduction reste non essayée et non autorisée.
 
 ### Probes médias à réserver par le coordinateur
 
@@ -97,7 +97,7 @@ Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live expl
 | Probe préparée | Résultat à observer, pas seulement HTTP 200 |
 | --- | --- |
 | Une génération Images | Contenu image décodable et conforme à la consigne ; modèle/options et réponse réels. Ni édition ni variantes n'en héritent. |
-| Une transcription synthétique Audio REST | Transcription attendue d'un fichier synthétique connu, format et erreur qualifiés ; aucune dictée Desktop hors préfixe. |
+| Une transcription synthétique Audio REST — budget épuisé 1/1 | 403 HTML observé le 2026-10-16T22:31:26.788Z, aucun transcript ; cause inconnue, aucune relance ni dictée Desktop hors préfixe. |
 | Une synthèse vocale Audio REST | Audio décodable, texte/voix/format établis ; aucun fallback API payant. |
 | Une session Realtime, dix secondes maximum | Transport WS ou WebRTC identifié, négociation/événements et résultat audio établis ; l'autre transport reste non vérifié. Aucun appel téléphonique. |
 
