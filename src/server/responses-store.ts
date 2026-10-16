@@ -1,185 +1,180 @@
 import { z } from "zod";
+import { GatewayError } from "../shared/contracts";
+import { createDurableStore, type DurableStore, type DurableStoreOptions } from "./durable-store";
 
 type JsonObject = Readonly<Record<string, unknown>>;
 
 export type ResponsesRelay = (request: Request) => Promise<Response>;
 
-export type ResponsesStoreOptions = {
-  readonly maxRecords?: number;
-  readonly maxBytes?: number;
-  readonly maxRecordBytes?: number;
+export type ResponsesStoreOptions = DurableStoreOptions & {
+  readonly store?: DurableStore;
+  readonly reservationMs?: number;
   readonly maxResponseBytes?: number;
   readonly ttlMs?: number;
-  readonly now?: () => number;
 };
 
-export type ResponsesLifecycle = ((request: Request) => Promise<Response>) & {
-  clear(): void;
+export type ResponsesLifecycle = ((request: Request, accountId?: string) => Promise<Response>) & {
+  close(): void;
   size(): number;
 };
 
 type StoredResponse = {
   readonly response: JsonObject;
   readonly input: readonly unknown[];
-  readonly bytes: number;
-  readonly createdAt: number;
 };
 
 const objectSchema = z.record(z.string(), z.unknown());
-const DEFAULT_MAX_RECORDS = 256;
-const DEFAULT_MAX_BYTES = 32 * 1024 * 1024;
-const DEFAULT_MAX_RECORD_BYTES = 4 * 1024 * 1024;
-const DEFAULT_TTL_MS = 60 * 60 * 1000;
+const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_BODY_BYTES = 8 * 1024 * 1024;
 
 export function createResponsesLifecycle(
   relay: ResponsesRelay,
   options: ResponsesStoreOptions = {},
 ): ResponsesLifecycle {
-  const maxRecords = positiveInteger(options.maxRecords, DEFAULT_MAX_RECORDS);
-  const maxBytes = positiveInteger(options.maxBytes, DEFAULT_MAX_BYTES);
-  const maxRecordBytes = Math.min(
-    positiveInteger(options.maxRecordBytes, DEFAULT_MAX_RECORD_BYTES),
-    maxBytes,
-  );
+  const store = options.store ?? createDurableStore(options);
   const ttlMs = positiveInteger(options.ttlMs, DEFAULT_TTL_MS);
   const maxResponseBytes = positiveInteger(options.maxResponseBytes, DEFAULT_BODY_BYTES);
   const now = options.now ?? Date.now;
-  const records = new Map<string, StoredResponse>();
-  let bytes = 0;
-
-  const remove = (id: string): boolean => {
-    const previous = records.get(id);
-    if (!previous) return false;
-    records.delete(id);
-    bytes -= previous.bytes;
-    return true;
-  };
-
-  const prune = (): void => {
-    const cutoff = now() - ttlMs;
-    for (const [id, record] of records) {
-      if (record.createdAt <= cutoff) remove(id);
-    }
-  };
-
-  const save = (response: JsonObject, input: readonly unknown[]): boolean => {
-    const id = response["id"];
-    if (typeof id !== "string" || id.length === 0) return false;
-    const serialized = JSON.stringify({ response, input });
-    const recordBytes = new TextEncoder().encode(serialized).byteLength;
-    if (recordBytes > maxRecordBytes) return false;
-    prune();
-    remove(id);
-    while (records.size >= maxRecords || bytes + recordBytes > maxBytes) {
-      const oldest = records.keys().next();
-      if (oldest.done) return false;
-      remove(oldest.value);
-    }
-    records.set(id, { response, input, bytes: recordBytes, createdAt: now() });
-    bytes += recordBytes;
-    return true;
-  };
-
-  const retrieve = (id: string): StoredResponse | undefined => {
-    prune();
-    return records.get(id);
-  };
 
   const handle: ResponsesLifecycle = Object.assign(
-    async (request: Request): Promise<Response> => {
-      const url = new URL(request.url);
-      const path = decodedPath(url);
-      if (!path) return jsonError(400, "invalid_request", "Malformed URL path");
+    async (request: Request, accountId = "local"): Promise<Response> => {
+      try {
+        const url = new URL(request.url);
+        const path = decodedPath(url);
+        if (!path) return jsonError(400, "invalid_request", "Malformed URL path");
 
-      if (request.method === "POST" && path === "/v1/responses") {
-        const parsed = await readRequestBody(request);
-        if (parsed instanceof Response) return parsed;
-        const store = parsed["store"] === true;
-        if (!store) return relay(request);
-        if (parsed["background"] === true)
-          return jsonError(
-            501,
-            "background_not_supported_locally",
-            "Local Responses storage does not implement background jobs",
-          );
+        if (request.method === "POST" && path === "/v1/responses") {
+          const parsed = await readRequestBody(request);
+          if (parsed instanceof Response) return parsed;
+          const shouldStore = parsed["store"] === true;
+          if (!shouldStore) return relay(request);
+          if (parsed["background"] === true)
+            return jsonError(
+              501,
+              "background_not_supported_locally",
+              "Local Responses storage does not implement background jobs",
+            );
 
-        const input = inputItems(parsed["input"]);
-        const body = JSON.stringify({ ...parsed, store: false });
-        const upstreamRequest = new Request(request, { body });
-        const upstream = await relay(upstreamRequest);
-        if (!upstream.ok) return upstream;
-        const upstreamHeaders = new Headers(upstream.headers);
-        const contentType = upstreamHeaders
-          .get("content-type")
-          ?.split(";", 1)[0]
-          ?.trim()
-          .toLowerCase();
-        if (contentType === "text/event-stream") {
-          upstreamHeaders.delete("content-length");
-          if (!upstream.body)
-            return jsonError(502, "response_not_stored", "Upstream returned an empty event stream");
-          const tapped = tapEventStream(upstream.body, input, save, maxResponseBytes);
-          return new Response(tapped, {
-            status: upstream.status,
-            statusText: upstream.statusText,
-            headers: upstreamHeaders,
-          });
+          const input = inputItems(parsed["input"]);
+          if (Buffer.byteLength(JSON.stringify({ input })) > store.maxRecordBytes)
+            return jsonError(
+              507,
+              "stored_response_too_large",
+              "Inputs exceed the per-object durable storage limit",
+            );
+          const reservation = store.reserve(accountId, "response", options.reservationMs ?? 900000);
+          const save = (response: JsonObject, items: readonly unknown[]): boolean => {
+            const id = response["id"];
+            if (typeof id !== "string" || id.length === 0) return false;
+            reservation.commit(id, { response, input: items }, now() + ttlMs);
+            return true;
+          };
+          let streaming = false;
+          try {
+            const body = JSON.stringify({ ...parsed, store: false });
+            const upstreamRequest = new Request(request, { body });
+            const upstream = await relay(upstreamRequest);
+            if (!upstream.ok && upstream.status !== 502) return upstream;
+            const upstreamHeaders = new Headers(upstream.headers);
+            const contentType = upstreamHeaders
+              .get("content-type")
+              ?.split(";", 1)[0]
+              ?.trim()
+              .toLowerCase();
+            if (contentType === "text/event-stream") {
+              upstreamHeaders.delete("content-length");
+              if (!upstream.body)
+                return jsonError(
+                  502,
+                  "response_not_stored",
+                  "Upstream returned an empty event stream",
+                );
+              const tapped = tapEventStream(
+                upstream.body,
+                input,
+                save,
+                maxResponseBytes,
+                reservation.release,
+              );
+              streaming = true;
+              return new Response(tapped, {
+                status: upstream.status,
+                statusText: upstream.statusText,
+                headers: upstreamHeaders,
+              });
+            }
+
+            const captured = await captureResponse(upstream, maxResponseBytes);
+            if (captured instanceof Response) return captured;
+            const responseObject = finalResponse(captured.body, captured.contentType);
+            if (
+              !upstream.ok &&
+              !(
+                responseObject?.["object"] === "response" &&
+                ["failed", "incomplete"].includes(String(responseObject["status"]))
+              )
+            )
+              return new Response(captured.body, {
+                status: captured.status,
+                statusText: captured.statusText,
+                headers: captured.headers,
+              });
+            const storedObject = responseObject ? { ...responseObject, store: true } : undefined;
+            if (!storedObject || !save(storedObject, input))
+              return jsonError(
+                502,
+                "response_not_stored",
+                "Upstream completed without a storable response object",
+              );
+            const responseBody = new TextEncoder().encode(JSON.stringify(storedObject)).buffer;
+            captured.headers.delete("content-length");
+            return new Response(responseBody, {
+              status: captured.status,
+              statusText: captured.statusText,
+              headers: captured.headers,
+            });
+          } finally {
+            if (!streaming) reservation.release();
+          }
         }
 
-        const captured = await captureResponse(upstream, maxResponseBytes);
-        if (captured instanceof Response) return captured;
-        const responseObject = finalResponse(captured.body, captured.contentType);
-        const storedObject = responseObject ? { ...responseObject, store: true } : undefined;
-        if (!storedObject || !save(storedObject, input))
-          return jsonError(
-            502,
-            "response_not_stored",
-            "Upstream completed without a storable response object",
-          );
-        const responseBody = new TextEncoder().encode(JSON.stringify(storedObject)).buffer;
-        captured.headers.delete("content-length");
-        return new Response(responseBody, {
-          status: captured.status,
-          statusText: captured.statusText,
-          headers: captured.headers,
-        });
-      }
+        const match = path.match(/^\/v1\/responses\/([^/]+)(?:\/input_items)?$/);
+        if (!match) return relay(request);
+        const suffix = path.endsWith("/input_items");
+        const id = match[1];
+        if (!id) return jsonError(400, "invalid_request", "Response ID is required");
 
-      const match = path.match(/^\/v1\/responses\/([^/]+)(?:\/input_items)?$/);
-      if (!match) return relay(request);
-      const suffix = path.endsWith("/input_items");
-      const id = match[1];
-      if (!id) return jsonError(400, "invalid_request", "Response ID is required");
-
-      if (request.method === "GET" && !suffix) {
-        const saved = retrieve(id);
-        return saved
-          ? Response.json(saved.response)
-          : jsonError(404, "not_found", `Response '${id}' was not found`);
+        if (request.method === "GET" && !suffix) {
+          const saved = store.get(accountId, "response", id) as StoredResponse | undefined;
+          return saved
+            ? Response.json(saved.response)
+            : jsonError(404, "not_found", `Response '${id}' was not found`);
+        }
+        if (request.method === "DELETE" && !suffix) {
+          const deleted = store.delete(accountId, "response", id);
+          return deleted
+            ? Response.json({ id, object: "response.deleted", deleted: true })
+            : jsonError(404, "not_found", `Response '${id}' was not found`);
+        }
+        if (request.method === "GET" && suffix) {
+          const saved = store.get(accountId, "response", id) as StoredResponse | undefined;
+          return saved
+            ? inputItemsPage(saved.input, url)
+            : jsonError(404, "not_found", `Response '${id}' was not found`);
+        }
+        return relay(request);
+      } catch (error) {
+        if (error instanceof GatewayError)
+          return jsonError(error.status, error.code, error.message);
+        throw error;
       }
-      if (request.method === "DELETE" && !suffix) {
-        const deleted = remove(id);
-        return deleted
-          ? Response.json({ id, object: "response.deleted", deleted: true })
-          : jsonError(404, "not_found", `Response '${id}' was not found`);
-      }
-      if (request.method === "GET" && suffix) {
-        const saved = retrieve(id);
-        return saved
-          ? inputItemsPage(saved.input, url)
-          : jsonError(404, "not_found", `Response '${id}' was not found`);
-      }
-      return relay(request);
     },
     {
-      clear() {
-        records.clear();
-        bytes = 0;
+      close() {
+        if (!options.store) store.close();
       },
       size() {
-        prune();
-        return records.size;
+        return store.size();
       },
     },
   );
@@ -307,6 +302,7 @@ function tapEventStream(
   input: readonly unknown[],
   save: (response: JsonObject, input: readonly unknown[]) => boolean,
   maxFrameBytes: number,
+  release: () => void,
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -342,7 +338,7 @@ function tapEventStream(
     return retained.join("\n");
   };
 
-  return body.pipeThrough(
+  const transformed = body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         pending += decoder.decode(chunk, { stream: true });
@@ -350,6 +346,12 @@ function tapEventStream(
         while (match?.index !== undefined) {
           const delimiter = match[0];
           const frame = pending.slice(0, match.index);
+          if (encoder.encode(frame).byteLength > maxFrameBytes)
+            throw new GatewayError(
+              502,
+              "stored_response_too_large",
+              "SSE event exceeded local storage limit",
+            );
           pending = pending.slice(match.index + delimiter.length);
           controller.enqueue(encoder.encode(`${rewriteFrame(frame)}${delimiter}`));
           match = frameBoundary.exec(pending);
@@ -363,6 +365,33 @@ function tapEventStream(
         if (!savedTerminal) throw new Error("Upstream stream ended without a storable response");
       },
     }),
+  );
+  const reader = transformed.getReader();
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        try {
+          const next = await reader.read();
+          if (next.done) {
+            release();
+            controller.close();
+          } else controller.enqueue(next.value);
+        } catch (error) {
+          release();
+          controller.enqueue(
+            encoder.encode(
+              `event: error\ndata: ${JSON.stringify({ type: "error", error: { code: error instanceof GatewayError ? error.code : "response_not_stored", message: "Response could not be stored locally" } })}\n\n`,
+            ),
+          );
+          controller.close();
+        }
+      },
+      async cancel(reason) {
+        release();
+        await reader.cancel(reason);
+      },
+    },
+    { highWaterMark: 0 },
   );
 }
 

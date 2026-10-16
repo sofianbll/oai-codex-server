@@ -77,6 +77,31 @@ const relayQualification: Qualification = {
 };
 
 function qualification(id: string): Qualification {
+  if (id === "createSpeech") {
+    return {
+      ...relayQualification,
+      evidence: {
+        kind: "historical-refusal",
+        date: "2026-10-16",
+        scope:
+          "Audio REST speech: one coordinator probe at 2026-10-16T22:25:55.432Z, temporary loopback raw mode, POST /v1/audio/speech, gpt-4o-mini-tts-2025-12-15, alloy, wav: HTTP 403 text/html; charset=UTF-8, 10611 bytes, no WAV. One upstream request under the Codex prefix; refusal layer/cause unknown, not a universal TTS limitation or successful synthesis.",
+        sources: [research, desktopResearch, "docs/research/2026-10-17-audio-speech.md"],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "An established speech model, built-in voice and binary/streaming contract under the authorized Codex prefix; none has been live-verified.",
+        "Custom voices require an existing authorized voice/consent resource; creating voices or consent is not implicitly authorized by a speech request or probe.",
+      ],
+      limitations: [
+        "Minimal mode returns HTTP 501 speech_contract_unverified before credentials or synthesis; raw remains an unadapted relay for separately authorized investigation, not verified compatibility.",
+        "The authorized synthesis probe budget is exhausted (1/1); no retry or additional probe is authorized. Backend availability and faithful speech synthesis remain unvalidated.",
+        "mp3, opus, aac, flac, wav, pcm, speed, instructions and SSE audio events are public options, not established Codex capabilities; unknown options are never silently removed.",
+        "No text-only simulation, Realtime substitution, media URL fetch, local engine or paid API fallback is provided.",
+        "Desktop voice paths outside the authorized Codex prefix are research leads, not credential destinations or HTTP speech implementations.",
+        "Raw binary interruption may yield a truncated body without an explicit terminal error; validate the complete audio file. No duration or decoded-output limit is claimed for raw relay.",
+      ],
+    };
+  }
   if (id === "createChatCompletion") {
     return {
       ...relayQualification,
@@ -101,7 +126,7 @@ function qualification(id: string): Qualification {
       ],
     };
   }
-  if (["createSpeech", "createTranscription", "createTranslation"].includes(id)) {
+  if (["createTranscription", "createTranslation"].includes(id)) {
     return {
       ...relayQualification,
       evidence: {
@@ -174,17 +199,17 @@ function qualification(id: string): Qualification {
       ...relayQualification,
       implementation: "local",
       evidence: {
-        kind: "source",
-        date: "2026-10-16",
+        kind: "runtime",
+        date: "2026-10-17",
         scope:
-          "Existing minimal-mode local Responses storage, not native Codex persistence or a new live validation.",
-        sources: ["src/server/responses-store.ts", "docs/evidence/responses-sprint/RESULTAT.md"],
+          "Minimal-mode SQLite Responses persistence, verified with local SDK/runtime fixtures across restart; not native Codex persistence or a live backend validation.",
+        sources: ["src/server/responses-store.ts", "tests/responses-durable.test.ts"],
       },
       prerequisites: [
-        "A response created with store:true in minimal mode, under the same account and running process.",
+        "A response created with store:true in minimal mode, under the same account and server storage configuration.",
       ],
       limitations: [
-        "One-hour in-memory retention; 256 responses, 32 MiB total, 4 MiB per response. Restart/account change loses this state. Raw mode only relays.",
+        "Thirty-day local retention across restart; 1 GiB global application budget across accounts/kinds, 4 MiB per retained object including inputs. Capacity errors are explicit, without arbitrary eviction. Raw mode only relays. Durable data does not restore a native continuation.",
       ],
     };
   }
@@ -230,7 +255,7 @@ function qualification(id: string): Qualification {
       limitations: [
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
-        "store:true uses bounded one-hour in-memory storage in minimal mode, lost on restart/account change; background jobs and Conversations are not implemented.",
+        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Conversations and durable-context replay are not implemented.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };
@@ -271,21 +296,36 @@ function qualification(id: string): Qualification {
     return {
       ...relayQualification,
       evidence: {
-        kind: "source",
+        kind: id === "createImage" ? "runtime" : "source",
         date: "2026-10-16",
         scope:
           id === "createImage"
-            ? "Codex ImagesClient sends JSON to images/generations; no live account validation."
+            ? "Native JSON images/generations uses prompt, model, background, n, quality, size. Coordinator observation 2026-10-16T22:27:36.855Z, minimal, gpt-image-2, n=1, quality=low, background=opaque: HTTP 200 JSON with one decodable opaque PNG, blue circle on white without text. Requested 1024x1024 but decoded 1374x1145: dimension fidelity failed, not verified compatible."
             : "Codex ImagesClient sends JSON image references to images/edits; public multipart equivalence is not established.",
         sources: [
           `${codexSource}endpoint/images.rs`,
           `${codexSource}images.rs`,
           research,
           desktopResearch,
+          ...(id === "createImage"
+            ? [
+                "docs/evidence/images-generation.md",
+                "https://developers.openai.com/codex/image-generation.md",
+              ]
+            : []),
         ],
       },
       limitations: [
-        "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
+        ...(id === "createImage"
+          ? [
+              "Native source: prompt/model are strings; background=transparent|opaque|auto, quality=low|medium|high|auto, n is an unsigned integer and size is a string. One gpt-image-2 generation was observed for the coordinator account; other models/counts/dimensions/options and general account entitlement remain unverified. No defaults are injected.",
+              "Observed size mismatch: requested size=1024x1024, actual PNG=1374x1145 (1027860 bytes, opaque RGB). Declared/requested size is not proof of decoded dimensions; no resize/crop or metadata correction is applied. Availability remains source-backed, not verified compatible. Image probe budget 1/1 exhausted; no retry authorized.",
+              "Public output_format (png/jpeg/webp), output_compression, response_format, moderation, style, user, stream, partial_images and quality=standard|hd|xhigh|max are not established by this native client. Unknown fields and explicit nulls are relayed unchanged, never silently dropped; backend errors are preserved. No URL fetch, format conversion or fabricated image is provided.",
+              "Local SDK fixtures verify JSON/base64 and binary transport, errors, request size limits and interruption. The separate live observation establishes only the documented gpt-image-2 request, not other options/models, edits or variations. Raw remains unchanged. See docs/evidence/images-generation.md.",
+            ]
+          : [
+              "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
+            ]),
         "Desktop /wham/images paths are research leads, not authorized credential destinations; no paid API fallback.",
       ],
     };
@@ -300,8 +340,20 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
     stream_options: { include_usage: true },
   },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
-  createImage: { model: "gpt-image-1", prompt: "A small blue robot on a white background", n: 1 },
-  createSpeech: { model: "gpt-4o-mini-tts", input: "Hello from the local proxy.", voice: "alloy" },
+  createImage: {
+    model: "gpt-image-2",
+    prompt: "A single solid blue circle centered on a plain white background. No text.",
+    n: 1,
+    quality: "low",
+    size: "1024x1024",
+    background: "opaque",
+  },
+  createSpeech: {
+    model: "gpt-4o-mini-tts",
+    input: "This is a synthetic speech test.",
+    voice: "alloy",
+    response_format: "wav",
+  },
   updateVoiceConsent: { name: "Updated consent name" },
   "reject-realtime-call": { status_code: 486 },
   "reject-live-session": { status_code: 486 },
