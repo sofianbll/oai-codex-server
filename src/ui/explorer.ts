@@ -5,9 +5,18 @@ import { createConsole } from "./console";
 import { badge, el, errorText, field, notice, panel } from "./dom";
 import { renderSocket } from "./socket";
 
-const categoryOrder = ["Responses", "Models", "Images", "Audio", "Realtime", "Live"] as const;
+const categoryOrder = [
+  "Responses",
+  "Chat",
+  "Models",
+  "Images",
+  "Audio",
+  "Realtime",
+  "Live",
+] as const;
 const categoryDescriptions: Readonly<Record<string, string>> = {
   Responses: "Créer, lire, annuler et gérer les réponses du modèle",
+  Chat: "JSON texte via Responses ; streaming et outils non implémentés",
   Models: "Lister et inspecter les modèles disponibles",
   Images: "Générer et modifier des images",
   Audio: "Synthèse vocale, transcription et gestion des voix",
