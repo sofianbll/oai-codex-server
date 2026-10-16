@@ -34,10 +34,14 @@ export const publicApi = documentSchema.parse(
 export const publicOperations = Object.entries(publicApi.paths)
   .filter(
     ([path]) =>
-      /^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) && !path.includes("?"),
+      (/^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) ||
+        path === "/chat/completions") &&
+      !path.includes("?"),
   )
   .flatMap(([path, item]) =>
-    Object.entries(item).map(([method, definition]) => ({ path, method, definition })),
+    Object.entries(item)
+      .filter(([method]) => path !== "/chat/completions" || method === "post")
+      .map(([method, definition]) => ({ path, method, definition })),
   );
 
 export const transportDescription =
@@ -97,6 +101,25 @@ function qualification(id: string): Qualification {
         "The proxy never fabricates timestamps, detected languages or speaker labels. Model-specific formats, streaming, diarization and backend limits remain unverified.",
         "The configured maxBodyBytes limits the whole multipart request, including overhead (default 16 MiB); no decoding, duration detection, splitting or remote media fetching is performed.",
         "Explorer: select Multipart with file, keep the example as form fields and attach the audio as file. Example models describe the public contract, not established Codex access.",
+      ],
+    };
+  }
+  if (id === "createChatCompletion") {
+    return {
+      ...relayQualification,
+      implementation: "adaptation",
+      evidence: {
+        kind: "source",
+        date: "2026-10-17",
+        scope:
+          "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
+        sources: ["src/server/chat-adapter.ts", "tests/chat-json.test.ts"],
+      },
+      limitations: [
+        "Minimal mode implements JSON text messages with system/developer/user/assistant roles, model, stream:false, store:false and n:1 only. Omitted store is false.",
+        "stream:true, tools/tool history, multimodal content, named messages, store:true, stored Chat CRUD, query parameters and all other options are explicitly refused, not silently removed.",
+        "Completed text/refusal output maps to finish_reason:stop. Failed/incomplete Responses keep their engine HTTP error status and payload. Unsupported structured or annotated output is refused.",
+        "Usage is mapped only when received; no counts are estimated. Raw mode remains an unadapted relay.",
       ],
     };
   }
@@ -292,6 +315,11 @@ function qualification(id: string): Qualification {
   return relayQualification;
 }
 const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  createChatCompletion: {
+    messages: [{ role: "user", content: "Say hello in one sentence." }],
+    store: false,
+    stream: false,
+  },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: { model: "gpt-image-1", prompt: "A small blue robot on a white background", n: 1 },
   createSpeech: { model: "gpt-4o-mini-tts", input: "Hello from the local proxy.", voice: "alloy" },
@@ -302,6 +330,7 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   "reject-live-session": { status_code: 486 },
 } as const;
 const categories: Readonly<Record<string, string>> = {
+  chat: "Chat",
   responses: "Responses",
   models: "Models",
   images: "Images",
@@ -310,7 +339,15 @@ const categories: Readonly<Record<string, string>> = {
   live: "Live",
 } as const;
 
-const categoryOrder = ["responses", "models", "images", "audio", "realtime", "live"] as const;
+const categoryOrder = [
+  "responses",
+  "chat",
+  "models",
+  "images",
+  "audio",
+  "realtime",
+  "live",
+] as const;
 const methodRank: Readonly<Record<string, number>> = {
   GET: 0,
   POST: 1,
