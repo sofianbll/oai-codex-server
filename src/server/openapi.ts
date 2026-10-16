@@ -112,6 +112,14 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
             "WebSocket upgrade accepted; subsequent messages use the selected native protocol.",
         },
         "400": { description: "A WebSocket upgrade request is required." },
+        ...(operation.id === "connectRealtimeWebSocket"
+          ? {
+              "501": {
+                description:
+                  "Minimal mode: realtime_protocol_not_adapted for the incompatible native V1 quicksilver intent. Raw mode remains a native relay.",
+              },
+            }
+          : {}),
         "502": { description: "The Codex backend could not establish the connection." },
       },
     };

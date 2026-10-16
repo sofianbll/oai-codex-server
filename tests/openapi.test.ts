@@ -20,6 +20,15 @@ function walk(value: unknown, visit: (entry: Record<string, unknown>) => void): 
 }
 
 describe("same-origin OpenAPI reference", () => {
+  test("Realtime publishes the qualified protocol refusal without claiming backend compatibility", async () => {
+    const spec = await createOpenApi("fixture");
+    const route = record.parse(record.parse(record.parse(spec["paths"])["/v1/realtime"])["get"]);
+    expect(route["x-proxy-supported"]).toBe(true);
+    expect(route["x-proxy-implementation"]).toBe("relay");
+    expect(route["x-proxy-availability"]).toBe("source-backed");
+    expect(JSON.stringify(route["responses"])).toContain("realtime_protocol_not_adapted");
+    expect(JSON.stringify(route["x-proxy-prerequisites"])).toContain("API key auth");
+  });
   test("retains every public schema when the local reference is generated", async () => {
     // Given the full public source, including fields outside the proxy adapter.
     const sourceComponents = record.parse(source["components"]);
