@@ -25,6 +25,8 @@ const identitySchema = z.looseObject({
 });
 // Lifecycle/content snapshots are reconciled against the terminal; reasoning is never final text.
 const snapshotEvents = new Set([
+  // Native model/moderation metadata has no Chat chunk; Responses/raw retain the event.
+  "response.metadata",
   "response.created",
   "response.in_progress",
   "response.queued",
