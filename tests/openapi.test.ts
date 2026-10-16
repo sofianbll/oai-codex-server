@@ -197,6 +197,16 @@ describe("same-origin OpenAPI reference", () => {
     const socket = record.parse(record.parse(paths["/v1/realtime"])["get"]);
     expect(record.parse(socket["responses"])["101"]).toBeDefined();
     expect(socket["x-proxy-availability"]).toBe("source-backed");
+    const call = record.parse(record.parse(paths["/v1/realtime/calls"])["post"]);
+    expect(call["x-proxy-implementation"]).toBe("adaptation");
+    expect(call["x-proxy-availability"]).toBe("source-backed");
+    const content = record.parse(record.parse(call["requestBody"])["content"]);
+    expect(content["multipart/form-data"]).toBeDefined();
+    expect(content["application/sdp"]).toBeDefined();
+    expect(content["application/json"]).toMatchObject({
+      schema: { required: ["sdp"], additionalProperties: false },
+      example: { session: { type: "realtime" } },
+    });
     expect(paths["/v1/conversations"]).toBeUndefined();
     const chat = record.parse(record.parse(paths["/v1/chat/completions"])["post"]);
     expect(chat["x-proxy-implementation"]).toBe("adaptation");
@@ -207,10 +217,15 @@ describe("same-origin OpenAPI reference", () => {
       model: "configured-model",
       messages: [{ role: "user", content: "Say hello in one sentence." }],
       store: false,
-      stream: false,
+      stream: true,
+      stream_options: { include_usage: true },
     });
     expect(chat["x-proxy-limitations"]).toEqual(
-      expect.arrayContaining([expect.stringContaining("stream:true")]),
+      expect.arrayContaining([
+        expect.stringContaining("progressive SSE"),
+        expect.stringContaining("never executes tools"),
+        expect.stringContaining("unknown options"),
+      ]),
     );
   });
 });

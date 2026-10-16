@@ -1,6 +1,7 @@
 import ky, { TimeoutError } from "ky";
 import { type CredentialProvider, GatewayError, type ProxyOptions } from "../shared/contracts";
 import { adaptImageEdit } from "./image-edits";
+import { realtimeCallBody, realtimeCallLocation } from "./realtime-call";
 import { adaptRequest, completedResponse, modelList } from "./response-adapter";
 import { restoreStreamOutput } from "./response-stream-adapter";
 import { Exchange } from "./upstream-stream";
@@ -91,6 +92,7 @@ export async function forward(
   const minimal = options.translationMode === "minimal";
   const responses = minimal && request.method === "POST" && path === "/v1/responses";
   const models = minimal && request.method === "GET" && path === "/v1/models";
+  const realtime = minimal && request.method === "POST" && path === "/v1/realtime/calls";
   if (models && !target.searchParams.has("client_version"))
     target.searchParams.set("client_version", options.clientVersion);
   const exchange = new Exchange(request.signal, options.timeoutMs);
@@ -122,6 +124,9 @@ export async function forward(
       : undefined;
     const adapted = responses ? adaptRequest(bytes ?? new ArrayBuffer(0), options) : undefined;
     const headers = sanitizedHeaders(request.headers, true);
+    const call = realtime
+      ? await exchange.wait(realtimeCallBody(bytes ?? new ArrayBuffer(0), headers))
+      : undefined;
     if (adapted?.sessionId !== undefined && !headers.has("session-id"))
       headers.set("session-id", adapted.sessionId);
     const auth = await exchange.wait(credentials());
@@ -133,7 +138,17 @@ export async function forward(
       headers.set("content-type", "application/json");
       headers.delete("content-encoding");
     }
-    const payload = imageBody ?? adapted?.body ?? bytes;
+    if (call) {
+      headers.set("content-type", call.contentType);
+      headers.delete("content-encoding");
+    }
+    const payload = imageBody ?? call?.body ?? adapted?.body ?? bytes;
+    if (call && new Blob([call.body]).size > options.maxBodyBytes)
+      throw new GatewayError(
+        413,
+        "body_too_large",
+        "Adapted call exceeds the configured byte limit",
+      );
     const response = await ky(target, {
       method: request.method,
       headers,
@@ -145,6 +160,17 @@ export async function forward(
       throwHttpErrors: false,
     });
     const responseHeaders = sanitizedHeaders(response.headers, false);
+    if (realtime) {
+      responseHeaders.set("cache-control", "no-store");
+      if (response.ok) {
+        try {
+          realtimeCallLocation(responseHeaders);
+        } catch (error) {
+          await response.body?.cancel();
+          throw error;
+        }
+      } else responseHeaders.delete("location");
+    }
     const mediaType = responseHeaders.get("content-type")?.split(";")[0]?.trim().toLowerCase();
     if (responses && response.ok && (!mediaType || mediaType === "text/plain")) {
       responseHeaders.set("content-type", "text/event-stream");
@@ -165,7 +191,7 @@ export async function forward(
     const body = streamedBody
       ? exchange.wrap(streamedBody, {
           complete: true,
-          ...(aggregate
+          ...(aggregate || realtime
             ? { maxBytes: options.maxBodyBytes }
             : {
                 direct: true,
@@ -179,6 +205,18 @@ export async function forward(
       statusText: response.statusText,
       headers: responseHeaders,
     });
+    if (realtime) {
+      const answer = await result.arrayBuffer();
+      if (result.ok) {
+        try {
+          new TextDecoder("utf-8", { fatal: true }).decode(answer);
+        } catch {
+          throw new GatewayError(502, "invalid_realtime_sdp", "Realtime answer is not UTF-8 SDP");
+        }
+        result.headers.set("content-type", "application/sdp");
+      }
+      return new Response(answer, result);
+    }
     if (response.ok && models) return await modelList(result);
     if (aggregate && !models) return await completedResponse(result, exchange);
     return result;

@@ -43,7 +43,7 @@ docker compose exec oai-codex bun src/cli/main.ts token --config /data/oai-codex
 
 ## Configuration
 
-Le fichier JSON configure `server`, `proxy`, `auth`, `limits`, `dashboard` et `docs`. Les options CLI prennent priorité pour le processus courant. Le dashboard peut enregistrer les paramètres publics ; un redémarrage applique ces changements. Les chemins relatifs des identifiants et de la clé sont résolus depuis le dossier de configuration.
+Le fichier JSON configure `server`, `proxy`, `auth`, `storage`, `limits`, `dashboard` et `docs`. Les options CLI prennent priorité pour le processus courant. Le dashboard peut enregistrer les paramètres publics ; un redémarrage applique ces changements. Les chemins relatifs des identifiants, de la clé et du stockage sont résolus depuis le dossier de configuration. `storage.path` (défaut `.local/durable/store.sqlite`) appartient uniquement à la configuration serveur locale : il n'est ni exposé ni modifiable par le navigateur, et ne doit pas viser le dossier des identifiants Codex.
 
 ```json
 {
@@ -57,6 +57,7 @@ Le fichier JSON configure `server`, `proxy`, `auth`, `limits`, `dashboard` et `d
     "maxBodyBytes": 16777216
   },
   "auth": { "codexHome": "/Users/you/.codex", "tokenFile": ".local/server-token" },
+  "storage": { "path": ".local/durable/store.sqlite" },
   "limits": { "maxConcurrent": 16, "activityEntries": 100 },
   "dashboard": { "enabled": true },
   "docs": { "enabled": true }
@@ -74,11 +75,11 @@ Chaque chemin `/v1/*` est relayé vers `/backend-api/codex/*`, avec la méthode,
 | `raw` | Corps JSON, SSE, fichiers et frames WebSocket relayés sans traduction. Le client doit envoyer le format attendu par Codex. |
 | `minimal` (défaut) | Adaptations décrites ci-dessous ; les autres routes restent en pass-through. |
 
-Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absentes `model`, `instructions: ""`, `store: false`, transforme un `input` texte en message et demande toujours le streaming à Codex. `store: true` conserve la réponse dans le stockage local en mémoire (JSON et SSE), pendant une heure au maximum, avec des limites de taille et de nombre ; le stockage disparaît au redémarrage. Les routes de lecture, suppression et input items utilisent ce stockage. Si le client demande `stream: true`, les événements exposés conservent leur ordre ; le proxy complète le `response.output` terminal lorsqu'il est absent ou vide, à partir des `output_item.done` reçus. Le flux HTTP minimal omet uniquement les télémétries natives identifiées `codex.rate_limits`, `codex.response.metadata` et `responsesapi.websocket_timing` (observées dans les [preuves WebSocket historiques](docs/evidence/responses-implementation/websocket-independent.json)). Les extensions inconnues, champs supplémentaires, erreurs et numéros de séquence reçus restent préservés : les séquences ne sont pas renumérotées et peuvent donc comporter des trous. Ce filtrage n'est pas une validation universelle du schéma public. Sinon, le serveur renvoie l'objet `response` final ; si Codex n'y répète pas les éléments de sortie, il y réunit les `output_item.done` reçus, dans leur ordre d'origine, y compris pour un terminal failed/incomplete (HTTP 502 conservé). Pour `GET /v1/models`, il ajoute `client_version` s'il manque et expose la liste sous `data[].id` en conservant les champs Codex. Le mode raw et le WebSocket directement relayé ne filtrent pas les événements.
+Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absentes `model`, `instructions: ""`, `store: false`, transforme un `input` texte en message et demande toujours le streaming à Codex. `store: true` conserve explicitement la réponse et ses input items dans un stockage SQLite privé propre au proxy (JSON et SSE), pendant trente jours à partir de sa conservation, y compris après redémarrage. Les routes de lecture, suppression et input items utilisent ce stockage. Si le client demande `stream: true`, les événements exposés conservent leur ordre ; le proxy complète le `response.output` terminal lorsqu'il est absent ou vide, à partir des `output_item.done` reçus. Le flux HTTP minimal omet uniquement les télémétries natives identifiées `codex.rate_limits`, `codex.response.metadata` et `responsesapi.websocket_timing` (observées dans les [preuves WebSocket historiques](docs/evidence/responses-implementation/websocket-independent.json)). Les extensions inconnues, champs supplémentaires, erreurs et numéros de séquence reçus restent préservés : les séquences ne sont pas renumérotées et peuvent donc comporter des trous. Ce filtrage n'est pas une validation universelle du schéma public. Sinon, le serveur renvoie l'objet `response` final ; si Codex n'y répète pas les éléments de sortie, il y réunit les `output_item.done` reçus, dans leur ordre d'origine, y compris pour un terminal failed/incomplete (HTTP 502 conservé). Pour `GET /v1/models`, il ajoute `client_version` s'il manque et expose la liste sous `data[].id` en conservant les champs Codex. Le mode raw et le WebSocket directement relayé ne filtrent pas les événements.
 
 Pour bénéficier de l'affinité du cache Codex depuis un SDK OpenAI, fournissez une `prompt_cache_key` stable pour les appels partageant le même préfixe. En mode minimal HTTP, le proxy la recopie dans `session-id` si cet en-tête est absent. Un en-tête explicite reste prioritaire. La dérivation exige une chaîne ASCII imprimable non vide, sans espaces aux extrémités ; les autres valeurs restent transmises dans le corps sans dérivation. Le mode raw n'ajoute rien. Le cache reste décidé par Codex : un hit se constate dans `usage.input_tokens_details.cached_tokens`, qui est conservé tel que reçu. Cette clé ne stocke pas l'historique et ne remplace pas `previous_response_id`.
 
-Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses est émulé localement ; les conversations persistantes et tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON texte décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
+Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses est émulé localement ; les conversations persistantes et tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON/SSE texte et fonctions décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
 
 `GET /api/capabilities` conserve ses champs existants, notamment `supported` (route relayable uniquement), et ajoute par opération :
 
@@ -87,6 +88,10 @@ Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses 
 - `prerequisites` et `limitations` : droits/ressources nécessaires, options non établies et refus bornés. Les champs refusés ne sont pas supprimés silencieusement.
 
 Explorer affiche ces informations avant les contrôles d'exécution, y compris en WebSocket ; Scalar les conserve dans la description et les extensions `x-proxy-*`. Les exemples de corps restent des exemples du contrat, sans modèle ni paramètres garantis pour le compte. Images génération/édition/variantes, Audio REST et Realtime WS/WebRTC restent qualifiés séparément. Seul le sous-contrat d'édition décrit ci-dessous adapte le multipart public en références JSON natives ; aucune équivalence générale des deux contrats n'est promise.
+
+Pour `POST /v1/realtime/calls`, minimal traduit uniquement l'enveloppe multipart `sdp` + `session` JSON vers le JSON Codex `{sdp,session}` ; le même JSON est accepté directement dans Explorer/Scalar. Sans session, le SDP est envoyé en `application/sdp`, chemin également présent dans le client Codex. Les options de session et la query explicite sont conservées : aucun modèle, protocole, `intent`, `architecture`, identifiant ou token n'est ajouté. Le placeholder SDP du catalogue doit être remplacé par une véritable offre locale. Les doublons/champs d'enveloppe inconnus, sessions null/tableau et `session.id` sont refusés avant envoi ; les corps entrants, adaptés et retournés restent bornés par `maxBodyBytes`. Un succès exige un identifiant `rtc_*` ou UUID dans `Location`, réduit à `/v1/realtime/calls/{id}` sans destination ni query native ; une erreur backend garde son statut/corps, sans `Location`. Le SDP n'est ni journalisé ni stocké par l'adaptateur ; `no-store` est imposé. Raw reste inchangé.
+
+Cette adaptation d'enveloppe est **vérifiée localement**, pas une négociation WebRTC/audio vérifiée contre Codex. Le client source rejette RealtimeV2 pour AVAS ; les sessions publiques `type: realtime`, natives `quicksilver` et frameless ne sont pas supposées équivalentes. Les contrôles calls/live, credentials éphémères et transferts restent des relais non vérifiés avec autorisation/prérequis propres ; aucune fermeture d'appel distante n'est simulée par la fermeture HTTP. Voir les [limites et la probe réservée](docs/research/2026-10-16-codex-compatibility-frontier.md#webrtc--adaptation-locale-du-17-octobre).
 
 La génération Images conserve le relais JSON natif : `prompt`, `model`, `background`, `n`, `quality`, `size` sont présents dans le client Codex figé. Aucun modèle ni défaut n'est injecté. Les options publiques supplémentaires (formats/compression, URL/base64, modération, style, streaming, images partielles, utilisateur) et champs inconnus restent transmis, sans garantie d'acceptation. Les fixtures SDK vérifient le transport PNG/JPEG/WebP. L'unique probe du coordinateur (16 octobre 2026, minimal, `gpt-image-2`) a produit un cercle bleu sur blanc, opaque, sans texte, mais **1374×1145 au lieu des 1024×1024 demandés** : génération observée, conformité des dimensions échouée, pas de compatibilité complète. Budget Images **1/1 épuisé**, aucune relance. Le SDK ne valide pas les pixels ; le relais ne redimensionne ni ne recadre l'image. Voir [les qualifications et le résultat borné](docs/evidence/images-generation.md).
 
@@ -130,7 +135,7 @@ const response = await client.responses.create({ model: 'gpt-6-astra', input: 'B
 console.log(response.output_text);
 ```
 
-### Chat Completions JSON
+### Chat Completions JSON et streaming
 
 En mode minimal, `POST /v1/chat/completions` traduit les messages vers le même moteur Responses intégré, sans détour par un endpoint Chat natif. Le mode raw ne fait aucune traduction.
 
@@ -147,11 +152,44 @@ const completion = await client.chat.completions.create({
 console.log(completion.choices[0].message.content);
 ```
 
-Le sous-ensemble accepté est explicite : `model` (défaut local si omis), `messages` non vide, `stream:false`, `store:false` et `n:1`. Les rôles `system`, `developer`, `user` et `assistant` et leur ordre sont conservés ; le contenu est une chaîne ou une liste non vide de parties `{type:"text", text:"…"}`. Le contenu assistant est projeté en `output_text`, les autres rôles en `input_text`. **Omettre `store` conserve `false`**, sans historique Chat durable.
+Le sous-ensemble accepté est explicite : `model` (défaut local si omis), `messages` non vide, `stream` booléen, `store:false` et `n:1`. Les rôles `system`, `developer`, `user` et `assistant` et leur ordre sont conservés ; le contenu est une chaîne ou une liste non vide de parties `{type:"text", text:"…"}`. Le contenu assistant est projeté en `output_text`, les autres rôles en `input_text`. **Omettre `store` conserve `false`**, sans historique Chat durable.
 
-Une réponse terminée expose `chat.completion`, un identifiant `chatcmpl_*`, la date et le modèle reçus, un choix assistant et `finish_reason:"stop"`. Texte et refus sont séparés dans `message.content` et `message.refusal`. L'usage reçu est traduit en `prompt_tokens`, `completion_tokens`, `total_tokens` et leurs détails ; un usage absent n'est pas estimé. Les erreurs natives et les terminaux Responses failed/incomplete gardent le statut HTTP d'erreur du moteur (502 pour ces terminaux) et leur corps, sans fausse completion ni faux `finish_reason`.
+Une réponse terminée expose `chat.completion`, un identifiant `chatcmpl_*`, la date et le modèle reçus, un choix assistant et `finish_reason:"stop"` (ou `"tool_calls"` pour des fonctions). Texte et refus sont séparés dans `message.content` et `message.refusal` ; le raisonnement n'est jamais converti en texte final. L'usage reçu est traduit en `prompt_tokens`, `completion_tokens`, `total_tokens` et leurs détails ; un usage absent n'est pas estimé. Les erreurs natives et les terminaux Responses failed/incomplete gardent le statut HTTP d'erreur du moteur en JSON (502 pour ces terminaux), sans fausse completion ni faux `finish_reason`.
 
-Streaming, outils et historique d'outils, multimodal, messages nommés, `store:true`, `n` différent de 1, query parameters et **toute autre option**, notamment réglages de sampling, limites de tokens et `response_format`, renvoient explicitement `400 unsupported_chat_contract`. Les routes Chat stockées renvoient `501` ; elles ne sont pas implémentées ici. Une sortie structurée ou annotée non représentable par ce sous-ensemble renvoie `502 unsupported_chat_output`, plutôt que perdre silencieusement une partie du résultat. Le schéma public Scalar reste une référence plus large que cette adaptation. Les tests SDK utilisent uniquement un upstream WebSocket local contrôlé ; ils ne prouvent pas les droits du compte réel.
+```js
+const stream = await client.chat.completions.create({
+  model: 'gpt-6-astra',
+  messages: [{ role: 'user', content: 'Bonjour' }],
+  stream: true,
+  stream_options: { include_usage: true },
+});
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta.content ?? '');
+  if (chunk.usage) console.log(chunk.usage);
+}
+```
+
+Le SSE émet un rôle assistant puis les deltas texte/refus/arguments **avant le terminal**, avec identité stable, indices de fonctions compacts et raison de fin. `stream_options.include_usage:true` ajoute `usage:null` aux chunks ordinaires et un dernier chunk `choices:[]` avec l'usage reçu (ou `null` s'il manque). Sans cette option, le flux n'inclut pas d'usage. Une erreur après du texte reste un événement SSE d'erreur reconnu par le SDK, sans fin de succès ni `[DONE]`. Annulation, délai global, taille d'agrégation et file SSE sont bornés par les mêmes protections Responses. Les extensions de flux sans projection fidèle sont refusées explicitement.
+
+Les `tools` de type `function` acceptent `name`, `description`, `parameters` et `strict`. `tool_choice` accepte `auto`, `none`, `required` ou `{type:"function",function:{name:"…"}}` ; `parallel_tool_calls` est conservé. Les appels retournent `message.tool_calls` en JSON et `delta.tool_calls` en SSE. Pour poursuivre, ajouter le message assistant puis **un résultat fourni par le client** pour chaque appel :
+
+```js
+const messages = [{ role: 'user', content: 'Cherche la météo à Paris.' }];
+const tools = [{ type: 'function', function: {
+  name: 'weather', parameters: { type: 'object', properties: { city: { type: 'string' } } },
+} }];
+const first = await client.chat.completions.create({ model: 'gpt-6-astra', messages, tools });
+messages.push(first.choices[0].message);
+for (const call of first.choices[0].message.tool_calls ?? []) {
+  // Ici le client obtient lui-même le résultat autorisé ; le proxy n'exécute aucun outil.
+  messages.push({ role: 'tool', tool_call_id: call.id, content: 'Résultat fourni par le client' });
+}
+const next = await client.chat.completions.create({ model: 'gpt-6-astra', messages, tools });
+```
+
+Les résultats d'outils sont des chaînes et deviennent des items `function_call_output` structurés, liés aux `function_call` par `call_id`, pas un transcript texte. Un assistant avec appels peut omettre son contenu ou utiliser `null`. Les identifiants dupliqués, résultats orphelins/répétés et appels sans résultat avant une nouvelle génération sont refusés avant envoi upstream.
+
+Multimodal, outils autres que fonctions, messages nommés, `store:true`, `n` différent de 1, query parameters et **toute autre option**, notamment réglages de sampling, limites de tokens et `response_format`, renvoient explicitement `400 unsupported_chat_contract`. Les routes Chat stockées renvoient `501` ; le CRUD durable #17 n'est pas livré ici. Une sortie structurée ou annotée non représentable par ce sous-ensemble renvoie `502 unsupported_chat_output` en JSON ou une erreur SSE, plutôt que perdre silencieusement une partie du résultat. Le schéma public Scalar reste une référence plus large que cette adaptation. Les tests SDK utilisent uniquement un upstream WebSocket local contrôlé ; ils ne prouvent pas les droits du compte réel.
 
 Le dashboard offre un parcours Tests API (Responses en premier, scénarios numérotés, verdicts techniques et de consigne séparés, échanges dépliables), un explorateur de routes (JSON, texte, multipart/fichier et WebSocket), les réponses binaires téléchargeables, le journal des requêtes et la configuration. Le navigateur garde uniquement la clé du proxy dans `sessionStorage`. Scalar est servi localement ; renseignez la même clé dans Bearer. Aucun proxy Scalar externe n'est utilisé.
 
@@ -211,4 +249,10 @@ En mode minimal, les créations HTTP Responses utilisent une connexion native We
 
 `web_search_preview` est normalisé vers `web_search`. `/v1/responses/compact` utilise la compaction native et retourne un véritable contenu chiffré réutilisable. Pour réinjecter les objets du SDK Python, utiliser `item.model_dump(mode="json", exclude_none=True)` : le champ optionnel de sortie `created_by: null` n’est pas accepté en entrée par Codex.
 
-Le stockage local est borné à 256 réponses et 32 Mio (4 Mio par réponse). Il est effacé au changement de compte et au redémarrage. `background:true` avec stockage renvoie explicitement 501 ; les tâches de fond, conversations persistantes, paramètres du modèle refusés et outils sans prérequis ne sont pas déclarés compatibles. Voir [les preuves du sprint](docs/evidence/responses-sprint/RESULTAT.md).
+Le stockage durable est opt-in (`store:true`) ; l'omission et `false` n'enregistrent rien, `null` reste refusé par la validation existante. Les Responses expirent trente jours après leur conservation, sans renouvellement à la lecture. Les données sont isolées par compte : en changer ferme les continuités incompatibles sans supprimer ses Responses durables, retrouvables en revenant au compte initial. Aucune base Codex ni donnée actuelle n'est migrée.
+
+Le budget applicatif est global : 1 Gio, tous comptes et types de contenu retenu réunis, avec 4 Mio maximum par objet (Response et inputs compris) et 65 536 objets/réservations maximum. Une réservation transactionnelle de 4 Mio est prise avant génération ; un refus `507 storage_capacity_exceeded` ne déclenche pas d'appel upstream ni d'éviction arbitraire. Ce choix conservateur peut refuser une petite génération lorsque moins de 4 Mio restent disponibles. La réservation est libérée à la fin/annulation ; après une interruption brutale, elle expire au délai maximal de la requête. Si le résultat dépasse la borne par objet, l'erreur est explicite (JSON 507 ou événement SSE d'erreur sans terminal prétendument stocké).
+
+SQLite utilise un cache de pages de 2 Mio, des objets lus séparément, des transactions immédiates et un journal rollback supprimé à chaque commit, sans WAL cumulatif. Le fichier est plafonné à 1 152 Mio (294 912 pages de 4 Kio) ; avec le journal temporaire, le surcoût physique reste borné à environ 2 320 Mio au total, indépendamment du budget applicatif. Le dossier et le fichier doivent être privés (0700/0600). Expiration et suppression rendent les objets inaccessibles et libèrent le budget, mais ne promettent pas l'effacement physique de toutes leurs copies.
+
+Le stockage n'implémente pas le replay d'une continuité après expiration de socket. `background:true` avec stockage renvoie explicitement 501 ; les tâches de fond et Conversations ne sont pas implémentées ici. Les [tests SDK/runtime locaux](tests/responses-durable.test.ts) vérifient persistance et isolation, sans validation backend réelle ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.

@@ -111,13 +111,18 @@ function qualification(id: string): Qualification {
         date: "2026-10-17",
         scope:
           "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
-        sources: ["src/server/chat-adapter.ts", "tests/chat-json.test.ts"],
+        sources: [
+          "src/server/chat-adapter.ts",
+          "src/server/chat-stream.ts",
+          "tests/chat-json.test.ts",
+          "tests/chat-stream.test.ts",
+        ],
       },
       limitations: [
-        "Minimal mode implements JSON text messages with system/developer/user/assistant roles, model, stream:false, store:false and n:1 only. Omitted store is false.",
-        "stream:true, tools/tool history, multimodal content, named messages, store:true, stored Chat CRUD, query parameters and all other options are explicitly refused, not silently removed.",
-        "Completed text/refusal output maps to finish_reason:stop. Failed/incomplete Responses keep their engine HTTP error status and payload. Unsupported structured or annotated output is refused.",
-        "Usage is mapped only when received; no counts are estimated. Raw mode remains an unadapted relay.",
+        "Minimal mode implements JSON and progressive SSE (stream:true), text/refusal, function tools and structured tool results, model, store:false and n:1. Omitted store is false.",
+        "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Multimodal content, named messages, store:true, stored Chat CRUD, query parameters and unknown options are explicitly refused.",
+        "Completed text/refusal maps to finish_reason:stop; function calls map to tool_calls. Failed/incomplete Responses remain errors, including after partial SSE output, never success finishes. Unknown stream events and unsupported structured or annotated output are refused. Reasoning is not final text.",
+        "Usage is mapped only when received; no counts are estimated. SSE usage is opt-in via stream_options.include_usage, with a final empty choices chunk. Buffers and deadlines remain bounded; cancellation closes upstream. Raw mode remains an unadapted relay.",
       ],
     };
   }
@@ -152,27 +157,48 @@ function qualification(id: string): Qualification {
       ],
     };
   }
-  if (id === "create-realtime-call" || id === "connectRealtimeWebSocket") {
+  if (id === "create-realtime-call") {
+    return {
+      ...relayQualification,
+      implementation: "adaptation",
+      evidence: {
+        kind: "source",
+        date: "2026-10-17",
+        scope:
+          "Minimal-mode WebRTC envelope adaptation tested locally through the SDK and integrated HTTP gateway: multipart SDP/session to Codex JSON, SDP-only without session, bounded bodies and local Location identity. No real peer negotiation, audio or account result verified.",
+        sources: [
+          `${codexSource}endpoint/realtime_call.rs`,
+          "https://github.com/openai/openai-node/blob/v7.20.0/src/resources/realtime/calls.ts",
+          "tests/realtime-calls.test.ts",
+          research,
+        ],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "An authorized WebRTC peer, eligible rollout and a session/protocol accepted by Codex. Public session type realtime is not proven equivalent to Codex quicksilver or frameless sessions.",
+      ],
+      limitations: [
+        "Only the request envelope is adapted; session options and explicit queries are preserved, never silently mapped to another protocol. No intent/architecture, model, native id or token is invented. session.id and unknown/duplicate envelope parts are rejected.",
+        "Raw mode remains byte relay. Successful minimal Location is reduced to /v1/realtime/calls/{call_id}; query and upstream destination are removed. No SDP is logged or stored by this adapter.",
+        "The source rejects RealtimeV2 in its AVAS call client; V1/frameless session formats differ. WebSocket is not a prerequisite or proof of WebRTC compatibility. Control/telephony operations are separate, unverified relays requiring explicit authorization.",
+      ],
+    };
+  }
+  if (id === "connectRealtimeWebSocket") {
     return {
       ...relayQualification,
       evidence: {
         kind: "source",
         date: "2026-10-16",
         scope:
-          id === "create-realtime-call"
-            ? "Codex has a native WebRTC call client; no public SDP negotiation or account result verified."
-            : "Codex has standalone and sideband Realtime WebSocket clients with distinct protocol versions; no live public-contract result verified.",
-        sources: [
-          `${codexSource}endpoint/${id === "create-realtime-call" ? "realtime_call.rs" : "realtime_websocket/methods.rs"}`,
-          research,
-        ],
+          "Codex has standalone and sideband Realtime WebSocket clients with distinct protocol versions; no live public-contract result verified.",
+        sources: [`${codexSource}endpoint/realtime_websocket/methods.rs`, research],
       },
       prerequisites: [
         ...relayQualification.prerequisites,
         "Eligible plan, rollout and workspace settings; matching realtime protocol, audio formats and authorized session/call.",
       ],
       limitations: [
-        "Codex WebRTC uses JSON {sdp, session} under /backend-api; the public contract uses multipart. This proxy does not translate these formats.",
         "WebSocket standalone/sideband and WebRTC are not interchangeable; default public API sideband destinations are not used as credential fallbacks.",
       ],
     };
@@ -194,17 +220,17 @@ function qualification(id: string): Qualification {
       ...relayQualification,
       implementation: "local",
       evidence: {
-        kind: "source",
-        date: "2026-10-16",
+        kind: "runtime",
+        date: "2026-10-17",
         scope:
-          "Existing minimal-mode local Responses storage, not native Codex persistence or a new live validation.",
-        sources: ["src/server/responses-store.ts", "docs/evidence/responses-sprint/RESULTAT.md"],
+          "Minimal-mode SQLite Responses persistence, verified with local SDK/runtime fixtures across restart; not native Codex persistence or a live backend validation.",
+        sources: ["src/server/responses-store.ts", "tests/responses-durable.test.ts"],
       },
       prerequisites: [
-        "A response created with store:true in minimal mode, under the same account and running process.",
+        "A response created with store:true in minimal mode, under the same account and server storage configuration.",
       ],
       limitations: [
-        "One-hour in-memory retention; 256 responses, 32 MiB total, 4 MiB per response. Restart/account change loses this state. Raw mode only relays.",
+        "Thirty-day local retention across restart; 1 GiB global application budget across accounts/kinds, 4 MiB per retained object including inputs. Capacity errors are explicit, without arbitrary eviction. Raw mode only relays. Durable data does not restore a native continuation.",
       ],
     };
   }
@@ -250,7 +276,7 @@ function qualification(id: string): Qualification {
       limitations: [
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
-        "store:true uses bounded one-hour in-memory storage in minimal mode, lost on restart/account change; background jobs and Conversations are not implemented.",
+        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Conversations and durable-context replay are not implemented.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };
@@ -345,7 +371,8 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   createChatCompletion: {
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     store: false,
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
   },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: {
@@ -365,6 +392,10 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   updateVoiceConsent: { name: "Updated consent name" },
   "reject-realtime-call": { status_code: 486 },
   "reject-live-session": { status_code: 486 },
+  "create-realtime-call": {
+    sdp: "v=0\r\ns=REPLACE_WITH_LOCAL_PEER_OFFER\r\n",
+    session: { type: "realtime", model: "gpt-realtime", instructions: "Say hello briefly." },
+  },
 } as const;
 const categories: Readonly<Record<string, string>> = {
   chat: "Chat",

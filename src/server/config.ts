@@ -41,6 +41,9 @@ const schema = z.strictObject({
       activityEntries: z.number().int().min(1).max(1000).default(100),
     })
     .prefault({}),
+  storage: z
+    .strictObject({ path: z.string().min(1).default(".local/durable/store.sqlite") })
+    .prefault({}),
   dashboard: z.strictObject({ enabled: z.boolean().default(true) }).prefault({}),
   docs: z.strictObject({ enabled: z.boolean().default(true) }).prefault({}),
 });

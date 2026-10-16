@@ -147,8 +147,8 @@ test("bounds records and expires them after the configured TTL", async () => {
     { maxRecords: 1, ttlMs: 10, now: () => time },
   );
   await lifecycle(jsonRequest({ store: true, input: "one" }));
-  await lifecycle(jsonRequest({ store: true, input: "two" }));
-  expect((await lifecycle(new Request(`${url}/resp_1`))).status).toBe(404);
+  expect((await lifecycle(jsonRequest({ store: true, input: "two" }))).status).toBe(507);
+  expect((await lifecycle(new Request(`${url}/resp_1`))).status).toBe(200);
   expect(lifecycle.size()).toBe(1);
   time += 11;
   expect(lifecycle.size()).toBe(0);

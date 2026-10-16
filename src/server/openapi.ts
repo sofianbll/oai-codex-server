@@ -60,7 +60,7 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     const example = ["createResponse", "createChatCompletion"].includes(operation.id)
       ? { model: defaultModel, ...operation.requestBodyExample }
       : operation.requestBodyExample;
-    const requestBody =
+    let requestBody =
       operation.id === "createImageEdit" && body
         ? {
             ...body,
@@ -75,6 +75,30 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
         : body && media && example
           ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
           : body;
+    if (operation.id === "create-realtime-call" && body && example) {
+      requestBody = {
+        ...body,
+        content: {
+          ...body.content,
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["sdp"],
+              additionalProperties: false,
+              properties: {
+                sdp: { type: "string", minLength: 1 },
+                session: {
+                  type: "object",
+                  additionalProperties: true,
+                  not: { required: ["id"] },
+                },
+              },
+            },
+            example,
+          },
+        },
+      };
+    }
     const definition = Object.fromEntries(
       Object.entries(source ?? {}).filter(
         ([key]) => !["servers", "security", "x-oaiMeta"].includes(key),
