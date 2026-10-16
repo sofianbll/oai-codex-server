@@ -111,13 +111,18 @@ function qualification(id: string): Qualification {
         date: "2026-10-17",
         scope:
           "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
-        sources: ["src/server/chat-adapter.ts", "tests/chat-json.test.ts"],
+        sources: [
+          "src/server/chat-adapter.ts",
+          "src/server/chat-stream.ts",
+          "tests/chat-json.test.ts",
+          "tests/chat-stream.test.ts",
+        ],
       },
       limitations: [
-        "Minimal mode implements JSON text messages with system/developer/user/assistant roles, model, stream:false, store:false and n:1 only. Omitted store is false.",
-        "stream:true, tools/tool history, multimodal content, named messages, store:true, stored Chat CRUD, query parameters and all other options are explicitly refused, not silently removed.",
-        "Completed text/refusal output maps to finish_reason:stop. Failed/incomplete Responses keep their engine HTTP error status and payload. Unsupported structured or annotated output is refused.",
-        "Usage is mapped only when received; no counts are estimated. Raw mode remains an unadapted relay.",
+        "Minimal mode implements JSON and progressive SSE (stream:true), text/refusal, function tools and structured tool results, model, store:false and n:1. Omitted store is false.",
+        "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Multimodal content, named messages, store:true, stored Chat CRUD, query parameters and unknown options are explicitly refused.",
+        "Completed text/refusal maps to finish_reason:stop; function calls map to tool_calls. Failed/incomplete Responses remain errors, including after partial SSE output, never success finishes. Unknown stream events and unsupported structured or annotated output are refused. Reasoning is not final text.",
+        "Usage is mapped only when received; no counts are estimated. SSE usage is opt-in via stream_options.include_usage, with a final empty choices chunk. Buffers and deadlines remain bounded; cancellation closes upstream. Raw mode remains an unadapted relay.",
       ],
     };
   }
@@ -352,7 +357,8 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   createChatCompletion: {
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     store: false,
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
   },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: {
