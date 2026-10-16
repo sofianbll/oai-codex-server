@@ -197,10 +197,15 @@ describe("same-origin OpenAPI reference", () => {
       model: "configured-model",
       messages: [{ role: "user", content: "Say hello in one sentence." }],
       store: false,
-      stream: false,
+      stream: true,
+      stream_options: { include_usage: true },
     });
     expect(chat["x-proxy-limitations"]).toEqual(
-      expect.arrayContaining([expect.stringContaining("stream:true")]),
+      expect.arrayContaining([
+        expect.stringContaining("progressive SSE"),
+        expect.stringContaining("never executes tools"),
+        expect.stringContaining("unknown options"),
+      ]),
     );
   });
 });

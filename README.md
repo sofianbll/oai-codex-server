@@ -78,7 +78,7 @@ Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absente
 
 Pour bénéficier de l'affinité du cache Codex depuis un SDK OpenAI, fournissez une `prompt_cache_key` stable pour les appels partageant le même préfixe. En mode minimal HTTP, le proxy la recopie dans `session-id` si cet en-tête est absent. Un en-tête explicite reste prioritaire. La dérivation exige une chaîne ASCII imprimable non vide, sans espaces aux extrémités ; les autres valeurs restent transmises dans le corps sans dérivation. Le mode raw n'ajoute rien. Le cache reste décidé par Codex : un hit se constate dans `usage.input_tokens_details.cached_tokens`, qui est conservé tel que reçu. Cette clé ne stocke pas l'historique et ne remplace pas `previous_response_id`.
 
-Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses est émulé localement ; les conversations persistantes et tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON texte décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
+Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses est émulé localement ; les conversations persistantes et tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON/SSE texte et fonctions décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
 
 `GET /api/capabilities` conserve ses champs existants, notamment `supported` (route relayable uniquement), et ajoute par opération :
 
@@ -122,7 +122,7 @@ const response = await client.responses.create({ model: 'gpt-6-astra', input: 'B
 console.log(response.output_text);
 ```
 
-### Chat Completions JSON
+### Chat Completions JSON et streaming
 
 En mode minimal, `POST /v1/chat/completions` traduit les messages vers le même moteur Responses intégré, sans détour par un endpoint Chat natif. Le mode raw ne fait aucune traduction.
 
@@ -139,11 +139,44 @@ const completion = await client.chat.completions.create({
 console.log(completion.choices[0].message.content);
 ```
 
-Le sous-ensemble accepté est explicite : `model` (défaut local si omis), `messages` non vide, `stream:false`, `store:false` et `n:1`. Les rôles `system`, `developer`, `user` et `assistant` et leur ordre sont conservés ; le contenu est une chaîne ou une liste non vide de parties `{type:"text", text:"…"}`. Le contenu assistant est projeté en `output_text`, les autres rôles en `input_text`. **Omettre `store` conserve `false`**, sans historique Chat durable.
+Le sous-ensemble accepté est explicite : `model` (défaut local si omis), `messages` non vide, `stream` booléen, `store:false` et `n:1`. Les rôles `system`, `developer`, `user` et `assistant` et leur ordre sont conservés ; le contenu est une chaîne ou une liste non vide de parties `{type:"text", text:"…"}`. Le contenu assistant est projeté en `output_text`, les autres rôles en `input_text`. **Omettre `store` conserve `false`**, sans historique Chat durable.
 
-Une réponse terminée expose `chat.completion`, un identifiant `chatcmpl_*`, la date et le modèle reçus, un choix assistant et `finish_reason:"stop"`. Texte et refus sont séparés dans `message.content` et `message.refusal`. L'usage reçu est traduit en `prompt_tokens`, `completion_tokens`, `total_tokens` et leurs détails ; un usage absent n'est pas estimé. Les erreurs natives et les terminaux Responses failed/incomplete gardent le statut HTTP d'erreur du moteur (502 pour ces terminaux) et leur corps, sans fausse completion ni faux `finish_reason`.
+Une réponse terminée expose `chat.completion`, un identifiant `chatcmpl_*`, la date et le modèle reçus, un choix assistant et `finish_reason:"stop"` (ou `"tool_calls"` pour des fonctions). Texte et refus sont séparés dans `message.content` et `message.refusal` ; le raisonnement n'est jamais converti en texte final. L'usage reçu est traduit en `prompt_tokens`, `completion_tokens`, `total_tokens` et leurs détails ; un usage absent n'est pas estimé. Les erreurs natives et les terminaux Responses failed/incomplete gardent le statut HTTP d'erreur du moteur en JSON (502 pour ces terminaux), sans fausse completion ni faux `finish_reason`.
 
-Streaming, outils et historique d'outils, multimodal, messages nommés, `store:true`, `n` différent de 1, query parameters et **toute autre option**, notamment réglages de sampling, limites de tokens et `response_format`, renvoient explicitement `400 unsupported_chat_contract`. Les routes Chat stockées renvoient `501` ; elles ne sont pas implémentées ici. Une sortie structurée ou annotée non représentable par ce sous-ensemble renvoie `502 unsupported_chat_output`, plutôt que perdre silencieusement une partie du résultat. Le schéma public Scalar reste une référence plus large que cette adaptation. Les tests SDK utilisent uniquement un upstream WebSocket local contrôlé ; ils ne prouvent pas les droits du compte réel.
+```js
+const stream = await client.chat.completions.create({
+  model: 'gpt-6-astra',
+  messages: [{ role: 'user', content: 'Bonjour' }],
+  stream: true,
+  stream_options: { include_usage: true },
+});
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta.content ?? '');
+  if (chunk.usage) console.log(chunk.usage);
+}
+```
+
+Le SSE émet un rôle assistant puis les deltas texte/refus/arguments **avant le terminal**, avec identité stable, indices de fonctions compacts et raison de fin. `stream_options.include_usage:true` ajoute `usage:null` aux chunks ordinaires et un dernier chunk `choices:[]` avec l'usage reçu (ou `null` s'il manque). Sans cette option, le flux n'inclut pas d'usage. Une erreur après du texte reste un événement SSE d'erreur reconnu par le SDK, sans fin de succès ni `[DONE]`. Annulation, délai global, taille d'agrégation et file SSE sont bornés par les mêmes protections Responses. Les extensions de flux sans projection fidèle sont refusées explicitement.
+
+Les `tools` de type `function` acceptent `name`, `description`, `parameters` et `strict`. `tool_choice` accepte `auto`, `none`, `required` ou `{type:"function",function:{name:"…"}}` ; `parallel_tool_calls` est conservé. Les appels retournent `message.tool_calls` en JSON et `delta.tool_calls` en SSE. Pour poursuivre, ajouter le message assistant puis **un résultat fourni par le client** pour chaque appel :
+
+```js
+const messages = [{ role: 'user', content: 'Cherche la météo à Paris.' }];
+const tools = [{ type: 'function', function: {
+  name: 'weather', parameters: { type: 'object', properties: { city: { type: 'string' } } },
+} }];
+const first = await client.chat.completions.create({ model: 'gpt-6-astra', messages, tools });
+messages.push(first.choices[0].message);
+for (const call of first.choices[0].message.tool_calls ?? []) {
+  // Ici le client obtient lui-même le résultat autorisé ; le proxy n'exécute aucun outil.
+  messages.push({ role: 'tool', tool_call_id: call.id, content: 'Résultat fourni par le client' });
+}
+const next = await client.chat.completions.create({ model: 'gpt-6-astra', messages, tools });
+```
+
+Les résultats d'outils sont des chaînes et deviennent des items `function_call_output` structurés, liés aux `function_call` par `call_id`, pas un transcript texte. Un assistant avec appels peut omettre son contenu ou utiliser `null`. Les identifiants dupliqués, résultats orphelins/répétés et appels sans résultat avant une nouvelle génération sont refusés avant envoi upstream.
+
+Multimodal, outils autres que fonctions, messages nommés, `store:true`, `n` différent de 1, query parameters et **toute autre option**, notamment réglages de sampling, limites de tokens et `response_format`, renvoient explicitement `400 unsupported_chat_contract`. Les routes Chat stockées renvoient `501` ; le CRUD durable #17 n'est pas livré ici. Une sortie structurée ou annotée non représentable par ce sous-ensemble renvoie `502 unsupported_chat_output` en JSON ou une erreur SSE, plutôt que perdre silencieusement une partie du résultat. Le schéma public Scalar reste une référence plus large que cette adaptation. Les tests SDK utilisent uniquement un upstream WebSocket local contrôlé ; ils ne prouvent pas les droits du compte réel.
 
 Le dashboard offre un parcours Tests API (Responses en premier, scénarios numérotés, verdicts techniques et de consigne séparés, échanges dépliables), un explorateur de routes (JSON, texte, multipart/fichier et WebSocket), les réponses binaires téléchargeables, le journal des requêtes et la configuration. Le navigateur garde uniquement la clé du proxy dans `sessionStorage`. Scalar est servi localement ; renseignez la même clé dans Bearer. Aucun proxy Scalar externe n'est utilisé.
 
