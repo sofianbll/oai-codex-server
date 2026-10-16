@@ -92,6 +92,17 @@ export function createWebSocketProxy(options: ProxyOptions, credentials: Credent
           "A WebSocket GET upgrade is required",
         );
       }
+      const url = new URL(request.url);
+      if (
+        options.translationMode === "minimal" &&
+        decodeURIComponent(url.pathname).replace(/\/+$/, "") === "/v1/realtime" &&
+        url.searchParams.getAll("intent").includes("quicksilver")
+      )
+        throw new GatewayError(
+          501,
+          "realtime_protocol_not_adapted",
+          "Codex V1 quicksilver is not public Realtime. Use raw mode with a native V1 client; no V1/public adapter is established.",
+        );
       if (stopped || connections.size + pending >= 64)
         throw new GatewayError(503, "websocket_capacity", "WebSocket capacity unavailable");
       target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
@@ -124,6 +135,10 @@ export function createWebSocketProxy(options: ProxyOptions, credentials: Credent
         ]) {
           const value = request.headers.get(name);
           if (value) headers[name] = value;
+        }
+        if (url.pathname.replace(/\/+$/, "") === "/v1/realtime") {
+          const sessionId = request.headers.get("x-session-id");
+          if (sessionId) headers["x-session-id"] = sessionId;
         }
         const upstream = new WebSocket(target, { headers, perMessageDeflate: false });
         upstream.binaryType = "arraybuffer";

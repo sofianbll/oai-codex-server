@@ -58,10 +58,34 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     const example = ["createResponse", "createChatCompletion"].includes(operation.id)
       ? { model: defaultModel, ...operation.requestBodyExample }
       : operation.requestBodyExample;
-    const requestBody =
+    let requestBody =
       body && media && example
         ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
         : body;
+    if (operation.id === "create-realtime-call" && body && example) {
+      requestBody = {
+        ...body,
+        content: {
+          ...body.content,
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["sdp"],
+              additionalProperties: false,
+              properties: {
+                sdp: { type: "string", minLength: 1 },
+                session: {
+                  type: "object",
+                  additionalProperties: true,
+                  not: { required: ["id"] },
+                },
+              },
+            },
+            example,
+          },
+        },
+      };
+    }
     const definition = Object.fromEntries(
       Object.entries(source ?? {}).filter(
         ([key]) => !["servers", "security", "x-oaiMeta"].includes(key),
@@ -88,6 +112,14 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
             "WebSocket upgrade accepted; subsequent messages use the selected native protocol.",
         },
         "400": { description: "A WebSocket upgrade request is required." },
+        ...(operation.id === "connectRealtimeWebSocket"
+          ? {
+              "501": {
+                description:
+                  "Minimal mode: realtime_protocol_not_adapted for the incompatible native V1 quicksilver intent. Raw mode remains a native relay.",
+              },
+            }
+          : {}),
         "502": { description: "The Codex backend could not establish the connection." },
       },
     };

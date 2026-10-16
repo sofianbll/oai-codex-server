@@ -77,6 +77,35 @@ const relayQualification: Qualification = {
 };
 
 function qualification(id: string): Qualification {
+  if (id === "createTranscription" || id === "createTranslation") {
+    return {
+      ...relayQualification,
+      evidence: {
+        ...relayQualification.evidence,
+        kind: id === "createTranscription" ? "historical-refusal" : "unknown",
+        date: id === "createTranscription" ? "2026-10-16" : null,
+        scope:
+          id === "createTranscription"
+            ? "Audio REST transcription preserves the original language. One coordinator probe at 2026-10-16T22:31:26.788Z, temporary loopback minimal mode, POST /v1/audio/transcriptions, gpt-4o-transcribe, synthetic 2.289s 16kHz mono PCM WAV, no prompt or phrase hints: HTTP 403 text/html; charset=UTF-8, 97632 bytes, no transcript. One upstream attempt under /backend-api/codex; refusal layer/cause unknown. No faithful REST mechanism established; not a universal absence verdict, TTS evidence or verified compatibility."
+            : "Audio REST translation returns English, not an arbitrary target language. No faithful REST mechanism under /backend-api/codex or account result is established independently of transcription.",
+        sources: [research, desktopResearch, "docs/research/2026-10-17-audio-rest.md"],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "Establish a faithful REST mechanism under /backend-api/codex, an eligible audio model and accepted file/options before claiming compatibility.",
+        id === "createTranscription"
+          ? "The coordinator's authorized synthetic transcription budget is exhausted (1/1); no retry, alternate model or additional target is authorized."
+          : "No live translation attempt is authorized; transcription results cannot establish translation access.",
+      ],
+      limitations: [
+        "Desktop dictation paths outside the authorized Codex prefix are not credential destinations. Realtime source presence does not establish either Audio REST operation.",
+        "Both modes preserve the existing multipart/response relay and upstream errors; no adapter, text-only simulation, local engine or paid API fallback is provided.",
+        "The proxy never fabricates timestamps, detected languages or speaker labels. Model-specific formats, streaming, diarization and backend limits remain unverified.",
+        "The configured maxBodyBytes limits the whole multipart request, including overhead (default 16 MiB); no decoding, duration detection, splitting or remote media fetching is performed.",
+        "Explorer: select Multipart with file, keep the example as form fields and attach the audio as file. Example models describe the public contract, not established Codex access.",
+      ],
+    };
+  }
   if (id === "createSpeech") {
     return {
       ...relayQualification,
@@ -111,32 +140,18 @@ function qualification(id: string): Qualification {
         date: "2026-10-17",
         scope:
           "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
-        sources: ["src/server/chat-adapter.ts", "tests/chat-json.test.ts"],
+        sources: [
+          "src/server/chat-adapter.ts",
+          "src/server/chat-stream.ts",
+          "tests/chat-json.test.ts",
+          "tests/chat-stream.test.ts",
+        ],
       },
       limitations: [
-        "Minimal mode implements JSON text messages with system/developer/user/assistant roles, model, stream:false, store:false and n:1 only. Omitted store is false.",
-        "stream:true, tools/tool history, multimodal content, named messages, store:true, stored Chat CRUD, query parameters and all other options are explicitly refused, not silently removed.",
-        "Completed text/refusal output maps to finish_reason:stop. Failed/incomplete Responses keep their engine HTTP error status and payload. Unsupported structured or annotated output is refused.",
-        "Usage is mapped only when received; no counts are estimated. Raw mode remains an unadapted relay.",
-      ],
-    };
-  }
-  if (["createTranscription", "createTranslation"].includes(id)) {
-    return {
-      ...relayQualification,
-      evidence: {
-        ...relayQualification.evidence,
-        scope:
-          "Audio REST speech, transcription and translation are separate public contracts; no equivalent native client established by the bounded CLI/Desktop research.",
-        sources: [research, desktopResearch],
-      },
-      prerequisites: [
-        ...relayQualification.prerequisites,
-        "A supported audio model, input format and voice where required; no account access has been tested.",
-      ],
-      limitations: [
-        "Desktop dictation/voice paths outside the authorized Codex prefix are research leads, not credential destinations or Audio REST implementations.",
-        "No text-only simulation, local engine or paid API fallback is provided.",
+        "Minimal mode implements JSON and progressive SSE (stream:true), text/refusal, function tools and structured tool results, model, store:false and n:1. Omitted store is false.",
+        "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Multimodal content, named messages, store:true, stored Chat CRUD, query parameters and unknown options are explicitly refused.",
+        "Completed text/refusal maps to finish_reason:stop; function calls map to tool_calls. Failed/incomplete Responses remain errors, including after partial SSE output, never success finishes. Unknown stream events and unsupported structured or annotated output are refused. Reasoning is not final text.",
+        "Usage is mapped only when received; no counts are estimated. SSE usage is opt-in via stream_options.include_usage, with a final empty choices chunk. Buffers and deadlines remain bounded; cancellation closes upstream. Raw mode remains an unadapted relay.",
       ],
     };
   }
@@ -152,28 +167,60 @@ function qualification(id: string): Qualification {
       ],
     };
   }
-  if (id === "create-realtime-call" || id === "connectRealtimeWebSocket") {
+  if (id === "create-realtime-call") {
+    return {
+      ...relayQualification,
+      implementation: "adaptation",
+      evidence: {
+        kind: "source",
+        date: "2026-10-17",
+        scope:
+          "Minimal-mode WebRTC envelope adaptation tested locally through the SDK and integrated HTTP gateway: multipart SDP/session to Codex JSON, SDP-only without session, bounded bodies and local Location identity. No real peer negotiation, audio or account result verified.",
+        sources: [
+          `${codexSource}endpoint/realtime_call.rs`,
+          "https://github.com/openai/openai-node/blob/v7.20.0/src/resources/realtime/calls.ts",
+          "tests/realtime-calls.test.ts",
+          research,
+        ],
+      },
+      prerequisites: [
+        ...relayQualification.prerequisites,
+        "An authorized WebRTC peer, eligible rollout and a session/protocol accepted by Codex. Public session type realtime is not proven equivalent to Codex quicksilver or frameless sessions.",
+      ],
+      limitations: [
+        "Only the request envelope is adapted; session options and explicit queries are preserved, never silently mapped to another protocol. No intent/architecture, model, native id or token is invented. session.id and unknown/duplicate envelope parts are rejected.",
+        "Raw mode remains byte relay. Successful minimal Location is reduced to /v1/realtime/calls/{call_id}; query and upstream destination are removed. No SDP is logged or stored by this adapter.",
+        "The source rejects RealtimeV2 in its AVAS call client; V1/frameless session formats differ. WebSocket is not a prerequisite or proof of WebRTC compatibility. Control/telephony operations are separate, unverified relays requiring explicit authorization.",
+      ],
+    };
+  }
+  if (id === "connectRealtimeWebSocket") {
     return {
       ...relayQualification,
       evidence: {
         kind: "source",
         date: "2026-10-16",
         scope:
-          id === "create-realtime-call"
-            ? "Codex has a native WebRTC call client; no public SDP negotiation or account result verified."
-            : "Codex has standalone and sideband Realtime WebSocket clients with distinct protocol versions; no live public-contract result verified.",
+          "Realtime WebSocket source distinguishes V1, RealtimeV2 and Frameless Bidi. Local SDK/wire tests establish transport only, not ChatGPT authentication or a backend audio result.",
         sources: [
-          `${codexSource}endpoint/${id === "create-realtime-call" ? "realtime_call.rs" : "realtime_websocket/methods.rs"}`,
-          research,
+          `${codexSource}endpoint/realtime_websocket/methods_v2.rs`,
+          `${codexSource}endpoint/realtime_websocket/protocol_v2.rs`,
+          "https://github.com/openai/codex/blob/83086188ae0614bd882818ff1aa23f3194962012/codex-rs/core/src/realtime_conversation.rs",
+          "docs/research/2026-10-17-realtime-ws-contract.md",
         ],
       },
       prerequisites: [
         ...relayQualification.prerequisites,
-        "Eligible plan, rollout and workspace settings; matching realtime protocol, audio formats and authorized session/call.",
+        "Pinned Codex standalone WS startup requires API key auth, including a temporary API-key fallback for ChatGPT sessions. This proxy never uses that fallback.",
+        "A ChatGPT bearer authentication mechanism under /backend-api/codex/realtime is not established; backend access and a matching model/protocol remain prerequisites, not a universal impossibility claim.",
       ],
       limitations: [
-        "Codex WebRTC uses JSON {sdp, session} under /backend-api; the public contract uses multipart. This proxy does not translate these formats.",
-        "WebSocket standalone/sideband and WebRTC are not interchangeable; default public API sideband destinations are not used as credential fallbacks.",
+        "RealtimeV2 shares public session.update, input_audio_buffer.append (base64 PCM16 mono 24 kHz), conversation.item.create and response output audio events; unchanged frames are a relay, not an adapter or proof of every public option.",
+        "V1 uses intent=quicksilver, session.type=quicksilver, native handoffs and conversation.output_audio.delta. Minimal mode refuses this known incompatible intent with realtime_protocol_not_adapted (501); raw retains the native relay.",
+        "Frameless Bidi uses /live, input_audio.append, session.context.append and session.close. No public Realtime translation is established; its native relay is separate.",
+        "thread/realtime RPC is an app-server lifecycle, not public WebSocket frames. Sideband requires an existing authorized call; no WebRTC call, SDP or default api.openai.com destination is created here.",
+        "OpenAI Node SDK openai/realtime/ws uses bearer auth and WSS (TLS termination required). Browser SDK subprotocol authentication is not accepted; the same-origin Explorer uses oai-codex-token instead. HTTP/ws loopback alone is not a runnable SDK WSS endpoint.",
+        "Errors, unknown events/options and cancellation frames remain unchanged; cancellation acknowledgement, truncation semantics, audio quality and backend availability are unverified. One shared WS/WebRTC live session, ten seconds maximum, is reserved only by the coordinator.",
       ],
     };
   }
@@ -354,7 +401,8 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   createChatCompletion: {
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     store: false,
-    stream: false,
+    stream: true,
+    stream_options: { include_usage: true },
   },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: {
@@ -371,9 +419,15 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
     voice: "alloy",
     response_format: "wav",
   },
+  createTranscription: { model: "gpt-4o-transcribe", response_format: "json" },
+  createTranslation: { model: "whisper-1", response_format: "json" },
   updateVoiceConsent: { name: "Updated consent name" },
   "reject-realtime-call": { status_code: 486 },
   "reject-live-session": { status_code: 486 },
+  "create-realtime-call": {
+    sdp: "v=0\r\ns=REPLACE_WITH_LOCAL_PEER_OFFER\r\n",
+    session: { type: "realtime", model: "gpt-realtime", instructions: "Say hello briefly." },
+  },
 } as const;
 const categories: Readonly<Record<string, string>> = {
   chat: "Chat",
@@ -451,11 +505,12 @@ export const operations: readonly Operation[] = [
     method: "GET",
     path: "/v1/realtime",
     summary: "Connect Realtime WebSocket",
-    description: `${transportDescription}\n\nNative standalone and sideband clients are source-backed, not live-verified public Realtime compatibility.`,
+    description: `${transportDescription}\n\nPublic Realtime and Codex V1/RealtimeV2/Frameless Bidi/thread RPC are distinct contracts. No ChatGPT-authenticated backend audio exchange is verified. Minimal rejects the known V1 quicksilver intent; raw remains an unadapted native relay. See prerequisites before connecting.`,
     category: "Realtime",
     availability: "source-backed",
     supported: true,
     ...qualification("connectRealtimeWebSocket"),
+    queryParameters: ["model", "intent", "call_id"],
   } satisfies Operation,
 ].sort((a, b) => {
   const catA = categoryOrder.indexOf(a.category.toLowerCase() as (typeof categoryOrder)[number]);
