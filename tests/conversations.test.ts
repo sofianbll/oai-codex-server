@@ -27,11 +27,29 @@ test("SDK Conversation metadata and ordered items survive runtime restart and ac
   const upstream = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
-    fetch: () => Response.json({ error: { code: "local_upstream_only" } }, { status: 501 }),
+    fetch: () => {
+      throw new Error("Conversation CRUD must not contact an upstream");
+    },
   });
   Object.assign(config.proxy, { baseUrl: `${upstream.url.origin}/backend-api/codex` });
   let runtime = await startServer(config, join(directory, "config.json"));
   const client = () => new OpenAI({ baseURL: `${runtime.url}/v1`, apiKey: token, maxRetries: 0 });
+  const programs = [
+    {
+      type: "program" as const,
+      id: "program_original",
+      call_id: "call_program",
+      code: 'throw new Error("inert history only");',
+      fingerprint: "opaque\u0000fingerprint/é==",
+    },
+    {
+      type: "program_output" as const,
+      id: "program_result",
+      call_id: "call_program",
+      status: "completed" as const,
+      result: '{"nested":{"values":[1,null,"é"]},"__proto__":{"inert":true}}',
+    },
+  ];
   try {
     const conversation = await client().conversations.create({
       metadata: { purpose: "test" },
@@ -42,6 +60,7 @@ test("SDK Conversation metadata and ordered items survive runtime restart and ac
       items: [
         { role: "user", content: "second" },
         { type: "function_call", call_id: "call_fixture", name: "lookup", arguments: "{}" },
+        ...programs,
       ],
     });
     expect(added).toMatchObject({ object: "list", has_more: false });
@@ -66,15 +85,27 @@ test("SDK Conversation metadata and ordered items survive runtime restart and ac
       limit: 1,
     }))
       all.push(item);
-    expect(all).toHaveLength(3);
+    expect(all).toHaveLength(5);
     expect(all[2]).toMatchObject({ type: "function_call", call_id: "call_fixture" });
+    expect(all.slice(3)).toEqual(programs);
+    for (const program of programs)
+      expect(
+        await client().conversations.items.retrieve(program.id, {
+          conversation_id: conversation.id,
+        }),
+      ).toEqual(program);
     const descending = await client().conversations.items.list(conversation.id, { limit: 1 });
-    expect(descending.data[0]?.id).toBe(added.data[1]?.id);
+    expect(descending.data[0]?.id).toBe(added.data[3]?.id);
     const itemId = first.data[0]?.id ?? "";
     expect(
       await client().conversations.items.retrieve(itemId, { conversation_id: conversation.id }),
     ).toMatchObject({ id: itemId });
     await account("b");
+    await expect(
+      client()
+        .conversations.items.retrieve("program_original", { conversation_id: conversation.id })
+        .asResponse(),
+    ).rejects.toMatchObject({ status: 404 });
     await expect(
       client().conversations.retrieve(conversation.id).asResponse(),
     ).rejects.toMatchObject({ status: 404 });
@@ -181,6 +212,37 @@ async function fixture(
   };
 }
 
+test("SDK Conversation metadata round-trips literal prototype-like keys without pollution", async () => {
+  const f = await fixture();
+  const metadata = JSON.parse('{"__proto__":"literal","constructor":"data","prototype":"value"}');
+  try {
+    const created = await f.client.conversations.create({ metadata });
+    expect(created.metadata).toEqual(metadata);
+    expect((await f.client.conversations.retrieve(created.id)).metadata).toEqual(metadata);
+    const updated = JSON.parse('{"__proto__":"updated","toString":"literal"}');
+    expect(
+      (await f.client.conversations.update(created.id, { metadata: updated })).metadata,
+    ).toEqual(updated);
+    for (const invalid of [
+      { key: 1 },
+      { key: null },
+      { key: "x".repeat(513) },
+      { ["x".repeat(65)]: "value" },
+      Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`key${i}`, "value"])),
+      JSON.parse('{"__proto__":{"polluted":true}}'),
+    ]) {
+      await expect(
+        f.client.conversations.update(created.id, { metadata: invalid }).asResponse(),
+      ).rejects.toMatchObject({ status: 400 });
+    }
+    expect((await f.client.conversations.retrieve(created.id)).metadata).toEqual(updated);
+    expect(Object.hasOwn(Object.prototype, "polluted")).toBe(false);
+    expect(f.calls()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
 test("twenty-item batches validate every public item before mutation, reject collisions and serialize concurrent adds", async () => {
   const f = await fixture();
   const request = (path: string, value: unknown) =>
@@ -200,6 +262,23 @@ test("twenty-item batches validate every public item before mutation, reject col
       { type: "function_call", arguments: {} },
       { role: "user", content: [{ type: "input_text", text: 1 }] },
       { role: "user", content: [{ type: "output_text", text: "invalid role", annotations: [] }] },
+      { type: "program", id: "program_bad", call_id: "call", code: "inert" },
+      { type: "program", id: "program_bad", call_id: "call", code: 1, fingerprint: "opaque" },
+      {
+        type: "program_output",
+        id: "program_bad",
+        call_id: "call",
+        result: "opaque",
+        status: "in_progress",
+      },
+      { type: "program_output", id: "program_bad", call_id: "call", status: "completed" },
+      {
+        type: "program_output",
+        id: "program_bad",
+        call_id: "call",
+        result: {},
+        status: "completed",
+      },
     ]) {
       expect(
         (
@@ -308,13 +387,40 @@ test("quota rollback is atomic and deleting a Conversation retains orphan items 
       f.client.conversations.items
         .create(conversation.id, {
           items: [
-            { role: "user", content: "one" },
-            { role: "user", content: "two" },
+            {
+              type: "program",
+              id: "program_quota",
+              call_id: "call_quota",
+              code: "inert",
+              fingerprint: "opaque",
+            },
+            {
+              type: "program_output",
+              id: "program_quota_result",
+              call_id: "call_quota",
+              result: "opaque",
+              status: "incomplete",
+            },
           ],
         })
         .asResponse(),
     ).rejects.toMatchObject({ status: 507 });
     expect((await f.client.conversations.items.list(conversation.id)).data).toEqual([]);
+    await expect(
+      f.client.conversations.items
+        .create(conversation.id, {
+          items: [
+            {
+              type: "program_output",
+              id: "program_oversize",
+              call_id: "call_quota",
+              result: "x".repeat(17000),
+              status: "completed",
+            },
+          ],
+        })
+        .asResponse(),
+    ).rejects.toMatchObject({ status: 413 });
     const added = await f.client.conversations.items.create(conversation.id, {
       items: [{ role: "user", content: "retained" }],
     });

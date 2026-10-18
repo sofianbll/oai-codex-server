@@ -74,6 +74,23 @@ test("authenticated route preserves response and records only metadata", async (
   expect(activity).not.toContain("private prompt");
   expect(activity).not.toContain("hidden");
 });
+test("public OpenAPI describes delivered Chat adaptations without claiming backend compatibility", async () => {
+  const { app, forwarded } = await fixture();
+  const spec = (await (await app.request("/openapi.json")).json()) as {
+    info: { description: string };
+    tags: { name: string; description: string }[];
+    paths: Record<string, Record<string, Record<string, unknown>>>;
+  };
+  expect(spec.info.description).not.toContain("stored Chat operations are explicitly refused");
+  expect(spec.info.description).toContain("per-operation qualifications");
+  expect(spec.tags.find((tag) => tag.name === "Chat")?.description).toContain("JSON/SSE");
+  expect(spec.tags.find((tag) => tag.name === "Chat")?.description).toContain("stockage");
+  expect(spec.paths["/v1/chat/completions"]?.["post"]?.["description"]).toContain("function");
+  expect(
+    spec.paths["/v1/chat/completions/{completion_id}"]?.["get"]?.["x-proxy-implementation"],
+  ).toBe("local");
+  expect(forwarded()).toBe(0);
+});
 test("capabilities distinguish Images runtime evidence from full compatibility for dashboard clients", async () => {
   const { app, headers, forwarded } = await fixture();
   const response = await app.request("/api/capabilities", { headers });
