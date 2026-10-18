@@ -185,7 +185,17 @@ describe("same-origin OpenAPI reference", () => {
     const paths = record.parse(spec["paths"]);
     const image = record.parse(record.parse(paths["/v1/images/edits"])["post"]);
     expect(image["x-proxy-supported"]).toBe(true);
-    expect(image["x-proxy-implementation"]).toBe("relay");
+    expect(image["x-proxy-implementation"]).toBe("adaptation");
+    expect(image["x-proxy-availability"]).toBe("source-backed");
+    const editContent = record.parse(record.parse(image["requestBody"])["content"]);
+    expect(editContent["multipart/form-data"]).toBeDefined();
+    const native = record.parse(editContent["application/json"]);
+    expect(record.parse(native["schema"])["additionalProperties"]).toBe(false);
+    expect(native["example"]).toEqual({
+      images: [{ file_id: "file-existing-authorized-image" }],
+      model: "unverified-image-model",
+      prompt: "Keep the image unchanged.",
+    });
     expect(image["x-proxy-evidence"]).toMatchObject({ kind: "source", date: "2026-10-16" });
     expect(image["x-proxy-limitations"]).toEqual(
       expect.arrayContaining([expect.stringContaining("mask")]),

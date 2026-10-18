@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { operations, publicApi, publicOperations, transportDescription } from "./catalog";
+import { imageEditSchema } from "./image-edits";
 
 const localSecurity = [{ LocalBearer: [] }] as const;
 const controls = [
@@ -59,9 +61,20 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
       ? { model: defaultModel, ...operation.requestBodyExample }
       : operation.requestBodyExample;
     let requestBody =
-      body && media && example
-        ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
-        : body;
+      operation.id === "createImageEdit" && body
+        ? {
+            ...body,
+            content: {
+              ...body.content,
+              "application/json": {
+                schema: z.toJSONSchema(imageEditSchema),
+                example,
+              },
+            },
+          }
+        : body && media && example
+          ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
+          : body;
     if (operation.id === "create-realtime-call" && body && example) {
       requestBody = {
         ...body,

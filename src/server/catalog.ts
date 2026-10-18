@@ -139,12 +139,13 @@ function qualification(id: string): Qualification {
         kind: "source",
         date: "2026-10-17",
         scope:
-          "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
+          "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. A coordinator Chat SSE probe failed; a separate native Responses event pattern reproduced response.metadata rejection locally, now fixed. Original live Chat was not retried; backend compatibility remains unverified.",
         sources: [
           "src/server/chat-adapter.ts",
           "src/server/chat-stream.ts",
           "tests/chat-json.test.ts",
           "tests/chat-stream.test.ts",
+          "docs/evidence/chat-stream-metadata.md",
         ],
       },
       limitations: [
@@ -152,6 +153,7 @@ function qualification(id: string): Qualification {
         "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Multimodal content, named messages, store:true, stored Chat CRUD, query parameters and unknown options are explicitly refused.",
         "Completed text/refusal maps to finish_reason:stop; function calls map to tool_calls. Failed/incomplete Responses remain errors, including after partial SSE output, never success finishes. Unknown stream events and unsupported structured or annotated output are refused. Reasoning is not final text.",
         "Usage is mapped only when received; no counts are estimated. SSE usage is opt-in via stream_options.include_usage, with a final empty choices chunk. Buffers and deadlines remain bounded; cancellation closes upstream. Raw mode remains an unadapted relay.",
+        "Identified native response.metadata (model/verifications/moderation, not generated content) has no Chat chunk projection and is omitted only by the Chat adapter. Responses and raw retain it; unknown event types, unsupported output and native failures are not suppressed.",
       ],
     };
   }
@@ -354,19 +356,21 @@ function qualification(id: string): Qualification {
       },
       limitations: [
         "No faithful variations adaptation or backend result is established; generation is not a substitute.",
+        "Minimal mode returns 501 image_variation_contract_unverified before credentials or upstream effects. Raw is unchanged; no variation probe is authorized.",
       ],
     };
   }
   if (id === "createImage" || id === "createImageEdit") {
     return {
       ...relayQualification,
+      implementation: id === "createImageEdit" ? "adaptation" : "relay",
       evidence: {
         kind: id === "createImage" ? "runtime" : "source",
         date: "2026-10-16",
         scope:
           id === "createImage"
             ? "Native JSON images/generations uses prompt, model, background, n, quality, size. Coordinator observation 2026-10-16T22:27:36.855Z, minimal, gpt-image-2, n=1, quality=low, background=opaque: HTTP 200 JSON with one decodable opaque PNG, blue circle on white without text. Requested 1024x1024 but decoded 1374x1145: dimension fidelity failed, not verified compatible."
-            : "Codex ImagesClient sends JSON image references to images/edits; public multipart equivalence is not established.",
+            : "Codex ImagesClient sends JSON images[] with image_url (inline base64 data URL) or file_id references. Minimal mode adapts public multipart image/image[] PNG/JPEG/WebP uploads into ordered inline references, preserving bytes. Native JSON references are validated; edits are not live-verified and do not inherit generation evidence.",
         sources: [
           `${codexSource}endpoint/images.rs`,
           `${codexSource}images.rs`,
@@ -377,7 +381,11 @@ function qualification(id: string): Qualification {
                 "docs/evidence/images-generation.md",
                 "https://developers.openai.com/codex/image-generation.md",
               ]
-            : []),
+            : [
+                "https://github.com/openai/codex/blob/83086188ae0614bd882818ff1aa23f3194962012/codex-rs/protocol/src/models.rs",
+                "https://github.com/openai/openai-node/blob/v7.20.0/src/resources/images.ts",
+                "docs/evidence/images-edits.md",
+              ]),
         ],
       },
       limitations: [
@@ -389,7 +397,10 @@ function qualification(id: string): Qualification {
               "Local SDK fixtures verify JSON/base64 and binary transport, errors, request size limits and interruption. The separate live observation establishes only the documented gpt-image-2 request, not other options/models, edits or variations. Raw remains unchanged. See docs/evidence/images-generation.md.",
             ]
           : [
-              "Public model, mask, size, quality, format, n and streaming options require separate proof; no translation is implemented.",
+              "Minimal accepts explicit prompt/model, ordered image/image[] multipart uploads or native JSON images[] with inline data URLs or existing authorized file_id. No default model, file upload/resolution, URL fetch, filesystem read or credential destination is introduced. file_id ownership/access is an upstream prerequisite, not locally verified.",
+              "mask, input_fidelity, response_format, output_format/output_compression, stream/partial_images, user, unknown options, nulls, duplicate scalar fields and query parameters are explicitly refused with 400 unsupported_image_edit_contract, never dropped. Public JSON image is not native images[].",
+              "n (unsigned safe integer), size (string), background and quality have source-backed serialization only, not verified count/dimension/output fidelity. PNG/JPEG/WebP signatures and canonical base64 are checked within request/encoded-body limits; no pixel decoding, resizing, transcoding or output validation is performed. Malformed image pixels can still be refused upstream.",
+              "Upload, multipart parsing, credentials and upstream response share the relay deadline/cancellation. Local HTTP/SDK fixtures are not backend availability or editing-result evidence. Raw retains unknown fields and original bytes; no edit or variation live probe is authorized.",
             ]),
         "Desktop /wham/images paths are research leads, not authorized credential destinations; no paid API fallback.",
       ],
@@ -398,6 +409,11 @@ function qualification(id: string): Qualification {
   return relayQualification;
 }
 const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  createImageEdit: {
+    images: [{ file_id: "file-existing-authorized-image" }],
+    model: "unverified-image-model",
+    prompt: "Keep the image unchanged.",
+  },
   createChatCompletion: {
     messages: [{ role: "user", content: "Say hello in one sentence." }],
     store: false,
