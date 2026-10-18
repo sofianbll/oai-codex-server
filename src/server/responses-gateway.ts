@@ -1,5 +1,6 @@
 import { type CredentialProvider, GatewayError, type ProxyOptions } from "../shared/contracts";
-import { chatRequest, chatResponse } from "./chat-adapter";
+import { chatObject, chatRequest, chatResponse } from "./chat-adapter";
+import { createChatStorage } from "./chat-storage";
 import { chatStream } from "./chat-stream";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
@@ -59,21 +60,20 @@ export function createResponsesGateway(
       if (options.translationMode !== "minimal") return relay(request);
       const path = new URL(request.url).pathname;
       const chat = path === "/v1/chat/completions" && request.method === "POST";
-      if ((path === "/v1/chat/completions" || path.startsWith("/v1/chat/completions/")) && !chat)
-        return Response.json(
-          {
-            error: {
-              code: "unsupported_chat_contract",
-              message: "Stored Chat operations are not implemented",
-            },
-          },
-          { status: 501 },
-        );
-      if (chat || path === "/v1/responses" || path.startsWith("/v1/responses/")) {
+      const chatOperation =
+        path === "/v1/chat/completions" || path.startsWith("/v1/chat/completions/");
+      if (chatOperation || path === "/v1/responses" || path.startsWith("/v1/responses/")) {
         const exchange = new Exchange(request.signal, options.timeoutMs);
         let includeUsage = false;
+        let original: ReturnType<typeof chatRequest>["stored"];
+        let metadata: ReturnType<typeof chatRequest>["metadata"];
+        let reservation: ReturnType<ReturnType<typeof createChatStorage>["reserve"]> | undefined;
+        let streaming = false;
         try {
-          if (chat || (request.method === "POST" && path === "/v1/responses")) {
+          if (
+            (chatOperation && request.method === "POST") ||
+            (request.method === "POST" && path === "/v1/responses")
+          ) {
             const declared = request.headers.get("content-length");
             if (
               declared !== null &&
@@ -97,11 +97,26 @@ export function createResponsesGateway(
               const adapted = chatRequest(request, body);
               request = adapted.request;
               includeUsage = adapted.includeUsage;
+              original = adapted.stored;
+              metadata = adapted.metadata;
             }
           } else request = new Request(request, { signal: exchange.controller.signal });
           const current = await exchange.wait(credentials());
           if (accountId !== undefined && accountId !== current.accountId) bridge.reset();
           accountId = current.accountId;
+          if (chatOperation && !chat && store) {
+            const result = await createChatStorage(store, storage).handle(
+              request,
+              current.accountId,
+            );
+            exchange.close();
+            return result;
+          }
+          if (original && store)
+            reservation = createChatStorage(store, {
+              ...storage,
+              reservationMs: options.timeoutMs,
+            }).reserve(current.accountId, original);
           let response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (chat) {
             response =
@@ -109,17 +124,51 @@ export function createResponsesGateway(
               response.body &&
               response.headers.get("content-type")?.includes("text/event-stream")
                 ? new Response(
-                    response.body.pipeThrough(chatStream(includeUsage, options.maxBodyBytes)),
+                    response.body.pipeThrough(
+                      chatStream(includeUsage, options.maxBodyBytes, reservation?.save),
+                    ),
                     response,
                   )
-                : await exchange.wait(chatResponse(response));
+                : await exchange.wait(
+                    chatResponse(
+                      response,
+                      reservation?.save ??
+                        (metadata === undefined
+                          ? undefined
+                          : (value) => ({ ...chatObject(value), metadata })),
+                    ),
+                  );
           }
-          if (!response.body) {
+          let body = response.body;
+          if (!body) {
             exchange.close();
             return response;
           }
+          if (reservation && response.headers.get("content-type")?.includes("text/event-stream")) {
+            const owner = reservation;
+            const reader = body.getReader();
+            body = new ReadableStream<Uint8Array>({
+              async pull(controller) {
+                try {
+                  const next = await reader.read();
+                  if (next.done) {
+                    owner.release();
+                    controller.close();
+                  } else controller.enqueue(next.value);
+                } catch (error) {
+                  owner.release();
+                  controller.error(error);
+                }
+              },
+              async cancel(reason) {
+                owner.release();
+                await reader.cancel(reason);
+              },
+            });
+            streaming = true;
+          }
           return new Response(
-            exchange.wrap(response.body, {
+            exchange.wrap(body, {
               complete: true,
               direct: true,
               sse: response.headers.get("content-type")?.includes("text/event-stream") === true,
@@ -134,6 +183,8 @@ export function createResponsesGateway(
               { status: error.status },
             );
           throw error;
+        } finally {
+          if (!streaming) reservation?.release();
         }
       }
       return relay(request);

@@ -35,13 +35,11 @@ export const publicOperations = Object.entries(publicApi.paths)
   .filter(
     ([path]) =>
       (/^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) ||
-        path === "/chat/completions") &&
+        /^\/chat\/completions(\/|$)/.test(path)) &&
       !path.includes("?"),
   )
   .flatMap(([path, item]) =>
-    Object.entries(item)
-      .filter(([method]) => path !== "/chat/completions" || method === "post")
-      .map(([method, definition]) => ({ path, method, definition })),
+    Object.entries(item).map(([method, definition]) => ({ path, method, definition })),
   );
 
 export const transportDescription =
@@ -131,6 +129,33 @@ function qualification(id: string): Qualification {
       ],
     };
   }
+  if (
+    [
+      "listChatCompletions",
+      "getChatCompletion",
+      "updateChatCompletion",
+      "deleteChatCompletion",
+      "getChatCompletionMessages",
+    ].includes(id)
+  ) {
+    return {
+      ...relayQualification,
+      implementation: "local",
+      evidence: {
+        kind: "source",
+        date: "2026-10-17",
+        scope:
+          "Local OpenAI SDK 7.20 CRUD, pagination and restart tests through the integrated gateway; no live backend validation.",
+        sources: ["src/server/chat-storage.ts", "tests/chat-storage.test.ts"],
+      },
+      limitations: [
+        "Minimal only: explicit store:true creations (JSON or SSE), isolated by pinned Codex account, retained for 30 days. Missing/expired/other-account IDs return 404. Raw remains an unadapted relay.",
+        "The same DurableStore and global 1 GiB application budget serve Chat and Responses; no second Response history is retained. Object limits and reservation failures are explicit; no live object eviction or automatic regeneration.",
+        "List and messages: after, limit 1..100 (default 20), order asc/desc (default asc); completions sort by created timestamp with ID tie-break. List also accepts model and metadata[key]=value equality filters (combined with AND). Unknown, duplicate or invalid query fields/cursors are refused.",
+        "Only metadata can be updated: up to 16 string pairs (keys <=64, values <=512), or explicit null. Updates preserve original expiry. Deletion removes this stored Chat and its messages, not any separately stored Response. Original messages and structured function-call associations are retained; reasoning/phase-bearing native output remains internal, not fabricated Chat text.",
+      ],
+    };
+  }
   if (id === "createChatCompletion") {
     return {
       ...relayQualification,
@@ -146,11 +171,12 @@ function qualification(id: string): Qualification {
           "tests/chat-json.test.ts",
           "tests/chat-stream.test.ts",
           "docs/evidence/chat-stream-metadata.md",
+          "tests/chat-storage.test.ts",
         ],
       },
       limitations: [
-        "Minimal mode implements JSON and progressive SSE (stream:true), text/refusal, function tools and structured tool results, model, store:false and n:1. Omitted store is false.",
-        "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Multimodal content, named messages, store:true, stored Chat CRUD, query parameters and unknown options are explicitly refused.",
+        "Minimal mode implements JSON and progressive SSE (stream:true), text/refusal, function tools and structured tool results, model, boolean store and n:1. Omitted store is false; null store is refused. Explicit store:true retains Chat for 30 days in the shared durable budget; SSE success is emitted only after commit.",
+        "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Metadata accepts up to 16 string pairs or null. Multimodal content, named messages, creation query parameters and unknown options are explicitly refused.",
         "Completed text/refusal maps to finish_reason:stop; function calls map to tool_calls. Failed/incomplete Responses remain errors, including after partial SSE output, never success finishes. Unknown stream events and unsupported structured or annotated output are refused. Reasoning is not final text.",
         "Usage is mapped only when received; no counts are estimated. SSE usage is opt-in via stream_options.include_usage, with a final empty choices chunk. Buffers and deadlines remain bounded; cancellation closes upstream. Raw mode remains an unadapted relay.",
         "Identified native response.metadata (model/verifications/moderation, not generated content) has no Chat chunk projection and is omitted only by the Chat adapter. Responses and raw retain it; unknown event types, unsupported output and native failures are not suppressed.",
@@ -397,6 +423,7 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
     stream: true,
     stream_options: { include_usage: true },
   },
+  updateChatCompletion: { metadata: { project: "example" } },
   createResponse: { input: "Say hello in one sentence.", store: false, stream: true },
   createImage: {
     model: "gpt-image-2",
