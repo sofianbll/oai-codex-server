@@ -79,7 +79,7 @@ Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absente
 
 Pour bénéficier de l'affinité du cache Codex depuis un SDK OpenAI, fournissez une `prompt_cache_key` stable pour les appels partageant le même préfixe. En mode minimal HTTP, le proxy la recopie dans `session-id` si cet en-tête est absent. Un en-tête explicite reste prioritaire. La dérivation exige une chaîne ASCII imprimable non vide, sans espaces aux extrémités ; les autres valeurs restent transmises dans le corps sans dérivation. Le mode raw n'ajoute rien. Le cache reste décidé par Codex : un hit se constate dans `usage.input_tokens_details.cached_tokens`, qui est conservé tel que reçu. Cette clé ne stocke pas l'historique et ne remplace pas `previous_response_id`.
 
-Le catalogue expose 41 opérations : 39 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses et les tâches de fond JSON sont des adaptations locales ; les conversations persistantes ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON/SSE texte et fonctions décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
+Le catalogue expose 46 opérations : 44 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses et Chat et les tâches de fond JSON sont des adaptations locales ; les conversations persistantes ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON/SSE texte et fonctions décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
 
 `GET /api/capabilities` conserve ses champs existants, notamment `supported` (route relayable uniquement), et ajoute par opération :
 
@@ -154,7 +154,7 @@ const completion = await client.chat.completions.create({
 console.log(completion.choices[0].message.content);
 ```
 
-Le sous-ensemble accepté est explicite : `model` (défaut local si omis), `messages` non vide, `stream` booléen, `store:false` et `n:1`. Les rôles `system`, `developer`, `user` et `assistant` et leur ordre sont conservés ; le contenu est une chaîne ou une liste non vide de parties `{type:"text", text:"…"}`. Le contenu assistant est projeté en `output_text`, les autres rôles en `input_text`. **Omettre `store` conserve `false`**, sans historique Chat durable.
+Le sous-ensemble accepté est explicite : `model` (défaut local si omis), `messages` non vide, `stream` et `store` booléens, `metadata` et `n:1`. Les rôles `system`, `developer`, `user` et `assistant` et leur ordre sont conservés ; le contenu est une chaîne ou une liste non vide de parties `{type:"text", text:"…"}`. Le contenu assistant est projeté en `output_text`, les autres rôles en `input_text`. **Omettre `store` conserve `false`**, sans historique Chat durable ; `store:null` est refusé, pas transformé en `false`.
 
 Une réponse terminée expose `chat.completion`, un identifiant `chatcmpl_*`, la date et le modèle reçus, un choix assistant et `finish_reason:"stop"` (ou `"tool_calls"` pour des fonctions). Texte et refus sont séparés dans `message.content` et `message.refusal` ; le raisonnement n'est jamais converti en texte final. L'usage reçu est traduit en `prompt_tokens`, `completion_tokens`, `total_tokens` et leurs détails ; un usage absent n'est pas estimé. Les erreurs natives et les terminaux Responses failed/incomplete gardent le statut HTTP d'erreur du moteur en JSON (502 pour ces terminaux), sans fausse completion ni faux `finish_reason`.
 
@@ -193,7 +193,29 @@ const next = await client.chat.completions.create({ model: 'gpt-6-astra', messag
 
 Les résultats d'outils sont des chaînes et deviennent des items `function_call_output` structurés, liés aux `function_call` par `call_id`, pas un transcript texte. Un assistant avec appels peut omettre son contenu ou utiliser `null`. Les identifiants dupliqués, résultats orphelins/répétés et appels sans résultat avant une nouvelle génération sont refusés avant envoi upstream.
 
-Multimodal, outils autres que fonctions, messages nommés, `store:true`, `n` différent de 1, query parameters et **toute autre option**, notamment réglages de sampling, limites de tokens et `response_format`, renvoient explicitement `400 unsupported_chat_contract`. Les routes Chat stockées renvoient `501` ; le CRUD durable #17 n'est pas livré ici. Une sortie structurée ou annotée non représentable par ce sous-ensemble renvoie `502 unsupported_chat_output` en JSON ou une erreur SSE, plutôt que perdre silencieusement une partie du résultat. Le schéma public Scalar reste une référence plus large que cette adaptation. Les tests SDK utilisent uniquement un upstream WebSocket local contrôlé ; ils ne prouvent pas les droits du compte réel.
+Multimodal, outils autres que fonctions, messages nommés, `n` différent de 1, query parameters de création et **toute autre option**, notamment réglages de sampling, limites de tokens et `response_format`, renvoient explicitement `400 unsupported_chat_contract`. Une sortie structurée ou annotée non représentable par ce sous-ensemble renvoie `502 unsupported_chat_output` en JSON ou une erreur SSE, plutôt que perdre silencieusement une partie du résultat. Le schéma public Scalar reste une référence plus large que cette adaptation. Les tests SDK utilisent uniquement un upstream WebSocket local contrôlé ; ils ne prouvent pas les droits du compte réel.
+
+### Chat explicitement stocké
+
+`store:true` conserve la vraie completion Chat, les messages originaux ordonnés et le message assistant final (appels/résultats de fonctions structurés, identifiants conservés), pendant **30 jours après conservation**. Les sorties natives avec phases/raisonnement restent internes, sans devenir du texte Chat. La Response intermédiaire n'est pas stockée séparément. Le compte est fixé avant génération et stockage ; les autres comptes ne peuvent ni consulter ni modifier ces objets, même après redémarrage.
+
+```js
+const saved = await client.chat.completions.create({
+  model: 'gpt-6-astra', messages: [{ role: 'user', content: 'Bonjour' }],
+  store: true, metadata: { project: 'example' }, // JSON ou stream:true
+});
+await client.chat.completions.retrieve(saved.id);
+await client.chat.completions.update(saved.id, { metadata: { project: 'updated' } });
+const page = await client.chat.completions.list({ limit: 20, order: 'desc', metadata: { project: 'updated' } });
+const messagesPage = await client.chat.completions.messages.list(saved.id, { limit: 20 });
+await client.chat.completions.delete(saved.id);
+```
+
+Liste et messages : `after`, `limit` entier 1–100 (défaut 20), `order:asc|desc` (défaut `asc`). Les completions sont triées par `created`, puis identifiant en cas d'égalité ; les messages suivent leur ordre original puis l'assistant final. La liste accepte aussi `model` et les égalités `metadata[key]=value` combinées par ET. Les paramètres inconnus, doublons, curseurs invalides et limites hors contrat sont refusés. Les pages exposent `object:list`, `first_id`, `last_id`, `has_more` ; le SDK peut utiliser `getNextPage()`.
+
+Seules les métadonnées sont modifiables : au plus 16 paires, clés de 64 caractères maximum, valeurs chaînes de 512 caractères maximum ; `metadata:null` est conservé explicitement. Une mise à jour ne prolonge pas l'expiration. Absent, expiré ou autre compte : `404`. La suppression efface cette completion et ses messages, pas une Response stockée indépendamment.
+
+Le même DurableStore impose le plafond **global de 1 Gio**, tous comptes et genres confondus, et 4 Mio maximum par objet. La réservation précède la génération ; un manque de capacité produit `507` sans éviction. En SSE, aucune fin réussie ni `[DONE]` n'est exposée avant le commit durable. Annulation, erreur partielle ou échec de commit ne produisent pas de faux succès et ne relancent jamais la génération. Raw reste un relais sans stockage local. Ces garanties sont testées localement, pas validées contre le compte réel.
 
 Le dashboard offre un parcours Tests API (Responses en premier, scénarios numérotés, verdicts techniques et de consigne séparés, échanges dépliables), un explorateur de routes (JSON, texte, multipart/fichier et WebSocket), les réponses binaires téléchargeables, le journal des requêtes et la configuration. Le navigateur garde uniquement la clé du proxy dans `sessionStorage`. Scalar est servi localement ; renseignez la même clé dans Bearer. Aucun proxy Scalar externe n'est utilisé.
 

@@ -16,7 +16,7 @@ const categoryOrder = [
 ] as const;
 const categoryDescriptions: Readonly<Record<string, string>> = {
   Responses: "Créer, lire, annuler et gérer les réponses du modèle",
-  Chat: "JSON texte via Responses ; streaming et outils non implémentés",
+  Chat: "JSON/SSE et fonctions via Responses ; historique durable sur store:true",
   Models: "Lister et inspecter les modèles disponibles",
   Images: "Générer et modifier des images",
   Audio: "Synthèse vocale, transcription et gestion des voix",

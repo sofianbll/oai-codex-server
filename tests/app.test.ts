@@ -133,6 +133,19 @@ test("capabilities retain exact-count uncertainty, historical option refusals an
     availability: "unverified",
     limitations: expect.arrayContaining([expect.stringContaining("stream:true")]),
   });
+  for (const id of [
+    "listChatCompletions",
+    "getChatCompletion",
+    "updateChatCompletion",
+    "deleteChatCompletion",
+    "getChatCompletionMessages",
+  ]) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      implementation: "local",
+      supported: true,
+      limitations: expect.arrayContaining([expect.stringContaining("30 days")]),
+    });
+  }
   expect(operations.find((operation) => operation.id === "createImageVariation")).toMatchObject({
     implementation: "relay",
     availability: "unverified",
