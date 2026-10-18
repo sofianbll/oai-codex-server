@@ -130,7 +130,6 @@ test("Chat rejects unimplemented options and malformed messages before any upstr
   const local = fixture();
   try {
     for (const extra of [
-      { store: true },
       { store: null },
       { n: 2 },
       { temperature: 0 },
@@ -311,16 +310,15 @@ test("Chat preserves native errors and failed/incomplete terminal statuses rathe
   }
 });
 
-test("Chat stored routes, query options and oversized bodies are explicit failures without upstream effects", async () => {
+test("Missing stored Chat, query options and oversized bodies fail without upstream effects", async () => {
   const local = fixture();
   try {
     for (const path of [
-      "/v1/chat/completions",
       "/v1/chat/completions/chatcmpl_chat",
       "/v1/chat/completions/chatcmpl_chat/messages",
     ]) {
       const result = await local.gateway.forward(new Request(`http://local${path}`));
-      expect(result.status).toBe(501);
+      expect(result.status).toBe(404);
     }
     const query = await local.gateway.forward(
       new Request("http://local/v1/chat/completions?future=1", {

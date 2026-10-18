@@ -46,6 +46,7 @@ const snapshotEvents = new Set([
 export function chatStream(
   includeUsage: boolean,
   maxBytes: number,
+  save?: (value: unknown) => unknown,
 ): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
@@ -235,6 +236,7 @@ export function chatStream(
               for (const call of calls.values())
                 if (final.message.tool_calls?.[call.index]?.id !== call.id)
                   invalid("Terminal tool call order does not match streamed calls");
+              save?.(event.response);
               emit({}, calls.size ? "tool_calls" : "stop");
               if (includeUsage)
                 controller.enqueue(

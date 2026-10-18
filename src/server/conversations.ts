@@ -234,7 +234,7 @@ export function conversations(
       };
       if (
         store.get(account, "conversation", conversation.id) ||
-        store.list(account, `conversation-links:${conversation.id}`, "asc", 1).length
+        store.listByInsertion(account, `conversation-links:${conversation.id}`, "asc", 1).length
       )
         invalid("Conversation ID collision");
       store.put(account, "conversation", conversation.id, conversation);
@@ -284,7 +284,7 @@ export function conversations(
       Number(limit) > 100
     )
       invalid("Invalid order or limit");
-    const rows = store.list(
+    const rows = store.listByInsertion(
       account,
       kind,
       order as "asc" | "desc",

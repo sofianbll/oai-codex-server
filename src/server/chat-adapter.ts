@@ -32,12 +32,24 @@ const tool = z.strictObject({
     strict: z.boolean().nullable().optional(),
   }),
 });
+// z.record strips __proto__; metadata keys are literal user data, not object properties to merge.
+export const chatMetadata = z.custom<Record<string, string>>(
+  (value) =>
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length <= 16 &&
+    Object.entries(value).every(
+      ([key, item]) => key.length <= 64 && typeof item === "string" && item.length <= 512,
+    ),
+);
 const requestSchema = z.strictObject({
   model: z.string().min(1).optional(),
   messages: z.array(message).min(1),
   stream: z.boolean().optional(),
   stream_options: z.strictObject({ include_usage: z.boolean().optional() }).optional(),
-  store: z.literal(false).optional(),
+  store: z.boolean().optional(),
+  metadata: chatMetadata.nullable().optional(),
   n: z.literal(1).optional(),
   tools: z.array(tool).optional(),
   tool_choice: z
@@ -55,7 +67,12 @@ const requestSchema = z.strictObject({
 export function chatRequest(
   request: Request,
   body: ArrayBuffer,
-): { request: Request; includeUsage: boolean } {
+): {
+  request: Request;
+  includeUsage: boolean;
+  metadata: Record<string, string> | null | undefined;
+  stored: { messages: unknown[]; metadata: Record<string, string> | null } | undefined;
+} {
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder().decode(body));
@@ -138,6 +155,11 @@ export function chatRequest(
   headers.delete("content-length");
   headers.set("content-type", "application/json");
   return {
+    metadata: data.metadata,
+    stored:
+      data.store === true
+        ? { messages: data.messages, metadata: data.metadata === undefined ? null : data.metadata }
+        : undefined,
     includeUsage: data.stream_options?.include_usage === true,
     request: new Request(url.toString(), {
       method: "POST",
@@ -262,33 +284,35 @@ export function chatCompletion(value: unknown) {
   };
 }
 
-export async function chatResponse(response: Response): Promise<Response> {
+export function chatObject(value: unknown) {
+  const data = chatCompletion(value);
+  return {
+    id: data.id,
+    object: "chat.completion",
+    created: data.created,
+    model: data.model,
+    choices: [
+      {
+        index: 0,
+        message: data.message,
+        logprobs: null,
+        finish_reason: data.message.tool_calls?.length ? "tool_calls" : "stop",
+      },
+    ],
+    ...(data.usage ? { usage: data.usage } : {}),
+  };
+}
+
+export async function chatResponse(
+  response: Response,
+  save?: (value: unknown) => unknown,
+): Promise<Response> {
   // Failures retain the Responses engine's status and error payload, never a fabricated completion.
   if (!response.ok) return response;
-  const data = chatCompletion(await response.json());
+  const value: unknown = await response.json();
+  const result = save ? save(value) : chatObject(value);
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   headers.set("content-type", "application/json");
-  return Response.json(
-    {
-      id: data.id,
-      object: "chat.completion",
-      created: data.created,
-      model: data.model,
-      choices: [
-        {
-          index: 0,
-          message: data.message,
-          logprobs: null,
-          finish_reason: data.message.tool_calls?.length ? "tool_calls" : "stop",
-        },
-      ],
-      ...(data.usage
-        ? {
-            usage: data.usage,
-          }
-        : {}),
-    },
-    { status: response.status, headers },
-  );
+  return Response.json(result, { status: response.status, headers });
 }
