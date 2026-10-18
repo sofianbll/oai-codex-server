@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GatewayError } from "../shared/contracts";
+import { metadataPairs } from "./metadata";
 
 const textPart = z.strictObject({ type: z.literal("text"), text: z.string() });
 const content = z.union([z.string(), z.array(textPart).min(1)]);
@@ -32,24 +33,13 @@ const tool = z.strictObject({
     strict: z.boolean().nullable().optional(),
   }),
 });
-// z.record strips __proto__; metadata keys are literal user data, not object properties to merge.
-export const chatMetadata = z.custom<Record<string, string>>(
-  (value) =>
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    Object.keys(value).length <= 16 &&
-    Object.entries(value).every(
-      ([key, item]) => key.length <= 64 && typeof item === "string" && item.length <= 512,
-    ),
-);
 const requestSchema = z.strictObject({
   model: z.string().min(1).optional(),
   messages: z.array(message).min(1),
   stream: z.boolean().optional(),
   stream_options: z.strictObject({ include_usage: z.boolean().optional() }).optional(),
   store: z.boolean().optional(),
-  metadata: chatMetadata.nullable().optional(),
+  metadata: metadataPairs.nullable().optional(),
   n: z.literal(1).optional(),
   tools: z.array(tool).optional(),
   tool_choice: z

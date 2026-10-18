@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { GatewayError } from "../shared/contracts";
-import { chatMetadata, chatObject } from "./chat-adapter";
+import { chatObject } from "./chat-adapter";
 import type { DurableStore } from "./durable-store";
+import { metadataPairs } from "./metadata";
 import type { ResponsesStoreOptions } from "./responses-store";
 
 type StoredChat = {
@@ -25,7 +26,7 @@ function pagination(url: URL, filters = false) {
     if (match?.[1] === undefined) return invalid(`Unsupported query parameter: ${key}`);
     metadata[match[1]] = value;
   }
-  if (!chatMetadata.safeParse(metadata).success) invalid("Invalid metadata filter");
+  if (!metadataPairs.safeParse(metadata).success) invalid("Invalid metadata filter");
   const limit = url.searchParams.get("limit") ?? "20";
   const order = url.searchParams.get("order") ?? "asc";
   if (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100)
@@ -142,7 +143,7 @@ export function createChatStorage(store: DurableStore, options: ResponsesStoreOp
         } catch {
           return invalid("Expected JSON metadata update");
         }
-        const parsed = z.strictObject({ metadata: chatMetadata.nullable() }).safeParse(body);
+        const parsed = z.strictObject({ metadata: metadataPairs.nullable() }).safeParse(body);
         if (!parsed.success)
           return invalid("Only metadata (up to 16 string pairs, or null) can be updated");
         const saved = store.update(account, "chat", id, (value) => {
