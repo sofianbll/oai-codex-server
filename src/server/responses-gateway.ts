@@ -6,6 +6,7 @@ import { conversations } from "./conversations";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
 import { restoreStreamOutput } from "./response-stream-adapter";
+import { createBackgroundResponses } from "./responses-background";
 import { createResponsesLifecycle, type ResponsesStoreOptions } from "./responses-store";
 import { createResponsesBridge } from "./responses-ws-bridge";
 import { forward } from "./upstream";
@@ -23,6 +24,22 @@ export function createResponsesGateway(
     options.translationMode === "minimal"
       ? (storage.store ?? createDurableStore(storage))
       : undefined;
+  let background: ReturnType<typeof createBackgroundResponses> | undefined;
+  try {
+    background = store
+      ? createBackgroundResponses(
+          options,
+          credentials,
+          store,
+          storage,
+          (request, auth, beforeSend) => bridge.forward(request, auth, beforeSend),
+        )
+      : undefined;
+  } catch (error) {
+    bridge.close();
+    if (!storage.store) store?.close();
+    throw error;
+  }
   const lifecycleFor = (auth: Awaited<ReturnType<CredentialProvider>>) =>
     createResponsesLifecycle(
       async (request: Request) => {
@@ -126,16 +143,35 @@ export function createResponsesGateway(
               ...storage,
               reservationMs: options.timeoutMs,
             }).reserve(current.accountId, original);
-          let response =
-            conversation && store
-              ? conversations(
-                  request,
-                  current.accountId ?? "local",
-                  store,
-                  conversationBody,
-                  storage.now,
-                )
-              : await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          let response: Response;
+          const cancel = path.match(/^\/v1\/responses\/([^/]+)\/cancel$/);
+          if (conversation && store) {
+            response = conversations(
+              request,
+              current.accountId ?? "local",
+              store,
+              conversationBody,
+              storage.now,
+            );
+          } else if (request.method === "POST" && cancel?.[1] && background) {
+            response = background.cancel(current.accountId, decodeURIComponent(cancel[1]));
+          } else if (!chat && request.method === "POST" && path === "/v1/responses" && background) {
+            let parsed: unknown;
+            try {
+              parsed = await request.clone().json();
+            } catch {
+              throw new GatewayError(400, "invalid_json", "Responses requires a JSON object");
+            }
+            if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+              throw new GatewayError(400, "invalid_request", "Responses requires a JSON object");
+            if ("background" in parsed && parsed.background === true)
+              response = await background.create(
+                request,
+                parsed as Record<string, unknown>,
+                current,
+              );
+            else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          } else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (chat) {
             response =
               response.ok &&
@@ -208,6 +244,7 @@ export function createResponsesGateway(
       return relay(request);
     },
     close() {
+      background?.close();
       bridge.close();
       if (!storage.store) store?.close();
     },

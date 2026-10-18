@@ -152,22 +152,15 @@ async function fixture(
     maxBodyBytes: 16384,
     timeoutMs: 2000,
   };
-  const otherStore = createDurableStore({ path: join(directory, "store.sqlite"), ...options });
   const a = createResponsesGateway(
     proxy,
     async () => ({ accessToken: "fixture", accountId: "a" }),
     { ...options, store },
   );
-  const b = createResponsesGateway(
-    proxy,
-    async () => ({ accessToken: "fixture", accountId: "a" }),
-    { ...options, store: otherStore },
-  );
-  let requests = 0;
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
-    fetch: (request) => (++requests % 2 ? a : b).forward(request),
+    fetch: (request) => a.forward(request),
   });
   const client = new OpenAI({
     baseURL: `${server.url.origin}/v1`,
@@ -180,9 +173,7 @@ async function fixture(
     calls: () => calls,
     close: async () => {
       a.close();
-      b.close();
       store.close();
-      otherStore.close();
       await server.stop(true);
       await upstream.stop(true);
       await rm(directory, { recursive: true, force: true });

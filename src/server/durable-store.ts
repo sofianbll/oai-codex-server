@@ -31,6 +31,10 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
   }
   const db = new Database(path, { strict: true });
   try {
+    // Keep the kernel-owned SQLite lock until close/crash, not just during recovery.
+    db.exec("PRAGMA locking_mode=EXCLUSIVE");
+    db.exec("BEGIN EXCLUSIVE");
+    db.exec("COMMIT");
     const identity = db.query<{ application_id: number }, []>("PRAGMA application_id").get();
     const tables = db
       .query<{ count: number }, []>("SELECT count(*) AS count FROM sqlite_master")
@@ -57,6 +61,16 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       );`);
   } catch (error) {
     db.close();
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      ["SQLITE_BUSY", "SQLITE_LOCKED"].includes(String(error.code))
+    )
+      throw new GatewayError(
+        409,
+        "storage_in_use",
+        "Local durable storage already has an active owner",
+      );
     throw error;
   }
   const now = options.now ?? Date.now;
@@ -65,6 +79,7 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
   const maxRecords = options.maxRecords ?? 65536;
   const ownedReservations = new Set<string>();
   let closed = false;
+  let backgroundOwned = false;
   const prune = () => {
     db.query("DELETE FROM durable_objects WHERE expires <= ?").run(now());
     db.query("DELETE FROM durable_reservations WHERE expires <= ?").run(now());
@@ -94,71 +109,124 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       throw error;
     }
   };
-  const store = {
-    maxRecordBytes,
-    reserve(account: string, kind: string, durationMs: number, allocation = maxRecordBytes) {
-      if (!Number.isSafeInteger(allocation) || allocation <= 0 || allocation > maxRecordBytes)
-        throw capacityError();
-      const token = crypto.randomUUID();
-      transaction(() => {
-        prune();
-        const used = db
-          .query<{ bytes: number }, []>(`SELECT
+  const reserve = (
+    account: string,
+    kind: string,
+    durationMs: number,
+    replacingId?: string,
+    capacityBytes = maxRecordBytes,
+  ) => {
+    if (!Number.isSafeInteger(capacityBytes) || capacityBytes < 0 || capacityBytes > maxRecordBytes)
+      throw capacityError();
+    const token = crypto.randomUUID();
+    transaction(() => {
+      prune();
+      const replaced =
+        replacingId === undefined
+          ? 0
+          : (db
+              .query<{ bytes: number }, [string, string, string]>(
+                "SELECT bytes FROM durable_objects WHERE account=? AND kind=? AND id=?",
+              )
+              .get(account, kind, replacingId)?.bytes ?? 0);
+      const used = db
+        .query<{ bytes: number }, []>(`SELECT
           (SELECT coalesce(sum(bytes),0) FROM durable_objects) +
           (SELECT coalesce(sum(bytes),0) FROM durable_reservations) AS bytes`)
-          .get();
-        const count = db
-          .query<{ count: number }, []>(`SELECT
+        .get();
+      const count = db
+        .query<{ count: number }, []>(`SELECT
           (SELECT count(*) FROM durable_objects) +
           (SELECT count(*) FROM durable_reservations) AS count`)
-          .get();
-        if ((used?.bytes ?? 0) + allocation > maxBytes || (count?.count ?? 0) >= maxRecords)
-          throw capacityError();
-        db.query("INSERT INTO durable_reservations VALUES (?, ?, ?, ?, ?)").run(
-          token,
-          account,
-          kind,
-          allocation,
-          now() + durationMs,
-        );
-      });
-      ownedReservations.add(token);
-      let released = false;
-      return {
-        commit(id: string, payload: unknown, expires: number | null) {
-          if (closed)
-            throw new GatewayError(503, "storage_unavailable", "Local durable storage was closed");
-          const serialized = JSON.stringify(payload);
-          const bytes = Buffer.byteLength(JSON.stringify([account, kind, id, serialized, expires]));
-          if (bytes > allocation)
-            throw new GatewayError(
-              507,
-              "stored_response_too_large",
-              "Response and inputs exceed the per-object durable storage limit",
+        .get();
+      if (
+        (used?.bytes ?? 0) + Math.max(0, capacityBytes - replaced) > maxBytes ||
+        (count?.count ?? 0) + (replaced > 0 ? 0 : 1) > maxRecords
+      )
+        throw capacityError();
+      db.query("INSERT INTO durable_reservations VALUES (?, ?, ?, ?, ?)").run(
+        token,
+        account,
+        kind,
+        Math.max(0, capacityBytes - replaced),
+        now() + durationMs,
+      );
+    });
+    ownedReservations.add(token);
+    let released = false;
+    let checkpointId: string | undefined;
+    return {
+      commit(id: string, payload: unknown, expires: number | null, checkpoint = false) {
+        if (closed)
+          throw new GatewayError(503, "storage_unavailable", "Local durable storage was closed");
+        const serialized = JSON.stringify(payload);
+        if (checkpointId !== undefined && checkpointId !== id)
+          throw new GatewayError(
+            409,
+            "reservation_conflict",
+            "A checkpoint reservation belongs to one object",
+          );
+        const bytes = Buffer.byteLength(JSON.stringify([account, kind, id, serialized, expires]));
+        if (bytes > capacityBytes)
+          throw new GatewayError(
+            507,
+            "stored_response_too_large",
+            "Response and inputs exceed the per-object durable storage limit",
+          );
+        transaction(() => {
+          // Checked in the same write transaction as replacement and quota accounting.
+          const valid = db
+            .query("SELECT token FROM durable_reservations WHERE token=? AND expires>?")
+            .get(token, now());
+          if (released || !valid) throw capacityError();
+          if (checkpoint && checkpointId === undefined) {
+            const count = db
+              .query<{ count: number }, []>(`SELECT
+              (SELECT count(*) FROM durable_objects) +
+              (SELECT count(*) FROM durable_reservations) AS count`)
+              .get();
+            if ((count?.count ?? 0) >= maxRecords) throw capacityError();
+          }
+          db.query(
+            "INSERT INTO durable_objects VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account,kind,id) DO UPDATE SET payload=excluded.payload, bytes=excluded.bytes, expires=excluded.expires",
+          ).run(account, kind, id, serialized, bytes, expires);
+          if (checkpoint)
+            db.query("UPDATE durable_reservations SET bytes=? WHERE token=?").run(
+              capacityBytes - bytes,
+              token,
             );
-          transaction(() => {
-            // Checked in the same write transaction as replacement and quota accounting.
-            const valid = db
-              .query("SELECT token FROM durable_reservations WHERE token=? AND expires>?")
-              .get(token, now());
-            if (released || !valid) throw capacityError();
-            db.query(
-              "INSERT INTO durable_objects VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(account,kind,id) DO UPDATE SET payload=excluded.payload, bytes=excluded.bytes, expires=excluded.expires",
-            ).run(account, kind, id, serialized, bytes, expires);
-            db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
-          });
+          else db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
+        });
+        if (!checkpoint) {
           ownedReservations.delete(token);
           released = true;
-        },
-        release() {
-          if (released || closed) return;
-          db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
-          released = true;
-          ownedReservations.delete(token);
-        },
+        } else checkpointId = id;
+      },
+      release() {
+        if (released || closed) return;
+        db.query("DELETE FROM durable_reservations WHERE token=?").run(token);
+        released = true;
+        ownedReservations.delete(token);
+      },
+    };
+  };
+  const store = {
+    maxRecordBytes,
+    claimBackground() {
+      if (backgroundOwned)
+        throw new GatewayError(
+          409,
+          "storage_in_use",
+          "Local background producer already has an active owner",
+        );
+      backgroundOwned = true;
+      return () => {
+        backgroundOwned = false;
       };
     },
-    /** Synchronous read/modify/write, serialized across store instances by SQLite. */
+    reserve: (account: string, kind: string, durationMs: number, allocation = maxRecordBytes) =>
+      reserve(account, kind, durationMs, undefined, allocation),
+    /** Synchronous read/modify/write on the owner's shared handle. */
     atomic<T>(operation: () => T): T {
       return transaction(operation);
     },
@@ -217,6 +285,51 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
         )
         .get(account, kind, id, now());
       return row ? JSON.parse(row.payload) : undefined;
+    },
+    // One record per read keeps startup recovery bounded independently of database size.
+    next(kind: string, after: readonly [string, string] = ["", ""]) {
+      const row = db
+        .query<{ account: string; id: string; payload: string }, [string, string, string, number]>(
+          "SELECT account,id,payload FROM durable_objects WHERE kind=? AND (account,id)>(?,?) AND (expires IS NULL OR expires>?) ORDER BY account,id LIMIT 1",
+        )
+        .get(kind, after[0], after[1], now());
+      return row
+        ? { account: row.account, id: row.id, payload: JSON.parse(row.payload) as unknown }
+        : undefined;
+    },
+    /** Exclusive startup recovery: discard orphan producers, never execute retained work. */
+    recover(
+      kind: string,
+      rewrite: (payload: unknown) => { payload: unknown; expires: number | null } | undefined,
+    ) {
+      transaction(() => {
+        db.query("DELETE FROM durable_reservations WHERE kind=?").run(kind);
+      });
+      let cursor: readonly [string, string] | undefined;
+      for (;;) {
+        const row = this.next(kind, cursor);
+        if (!row) break;
+        cursor = [row.account, row.id];
+        const changed = rewrite(row.payload);
+        if (!changed) continue;
+        transaction(() => {
+          const bytes = Buffer.byteLength(
+            JSON.stringify([
+              row.account,
+              kind,
+              row.id,
+              JSON.stringify(changed.payload),
+              changed.expires,
+            ]),
+          );
+          const reservation = reserve(row.account, kind, 60_000, row.id, bytes);
+          try {
+            reservation.commit(row.id, changed.payload, changed.expires);
+          } finally {
+            reservation.release();
+          }
+        });
+      }
     },
     delete(account: string, kind: string, id: string): boolean {
       return (

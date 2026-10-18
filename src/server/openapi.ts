@@ -109,7 +109,7 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
       ...definition,
       operationId: operation.id,
       summary: operation.summary,
-      description: `${operation.description}\n\nImplementation: ${operation.implementation}. Evidence (${operation.evidence.kind}, ${operation.evidence.date ?? "undated"}): ${operation.evidence.scope}\nPrerequisites: ${operation.prerequisites.join(" ")}\nLimitations: ${operation.limitations.join(" ")}\nSources: ${operation.evidence.sources.join(", ")}${source?.description ? `\n\nPublic contract reference:\n${source.description}` : ""}`,
+      description: `${operation.description}\n\nImplementation: ${operation.implementation}. Evidence (${operation.evidence.kind}, ${operation.evidence.date ?? "undated"}): ${operation.evidence.scope}\nPrerequisites: ${operation.prerequisites.join(" ")}\nLimitations: ${operation.limitations.join(" ")}\nSources: ${operation.evidence.sources.join(", ")}${operation.id === "createResponse" ? `\n\nLocal background JSON example (poll/cancel; no SSE replay):\n\n\`\`\`json\n${JSON.stringify({ model: defaultModel, input: "Say hello in one sentence.", background: true, store: false, stream: false }, null, 2)}\n\`\`\`` : ""}${source?.description ? `\n\nPublic contract reference:\n${source.description}` : ""}`,
       tags: [operation.category],
       security: localSecurity,
       "x-proxy-availability": operation.availability,
