@@ -173,6 +173,8 @@ for await (const chunk of stream) {
 
 Le SSE émet un rôle assistant puis les deltas texte/refus/arguments **avant le terminal**, avec identité stable, indices de fonctions compacts et raison de fin. `stream_options.include_usage:true` ajoute `usage:null` aux chunks ordinaires et un dernier chunk `choices:[]` avec l'usage reçu (ou `null` s'il manque). Sans cette option, le flux n'inclut pas d'usage. Une erreur après du texte reste un événement SSE d'erreur reconnu par le SDK, sans fin de succès ni `[DONE]`. Annulation, délai global, taille d'agrégation et file SSE sont bornés par les mêmes protections Responses. Les extensions de flux sans projection fidèle sont refusées explicitement.
 
+Exception identifiée : l'enveloppe native `response.metadata` (métadonnées de modèle/vérification/modération, pas du contenu généré) n'est pas convertie en chunk Chat et ne remplace ni le modèle de l'objet Response ni son résultat terminal. Elle reste préservée sur Responses et en raw ; les autres extensions inconnues restent refusées en Chat. Le [diagnostic et replay local](docs/evidence/chat-stream-metadata.md) corrigent un refus reproduit depuis un flux Responses observé séparément. L'essai Chat SSE réel initial avait échoué ; il n'a pas été retenté et ce correctif ne constitue pas une nouvelle validation Chat live.
+
 Les `tools` de type `function` acceptent `name`, `description`, `parameters` et `strict`. `tool_choice` accepte `auto`, `none`, `required` ou `{type:"function",function:{name:"…"}}` ; `parallel_tool_calls` est conservé. Les appels retournent `message.tool_calls` en JSON et `delta.tool_calls` en SSE. Pour poursuivre, ajouter le message assistant puis **un résultat fourni par le client** pour chaque appel :
 
 ```js

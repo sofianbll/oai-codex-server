@@ -139,12 +139,13 @@ function qualification(id: string): Qualification {
         kind: "source",
         date: "2026-10-17",
         scope:
-          "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. No live Chat/backend validation.",
+          "Local SDK contract tests against the integrated Responses gateway and a controlled WebSocket upstream. A coordinator Chat SSE probe failed; a separate native Responses event pattern reproduced response.metadata rejection locally, now fixed. Original live Chat was not retried; backend compatibility remains unverified.",
         sources: [
           "src/server/chat-adapter.ts",
           "src/server/chat-stream.ts",
           "tests/chat-json.test.ts",
           "tests/chat-stream.test.ts",
+          "docs/evidence/chat-stream-metadata.md",
         ],
       },
       limitations: [
@@ -152,6 +153,7 @@ function qualification(id: string): Qualification {
         "Function tools support name/description/parameters/strict, tool_choice and parallel_tool_calls. Tool results are strings linked by tool_call_id; the proxy never executes tools. Multimodal content, named messages, store:true, stored Chat CRUD, query parameters and unknown options are explicitly refused.",
         "Completed text/refusal maps to finish_reason:stop; function calls map to tool_calls. Failed/incomplete Responses remain errors, including after partial SSE output, never success finishes. Unknown stream events and unsupported structured or annotated output are refused. Reasoning is not final text.",
         "Usage is mapped only when received; no counts are estimated. SSE usage is opt-in via stream_options.include_usage, with a final empty choices chunk. Buffers and deadlines remain bounded; cancellation closes upstream. Raw mode remains an unadapted relay.",
+        "Identified native response.metadata (model/verifications/moderation, not generated content) has no Chat chunk projection and is omitted only by the Chat adapter. Responses and raw retain it; unknown event types, unsupported output and native failures are not suppressed.",
       ],
     };
   }
