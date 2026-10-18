@@ -198,6 +198,7 @@ test("minimal SSE omits identified native telemetry but preserves unknown extens
       "codex.rate_limits",
       "codex.response.metadata",
       "responsesapi.websocket_timing",
+      "response.metadata",
       "vendor.future",
     ])
       socket.send(JSON.stringify({ type, sequence_number: 7, extra: "preserved" }));
@@ -219,6 +220,7 @@ test("minimal SSE omits identified native telemetry but preserves unknown extens
         text.includes("responsesapi.websocket_timing"),
     ).toBe(false);
     expect(text).toContain('"type":"vendor.future","sequence_number":7,"extra":"preserved"');
+    expect(text).toContain('"type":"response.metadata","sequence_number":7,"extra":"preserved"');
     expect(text).toContain('"output":[{"id":"msg_done","type":"message"}]');
   } finally {
     local.close();

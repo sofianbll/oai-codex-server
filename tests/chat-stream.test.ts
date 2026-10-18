@@ -10,6 +10,139 @@ const textItem = (text: string) => ({
   content: [{ type: "output_text", text }],
 });
 
+test("SDK Chat completes the retained native text SSE event pattern", async () => {
+  // Synthetic projection of the 15-event coordinator Responses trace, not the failed Chat call.
+  const message = {
+    ...textItem("RESPONSES_SSE_OK"),
+    id: "msg_fixture",
+    status: "completed",
+    phase: "final_answer",
+  };
+  const part = { type: "output_text", text: "RESPONSES_SSE_OK", annotations: [], logprobs: [] };
+  const location = { item_id: "msg_fixture", output_index: 0, content_index: 0 };
+  const events = [
+    { type: "response.created", response: { ...identity, status: "in_progress", output: [] } },
+    { type: "response.in_progress", response: { ...identity, status: "in_progress", output: [] } },
+    {
+      type: "response.output_item.added",
+      output_index: 0,
+      item: { ...message, status: "in_progress", content: [] },
+    },
+    { type: "response.content_part.added", ...location, part: { ...part, text: "" } },
+    ...["RESP", "ON", "SES", "_S", "SE", "_OK"].map((delta) => ({
+      type: "response.output_text.delta",
+      ...location,
+      delta,
+      logprobs: [],
+    })),
+    {
+      type: "response.metadata",
+      response_id: identity.id,
+      metadata: {
+        openai_chatgpt_moderation_metadata: {
+          prompt: { omnimod: { outputs: [{ is_blocked: false }] } },
+        },
+      },
+    },
+    { type: "response.output_text.done", ...location, text: "RESPONSES_SSE_OK", logprobs: [] },
+    { type: "response.content_part.done", ...location, part },
+    { type: "response.output_item.done", output_index: 0, item: message },
+    {
+      type: "response.completed",
+      response: {
+        ...identity,
+        status: "completed",
+        output: [message],
+        usage: { input_tokens: 12, output_tokens: 5, total_tokens: 17 },
+      },
+    },
+  ].map((event, sequence_number) => ({ ...event, sequence_number }));
+  const local = fixture((send) => {
+    for (const event of events) send(event);
+  });
+  try {
+    const stream = await local.client.chat.completions.create({
+      model: "gpt-6-astra",
+      messages: [{ role: "user", content: "Reply exactly RESPONSES_SSE_OK" }],
+      stream: true,
+      stream_options: { include_usage: true },
+    });
+    let text = "";
+    let finish: string | null | undefined;
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+      text += chunk.choices[0]?.delta.content ?? "";
+      finish = chunk.choices[0]?.finish_reason ?? finish;
+    }
+    expect(text).toBe("RESPONSES_SSE_OK");
+    expect(finish).toBe("stop");
+    expect(chunks.at(-1)).toMatchObject({
+      choices: [],
+      usage: { prompt_tokens: 12, completion_tokens: 5, total_tokens: 17 },
+    });
+    expect(JSON.stringify(chunks)).not.toContain("openai_chatgpt_moderation_metadata");
+  } finally {
+    local.close();
+  }
+});
+
+test("native metadata does not replace Chat identity, content or failure semantics", async () => {
+  for (const failed of [false, true]) {
+    const local = fixture((send) => {
+      send({ type: "response.created", response: identity });
+      send({
+        type: "response.metadata",
+        response_id: identity.id,
+        headers: { "OpenAI-Model": "native-header-model" },
+        metadata: { openai_verification_recommendation: ["synthetic"] },
+      });
+      send({
+        type: "response.output_text.delta",
+        output_index: 0,
+        content_index: 0,
+        delta: "Partial",
+      });
+      send(
+        failed
+          ? {
+              type: "response.failed",
+              response: {
+                ...identity,
+                status: "failed",
+                error: { code: "fixture_denied", message: "Controlled failure" },
+              },
+            }
+          : {
+              type: "response.completed",
+              response: { ...identity, status: "completed", output: [textItem("Partial")] },
+            },
+      );
+    });
+    try {
+      const stream = await local.client.chat.completions.create({
+        model: "fixture-model",
+        messages: [{ role: "user", content: "hello" }],
+        stream: true,
+      });
+      const iterator = stream[Symbol.asyncIterator]();
+      expect((await iterator.next()).value).toMatchObject({
+        id: "chatcmpl_stream",
+        model: "fixture-model",
+        choices: [{ delta: { role: "assistant" } }],
+      });
+      expect((await iterator.next()).value?.choices[0]?.delta).toEqual({ content: "Partial" });
+      if (failed) await expect(iterator.next()).rejects.toMatchObject({ code: "fixture_denied" });
+      else {
+        expect((await iterator.next()).value?.choices[0]?.finish_reason).toBe("stop");
+        expect((await iterator.next()).done).toBe(true);
+      }
+    } finally {
+      local.close();
+    }
+  }
+});
+
 function fixture(
   run: (send: (event: Record<string, unknown>) => void, input: Record<string, unknown>) => void,
   options: Partial<ProxyOptions> = {},
