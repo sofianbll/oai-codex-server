@@ -22,11 +22,22 @@ export function createResponsesGateway(
     options.translationMode === "minimal"
       ? (storage.store ?? createDurableStore(storage))
       : undefined;
-  const background = store
-    ? createBackgroundResponses(options, credentials, store, storage, (request, auth, beforeSend) =>
-        bridge.forward(request, auth, beforeSend),
-      )
-    : undefined;
+  let background: ReturnType<typeof createBackgroundResponses> | undefined;
+  try {
+    background = store
+      ? createBackgroundResponses(
+          options,
+          credentials,
+          store,
+          storage,
+          (request, auth, beforeSend) => bridge.forward(request, auth, beforeSend),
+        )
+      : undefined;
+  } catch (error) {
+    bridge.close();
+    if (!storage.store) store?.close();
+    throw error;
+  }
   const lifecycleFor = (auth: Awaited<ReturnType<CredentialProvider>>) =>
     createResponsesLifecycle(
       async (request: Request) => {

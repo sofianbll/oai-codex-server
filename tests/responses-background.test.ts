@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import OpenAI from "openai";
 import { parseConfig } from "../src/server/config";
+import { createDurableStore } from "../src/server/durable-store";
 import { createResponsesGateway } from "../src/server/responses-gateway";
 import type { ResponsesStoreOptions } from "../src/server/responses-store";
 import { startServer } from "../src/server/runtime";
@@ -36,6 +37,7 @@ async function fixture(
     timeoutMs: 1000,
     maxBodyBytes: 16384,
   };
+  expect(new URL(options.baseUrl).hostname).toBe("127.0.0.1");
   let gateway = createResponsesGateway(options, credentials, storage);
   const server = Bun.serve({
     hostname: "127.0.0.1",
@@ -72,6 +74,118 @@ async function terminal(client: OpenAI, id: string) {
   }
   throw new Error("Job did not terminate");
 }
+
+async function localNetworkOnly(operation: () => Promise<void>) {
+  const originalFetch = globalThis.fetch;
+  const originalWebSocket = globalThis.WebSocket;
+  const assertLocal = (value: string | URL | Request) => {
+    const url = new URL(value instanceof Request ? value.url : String(value));
+    if (url.hostname !== "127.0.0.1") throw new Error(`Forbidden test destination: ${url.origin}`);
+  };
+  globalThis.fetch = new Proxy(originalFetch, {
+    apply(target, receiver, args) {
+      assertLocal(args[0]);
+      return Reflect.apply(target, receiver, args);
+    },
+  });
+  globalThis.WebSocket = new Proxy(originalWebSocket, {
+    construct(target, args) {
+      assertLocal(args[0]);
+      return Reflect.construct(target, args);
+    },
+  });
+  try {
+    await operation();
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.WebSocket = originalWebSocket;
+  }
+}
+
+test("a second background manager cannot recover a live owner's jobs or reservations", async () => {
+  await localNetworkOnly(async () => {
+    for (const sharedHandle of [false, true]) {
+      const directory = await mkdtemp(join(tmpdir(), "background-owner-"));
+      const path = join(directory, "store.sqlite");
+      const store = sharedHandle
+        ? createDurableStore({ path, maxBytes: 4096, maxRecordBytes: 4096 })
+        : undefined;
+      const storage = { path, maxBytes: 4096, maxRecordBytes: 4096, ...(store ? { store } : {}) };
+      const started = Promise.withResolvers<void>();
+      const f = await fixture((socket, data) => {
+        if (JSON.parse(data).input[0].content[0].text === "shared-consumer")
+          socket.send(
+            JSON.stringify({
+              type: "response.completed",
+              response: { id: "resp_shared", object: "response", status: "completed", output: [] },
+            }),
+          );
+        else started.resolve();
+      }, storage);
+      let second: ReturnType<typeof createResponsesGateway> | undefined;
+      try {
+        const job = await f.client.responses.create({ input: "owned", background: true });
+        await started.promise;
+        let refusal: unknown;
+        try {
+          second = createResponsesGateway(
+            f.options,
+            async () => ({ accessToken: "fixture", accountId: "a" }),
+            storage,
+          );
+        } catch (error) {
+          refusal = error;
+        }
+        expect(await f.client.responses.retrieve(job.id)).toMatchObject({ status: "in_progress" });
+        expect(refusal).toMatchObject({ code: "storage_in_use" });
+        const module = new URL("../src/server/responses-gateway.ts", import.meta.url).pathname;
+        const contender = Bun.spawn(
+          [
+            process.execPath,
+            "-e",
+            `
+          import { createResponsesGateway } from ${JSON.stringify(module)};
+          const options = ${JSON.stringify(f.options)};
+          if (new URL(options.baseUrl).hostname !== "127.0.0.1") throw new Error("Non-local fixture");
+          globalThis.fetch = () => { throw new Error("No network allowed in contender"); };
+          globalThis.WebSocket = class { constructor() { throw new Error("No WebSocket allowed in contender"); } };
+          try {
+            const gateway = createResponsesGateway(options, async () => ({ accountId: "a", accessToken: "fixture" }), { path: ${JSON.stringify(path)} });
+            gateway.close(); console.log(JSON.stringify({ code: "accepted" }));
+          } catch (error) { console.log(JSON.stringify({ code: error.code })); }
+        `,
+          ],
+          { stdout: "pipe", stderr: "pipe" },
+        );
+        expect(JSON.parse(await new Response(contender.stdout).text())).toEqual({
+          code: "storage_in_use",
+        });
+        expect(await contender.exited).toBe(0);
+        expect(await f.client.responses.retrieve(job.id)).toMatchObject({ status: "in_progress" });
+        await expect(
+          f.client.responses
+            .create({ input: "must remain saturated", background: true })
+            .asResponse(),
+        ).rejects.toMatchObject({ status: 507, code: "storage_capacity_exceeded" });
+        expect(f.emissions()).toBe(1);
+        await f.client.responses.cancel(job.id);
+        await f.client.responses.delete(job.id);
+        expect(
+          await f.client.responses.create({ input: "shared-consumer", store: true }),
+        ).toMatchObject({ id: "resp_shared", status: "completed" });
+        f.restart();
+        expect(await f.client.responses.retrieve("resp_shared")).toMatchObject({
+          status: "completed",
+        });
+      } finally {
+        second?.close();
+        await f.close();
+        store?.close();
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+  });
+});
 
 test("background polling preserves native cancelled, failed and incomplete terminals and their details", async () => {
   const f = await fixture((socket, data) => {
@@ -449,6 +563,14 @@ test("integrated runtime stops producers before closing durable storage and neve
       store: true,
     });
     await started.promise;
+    await expect(startServer(config, configPath)).rejects.toMatchObject({ code: "storage_in_use" });
+    Object.assign(config.server, { port: Number(new URL(runtime.url).port) });
+    try {
+      await expect(startServer(config, configPath)).rejects.toMatchObject({ code: "EADDRINUSE" });
+    } finally {
+      Object.assign(config.server, { port: 0 });
+    }
+    expect(await client().responses.retrieve(queued.id)).toMatchObject({ status: "in_progress" });
     await runtime.stop();
     runtime = await startServer(config, configPath);
     expect(await client().responses.retrieve(queued.id)).toMatchObject({

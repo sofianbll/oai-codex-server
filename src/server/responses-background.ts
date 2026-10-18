@@ -32,17 +32,23 @@ export function createBackgroundResponses(
   ) => Promise<Response>,
 ) {
   const now = storage.now ?? Date.now;
+  const releaseOwnership = store.claimBackground();
   const active = new Map<string, { cancel(): void }>();
   let closed = false;
   const expires = (response: Json) =>
     now() + (response["store"] === true ? (storage.ttlMs ?? DURABLE_TTL) : TEMP_TTL);
   // Recovery is synchronous and never schedules work, including queued jobs.
-  store.recover("background", (payload) => {
-    const job = payload as Job;
-    if (terminal(job.response)) return undefined;
-    const response = { ...job.response, status: "failed", error: interruption };
-    return { payload: { ...job, response }, expires: expires(response) };
-  });
+  try {
+    store.recover("background", (payload) => {
+      const job = payload as Job;
+      if (terminal(job.response)) return undefined;
+      const response = { ...job.response, status: "failed", error: interruption };
+      return { payload: { ...job, response }, expires: expires(response) };
+    });
+  } catch (error) {
+    releaseOwnership();
+    throw error;
+  }
 
   return {
     async create(request: Request, parsed: Json, auth: UpstreamCredentials): Promise<Response> {
@@ -224,9 +230,11 @@ export function createBackgroundResponses(
       return Response.json((store.get(account, "background", id) as Job).response);
     },
     close() {
+      if (closed) return;
       closed = true;
       for (const job of active.values()) job.cancel();
       active.clear();
+      releaseOwnership();
     },
   };
 }

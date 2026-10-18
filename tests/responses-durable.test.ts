@@ -189,7 +189,7 @@ test("runtime anchors private durable data to server configuration and preserves
   }
 });
 
-test("global quota reservations are atomic across gateways and accounts, without evicting retained data", async () => {
+test("exclusive storage keeps concurrent quota reservations and account budgets global without eviction", async () => {
   const directory = await mkdtemp(join(tmpdir(), "durable-quota-"));
   const started = Promise.withResolvers<void>();
   const finish = Promise.withResolvers<void>();
@@ -229,14 +229,11 @@ test("global quota reservations are atomic across gateways and accounts, without
     maxRecordBytes: 4096,
     now: () => time,
   };
+  expect(new URL(options.baseUrl).hostname).toBe("127.0.0.1");
+  let accountId = "a";
   const a = createResponsesGateway(
     options,
-    async () => ({ accessToken: "fixture-a", accountId: "a" }),
-    storage,
-  );
-  const b = createResponsesGateway(
-    options,
-    async () => ({ accessToken: "fixture-b", accountId: "b" }),
+    async () => ({ accessToken: `fixture-${accountId}`, accountId }),
     storage,
   );
   const create = (gateway: typeof a, input = "retain") =>
@@ -249,13 +246,23 @@ test("global quota reservations are atomic across gateways and accounts, without
   try {
     const pending = create(a);
     await started.promise;
-    const conflict = await create(b);
+    // Multiple handles no longer arbitrate writes: a second owner must fail at open.
+    expect(() =>
+      createResponsesGateway(
+        options,
+        async () => ({ accessToken: "fixture-b", accountId: "b" }),
+        storage,
+      ),
+    ).toThrow("already has an active owner");
+    const conflict = await create(a);
     expect(conflict.status).toBe(507);
     expect(await conflict.json()).toMatchObject({ error: { code: "storage_capacity_exceeded" } });
     expect(turns).toBe(1);
     finish.resolve();
     expect((await pending).status).toBe(200);
-    expect((await create(b)).status).toBe(507);
+    accountId = "b";
+    expect((await create(a)).status).toBe(507);
+    accountId = "a";
     expect((await a.forward(new Request("http://local/v1/responses/resp_quota_1"))).status).toBe(
       200,
     );
@@ -267,15 +274,15 @@ test("global quota reservations are atomic across gateways and accounts, without
     expect((await a.forward(new Request("http://local/v1/responses/resp_quota_1"))).status).toBe(
       404,
     );
-    expect((await create(b)).status).toBe(200);
-    expect((await b.forward(new Request("http://local/v1/responses/resp_quota_2"))).status).toBe(
+    accountId = "b";
+    expect((await create(a)).status).toBe(200);
+    expect((await a.forward(new Request("http://local/v1/responses/resp_quota_2"))).status).toBe(
       200,
     );
     expect((await stat(storage.path)).size).toBeLessThan(128 * 1024);
   } finally {
     finish.resolve();
     a.close();
-    b.close();
     await upstream.stop(true);
     await rm(directory, { recursive: true, force: true });
   }

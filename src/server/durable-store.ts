@@ -31,6 +31,10 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
   }
   const db = new Database(path, { strict: true });
   try {
+    // Keep the kernel-owned SQLite lock until close/crash, not just during recovery.
+    db.exec("PRAGMA locking_mode=EXCLUSIVE");
+    db.exec("BEGIN EXCLUSIVE");
+    db.exec("COMMIT");
     const identity = db.query<{ application_id: number }, []>("PRAGMA application_id").get();
     const tables = db
       .query<{ count: number }, []>("SELECT count(*) AS count FROM sqlite_master")
@@ -57,6 +61,16 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
       );`);
   } catch (error) {
     db.close();
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      ["SQLITE_BUSY", "SQLITE_LOCKED"].includes(String(error.code))
+    )
+      throw new GatewayError(
+        409,
+        "storage_in_use",
+        "Local durable storage already has an active owner",
+      );
     throw error;
   }
   const now = options.now ?? Date.now;
@@ -65,6 +79,7 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
   const maxRecords = options.maxRecords ?? 65536;
   const ownedReservations = new Set<string>();
   let closed = false;
+  let backgroundOwned = false;
   const prune = () => {
     db.query("DELETE FROM durable_objects WHERE expires <= ?").run(now());
     db.query("DELETE FROM durable_reservations WHERE expires <= ?").run(now());
@@ -197,6 +212,18 @@ export function createDurableStore(options: DurableStoreOptions = {}) {
   };
   return {
     maxRecordBytes,
+    claimBackground() {
+      if (backgroundOwned)
+        throw new GatewayError(
+          409,
+          "storage_in_use",
+          "Local background producer already has an active owner",
+        );
+      backgroundOwned = true;
+      return () => {
+        backgroundOwned = false;
+      };
+    },
     reserve: (account: string, kind: string, durationMs: number) =>
       reserve(account, kind, durationMs),
     get(account: string, kind: string, id: string): unknown {
