@@ -79,7 +79,7 @@ Pour `POST /v1/responses`, le mode minimal ajoute uniquement les valeurs absente
 
 Pour bénéficier de l'affinité du cache Codex depuis un SDK OpenAI, fournissez une `prompt_cache_key` stable pour les appels partageant le même préfixe. En mode minimal HTTP, le proxy la recopie dans `session-id` si cet en-tête est absent. Un en-tête explicite reste prioritaire. La dérivation exige une chaîne ASCII imprimable non vide, sans espaces aux extrémités ; les autres valeurs restent transmises dans le corps sans dérivation. Le mode raw n'ajoute rien. Le cache reste décidé par Codex : un hit se constate dans `usage.input_tokens_details.cached_tokens`, qui est conservé tel que reçu. Cette clé ne stocke pas l'historique et ne remplace pas `previous_response_id`.
 
-Le catalogue expose 46 opérations : 44 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses et Chat est émulé localement ; les conversations persistantes et tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON/SSE texte et fonctions décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
+Le catalogue expose 54 opérations : 52 routes HTTP et les WebSockets Responses et Realtime. « Vérifié sous conditions » sur la création Responses désigne uniquement les observations historiques du texte simple JSON/SSE et de l'historique explicite, datées et délimitées dans la preuve ; cela ne valide pas toutes ses options, sa persistance ni son lifecycle. Les statuts « présent dans les sources » et « à vérifier » ne promettent pas que l'abonnement accepte chaque route. Le stockage Responses, Chat et Conversations est émulé localement ; les tâches de fond ne sont pas implémentées. Chat Completions dispose du sous-ensemble JSON/SSE texte et fonctions décrit ci-dessous, testé localement, sans validation backend réelle. La spec publique complète reste une référence, pas une garantie backend.
 
 `GET /api/capabilities` conserve ses champs existants, notamment `supported` (route relayable uniquement), et ajoute par opération :
 
@@ -241,6 +241,10 @@ bun run test:live             # deux générations courtes sur le serveur actif
 
 La suite produit utilise des upstreams locaux et le SDK OpenAI : SSE avant EOF, annulation/délais, erreurs, champs inconnus, fichiers binaires, origine/destination, secrets, rafraîchissement et WebSocket. `test:live` effectue réellement les appels modèles/JSON/SSE avec votre session et enregistre uniquement une synthèse dans `artifacts/qa/live-proxy.json`.
 
+`bun test` à la racine et `bun run test` chargent automatiquement la garde **réservée aux tests** de `bunfig.toml`. Les appels globaux `fetch`, `fetch.preconnect` et les constructions globales `WebSocket` refusent les destinations autres que `127.0.0.1`, `localhost` et `[::1]`, avant transport ; seuls les protocoles HTTP(S)/WS(S) sont admis. Les redirections HTTP automatiques sont refusées, y compris vers une autre URL locale ; `redirect:"manual"` permet d'inspecter leur réponse. Les signatures, options, statiques et `instanceof` WebSocket restent disponibles. Le [test de garde](tests/network-guard.test.ts) charge des stubs de transport **avant** ce preload dans un enfant Bun : les contre-exemples distants sont simulés, sans résolution DNS ni envoi réel, avec zéro effet sur les stubs après refus. Les suites locales existantes vérifient aussi les vrais échanges loopback, sans affaiblir les assertions CLI/lifecycle.
+
+Cette garde couvre ces **API globales dans le processus Bun de test**, pas tous les accès TCP du système, les autres clients réseau ni les programmes enfants lancés séparément sans ce preload. Elle ne s'applique pas à `serve`, aux scripts CLI autonomes ou à `test:live` ; ces derniers ne doivent jamais être lancés implicitement par la suite locale. Elle ne modifie ni les destinations ni le transport du produit. Pour empêcher aussi la résolution de dépendances par les fixtures Python, les vérifications hors ligne peuvent utiliser `UV_OFFLINE=true bun test` et `UV_OFFLINE=true bun run test` ; les dépendances doivent alors être déjà installées.
+
 `compatibility-tests/` conserve les preuves du proxy Rust officiel : son ancien test de petits événements SSE expose toujours la limite de buffering de cette référence. Il est distinct de la nouvelle suite produit `./tests`. `codex-contract-atlas/` conserve son propre build et ses tests.
 
 ## Audit Responses
@@ -283,4 +287,38 @@ Le budget applicatif est global : 1 Gio, tous comptes et types de contenu retenu
 
 SQLite utilise un cache de pages de 2 Mio, des objets lus séparément, des transactions immédiates et un journal rollback supprimé à chaque commit, sans WAL cumulatif. Le fichier est plafonné à 1 152 Mio (294 912 pages de 4 Kio) ; avec le journal temporaire, le surcoût physique reste borné à environ 2 320 Mio au total, indépendamment du budget applicatif. Le dossier et le fichier doivent être privés (0700/0600). Expiration et suppression rendent les objets inaccessibles et libèrent le budget, mais ne promettent pas l'effacement physique de toutes leurs copies.
 
-Le stockage n'implémente pas le replay d'une continuité après expiration de socket. `background:true` avec stockage renvoie explicitement 501 ; les tâches de fond et Conversations ne sont pas implémentées ici. Les [tests SDK/runtime locaux](tests/responses-durable.test.ts) vérifient persistance et isolation, sans validation backend réelle ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.
+Le stockage n'implémente pas le replay d'une continuité après expiration de socket. `background:true` avec stockage renvoie explicitement 501 ; les tâches de fond et l'intégration Responses–Conversations ne sont pas implémentées ici. Les [tests SDK/runtime locaux](tests/responses-durable.test.ts) vérifient persistance et isolation, sans validation backend réelle ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.
+
+## Conversations : historique local durable
+
+En mode minimal, les huit opérations publiques Conversations utilisent le **même magasin injecté et le même quota** que Responses, sans TTL de trente jours. Ce ne sont ni des threads Codex ni une intégration à la génération Responses. Le mode raw reste un relais sans stockage local.
+
+```js
+const conversation = await client.conversations.create({
+  metadata: { purpose: 'example' },
+  items: [{ role: 'user', content: 'Bonjour' }],
+});
+await client.conversations.update(conversation.id, { metadata: { purpose: 'updated' } });
+await client.conversations.items.create(conversation.id, {
+  items: [{ role: 'user', content: 'Suite' }],
+});
+const retainedItems = [];
+for await (const item of client.conversations.items.list(conversation.id, { order: 'asc', limit: 20 })) {
+  console.log(item.id, item.type);
+  retainedItems.push(item);
+}
+// Collecter toutes les pages avant de supprimer leurs curseurs.
+for (const item of retainedItems) {
+  await client.conversations.items.delete(item.id, { conversation_id: conversation.id });
+}
+await client.conversations.delete(conversation.id);
+```
+
+- Création et ajout : **20 items maximum par requête**, lot entièrement validé puis transactionnel. Les messages texte sont matérialisés avec `id`, `type:"message"`, `status:"completed"` et parties typées. Les identifiants fournis sont conservés ; les collisions entre items d'un même compte sont refusées avec 400, y compris entre Conversations ou avec un item orphelin. Les copies Responses ont leur identité de stockage distincte.
+- Sous-ensemble d'entrée validé : messages `user`, `assistant`, `system`, `developer` (texte, références image/fichier, output text sans annotations/logprobs non vides et refus assistant), `function_call`, `function_call_output`, `reasoning` et `compaction`. Les phases assistant et contenus chiffrés sont conservés. Les autres variantes de l'union publique, références d'item seules, champs inconnus et formes non couvertes sont **refusés explicitement avec 400**, pas acceptés arbitrairement. Aucune URL média n'est téléchargée et aucun outil n'est exécuté par ces opérations. Scalar conserve le schéma public plus large comme référence, avec cette limitation affichée.
+- Variantes d'items du SDK 7.20.0 refusées dans cette tranche : `file_search_call`, `computer_call`, `computer_call_output`, `web_search_call`, `tool_search_call`, `tool_search_output`, `additional_tools`, `configuration_update`, `image_generation_call`, `code_interpreter_call`, `local_shell_call`, `local_shell_call_output`, `shell_call`, `shell_call_output`, `apply_patch_call`, `apply_patch_call_output`, `mcp_list_tools`, `mcp_approval_request`, `mcp_approval_response`, `mcp_call`, `custom_tool_call`, `custom_tool_call_output`, `compaction_trigger`, `item_reference` (y compris sa forme sans `type`), `program` et `program_output`. Pour les messages, les autres rôles, les parties de contenu autres que `input_text`, `input_image`, `input_file`, `output_text` et `refusal`, et les annotations/logprobs non vides sont également refusés. Cette liste décrit le sous-contrat local, pas une impossibilité native de Codex.
+- Métadonnées : seize paires maximum, clés de 64 caractères et valeurs texte de 512. Une mise à jour **remplace** le dictionnaire ; `null` le vide. Liste d'items : ordre `desc` par défaut, `asc` chronologique, limite 1–100 (défaut 20), curseur `after` appartenant à la même collection ; le SDK peut parcourir les pages. Un curseur supprimé ou étranger renvoie 400. La pagination est vivante, pas une photographie figée pendant des mutations concurrentes.
+- Parent, rattachements, items et copies Responses sont distincts. **DELETE Conversation ne supprime que le parent** et retourne `conversation.deleted`. Les items et rattachements orphelins restent conservés et comptés au quota ; leurs routes, rattachées au parent absent, retournent 404. Il n'existe pas ici de route publique pour les récupérer ou les purger après suppression du parent. Pour enlever ce contenu, supprimer les items **avant** le conteneur. DELETE item retourne l'objet Conversation, pas `item.deleted` ; un second DELETE retourne 404. Aucune copie Response, fichier référencé ou copie physique n'est supprimée en cascade.
+- Les mutations sont sérialisées par transactions SQLite immédiates entre connexions du magasin, sans attente réseau dans la transaction : lot complet ou rollback, y compris sur quota. La contention au-delà du délai borné renvoie 503 ; aucune génération ne verrouille encore une Conversation dans cette tranche. Pas de dépendance aux jobs. Le stockage conserve les bornes de 1 Gio, 4 Mio par objet, 65 536 objets/réservations et les bornes physiques décrites plus haut ; les rattachements sont eux aussi comptés. Un remplacement réserve conservativement sa nouvelle taille avant d'écrire et peut donc être refusé près du plafond.
+
+Les [tests SDK/HTTP locaux](tests/conversations.test.ts) couvrent redémarrage, comptes synthétiques, pagination, suppression distincte, quota partagé avec une génération locale contrôlée, lots invalides et collisions concurrentes. Ils ne valident pas l'accès backend réel. Aucun déploiement n'est requis pour lire ces preuves ; le service actif n'est pas modifié.

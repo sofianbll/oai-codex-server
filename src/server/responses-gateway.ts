@@ -2,6 +2,7 @@ import { type CredentialProvider, GatewayError, type ProxyOptions } from "../sha
 import { chatObject, chatRequest, chatResponse } from "./chat-adapter";
 import { createChatStorage } from "./chat-storage";
 import { chatStream } from "./chat-stream";
+import { conversations } from "./conversations";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
 import { restoreStreamOutput } from "./response-stream-adapter";
@@ -60,9 +61,16 @@ export function createResponsesGateway(
       if (options.translationMode !== "minimal") return relay(request);
       const path = new URL(request.url).pathname;
       const chat = path === "/v1/chat/completions" && request.method === "POST";
+      const conversation = path === "/v1/conversations" || path.startsWith("/v1/conversations/");
+      let conversationBody = "{}";
       const chatOperation =
         path === "/v1/chat/completions" || path.startsWith("/v1/chat/completions/");
-      if (chatOperation || path === "/v1/responses" || path.startsWith("/v1/responses/")) {
+      if (
+        conversation ||
+        chatOperation ||
+        path === "/v1/responses" ||
+        path.startsWith("/v1/responses/")
+      ) {
         const exchange = new Exchange(request.signal, options.timeoutMs);
         let includeUsage = false;
         let original: ReturnType<typeof chatRequest>["stored"];
@@ -72,7 +80,7 @@ export function createResponsesGateway(
         try {
           if (
             (chatOperation && request.method === "POST") ||
-            (request.method === "POST" && path === "/v1/responses")
+            (request.method === "POST" && (conversation || path === "/v1/responses"))
           ) {
             const declared = request.headers.get("content-length");
             if (
@@ -93,6 +101,7 @@ export function createResponsesGateway(
                 ).arrayBuffer()
               : new ArrayBuffer(0);
             request = new Request(request, { body, signal: exchange.controller.signal });
+            if (conversation && body.byteLength) conversationBody = new TextDecoder().decode(body);
             if (chat) {
               const adapted = chatRequest(request, body);
               request = adapted.request;
@@ -117,7 +126,16 @@ export function createResponsesGateway(
               ...storage,
               reservationMs: options.timeoutMs,
             }).reserve(current.accountId, original);
-          let response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+          let response =
+            conversation && store
+              ? conversations(
+                  request,
+                  current.accountId ?? "local",
+                  store,
+                  conversationBody,
+                  storage.now,
+                )
+              : await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (chat) {
             response =
               response.ok &&

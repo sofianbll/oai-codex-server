@@ -34,7 +34,7 @@ export const publicApi = documentSchema.parse(
 export const publicOperations = Object.entries(publicApi.paths)
   .filter(
     ([path]) =>
-      (/^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) ||
+      (/^\/(responses|conversations|models|images|audio|realtime|live)(\/|$)/.test(path) ||
         /^\/chat\/completions(\/|$)/.test(path)) &&
       !path.includes("?"),
   )
@@ -75,6 +75,38 @@ const relayQualification: Qualification = {
 };
 
 function qualification(id: string): Qualification {
+  if (
+    [
+      "createConversation",
+      "getConversation",
+      "updateConversation",
+      "deleteConversation",
+      "createConversationItems",
+      "listConversationItems",
+      "getConversationItem",
+      "deleteConversationItem",
+    ].includes(id)
+  ) {
+    return {
+      implementation: "local",
+      evidence: {
+        kind: "runtime",
+        date: "2026-10-17",
+        scope:
+          "Local SDK/runtime fixtures verify durable Conversations, metadata, pagination, account isolation, atomic writes and restart. Not native Codex persistence or live backend validation.",
+        sources: ["src/server/conversations.ts", "tests/conversations.test.ts"],
+      },
+      prerequisites: [
+        "Minimal mode, the same account and the same private proxy store; raw only relays.",
+      ],
+      limitations: [
+        "Twenty items maximum per create/add; desc pagination by default, order:asc for chronological retrieval. Metadata: 16 string pairs, keys 64 characters and values 512. Updates replace metadata; null clears it.",
+        "Validated local input subset: messages (text, image/file references, unannotated output text/refusal), function calls/results, reasoning and compaction. Other public union variants, annotations, logprobs and unknown fields are explicitly refused, never stored unchecked. Media URLs are not fetched.",
+        "DELETE Conversation removes only the parent. Its orphan items and associations remain retained and counted in the shared quota, but their parent-scoped routes return 404. Delete items first to remove that content; item DELETE returns the Conversation. No Response, file or other copy is purged.",
+        "No thirty-day TTL. Shared 1 GiB account/kind budget, 4 MiB per object and bounded row/physical storage. Mutations are synchronous SQLite transactions across gateways: complete batch or rollback. ID collisions within the account are rejected (400). Storage contention returns 503. Generations using a Conversation are not implemented in this slice.",
+      ],
+    };
+  }
   if (id === "createTranscription" || id === "createTranslation") {
     return {
       ...relayQualification,
@@ -325,7 +357,7 @@ function qualification(id: string): Qualification {
       limitations: [
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
-        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Conversations and durable-context replay are not implemented.",
+        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Responses integration with Conversations and durable-context replay are not implemented.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };
@@ -412,6 +444,12 @@ function qualification(id: string): Qualification {
   return relayQualification;
 }
 const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  createConversation: {
+    metadata: { purpose: "example" },
+    items: [{ role: "user", content: "Hello" }],
+  },
+  updateConversation: { metadata: { purpose: "updated" } },
+  createConversationItems: { items: [{ role: "user", content: "Next message" }] },
   createImageEdit: {
     images: [{ file_id: "file-existing-authorized-image" }],
     model: "unverified-image-model",
@@ -452,6 +490,7 @@ const examples: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
 const categories: Readonly<Record<string, string>> = {
   chat: "Chat",
   responses: "Responses",
+  conversations: "Conversations",
   models: "Models",
   images: "Images",
   audio: "Audio",
@@ -461,6 +500,7 @@ const categories: Readonly<Record<string, string>> = {
 
 const categoryOrder = [
   "responses",
+  "conversations",
   "chat",
   "models",
   "images",

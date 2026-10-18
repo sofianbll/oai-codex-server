@@ -68,7 +68,7 @@ describe("same-origin OpenAPI reference", () => {
     const expected = Object.entries(record.parse(source["paths"]))
       .filter(
         ([path]) =>
-          /^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) &&
+          /^\/(responses|conversations|models|images|audio|realtime|live)(\/|$)/.test(path) &&
           !path.includes("?"),
       )
       .flatMap(([path, value]) =>
@@ -80,8 +80,8 @@ describe("same-origin OpenAPI reference", () => {
     const actual = operations.map(
       (operation) => `${operation.method.toLowerCase()} ${operation.path}`,
     );
-    // Then all 38 source operations are available in the explorer.
-    expect(expected).toHaveLength(38);
+    // Then all 46 source operations are available in the explorer.
+    expect(expected).toHaveLength(46);
     for (const route of expected) expect(actual).toContain(route);
     expect(new Set(actual).size).toBe(actual.length);
     expect(actual.every((route) => !route.includes("?"))).toBe(true);
@@ -206,6 +206,11 @@ describe("same-origin OpenAPI reference", () => {
     const socket = record.parse(record.parse(paths["/v1/realtime"])["get"]);
     expect(record.parse(socket["responses"])["101"]).toBeDefined();
     expect(socket["x-proxy-availability"]).toBe("source-backed");
+    const conversation = record.parse(record.parse(paths["/v1/conversations"])["post"]);
+    expect(conversation["x-proxy-implementation"]).toBe("local");
+    expect(conversation["x-proxy-limitations"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("orphan")]),
+    );
     const call = record.parse(record.parse(paths["/v1/realtime/calls"])["post"]);
     expect(call["x-proxy-implementation"]).toBe("adaptation");
     expect(call["x-proxy-availability"]).toBe("source-backed");
@@ -216,7 +221,6 @@ describe("same-origin OpenAPI reference", () => {
       schema: { required: ["sdp"], additionalProperties: false },
       example: { session: { type: "realtime" } },
     });
-    expect(paths["/v1/conversations"]).toBeUndefined();
     const chat = record.parse(record.parse(paths["/v1/chat/completions"])["post"]);
     expect(chat["x-proxy-implementation"]).toBe("adaptation");
     expect(chat["x-proxy-availability"]).toBe("unverified");
