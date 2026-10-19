@@ -91,17 +91,22 @@ function qualification(id: string): Qualification {
       implementation: "local",
       evidence: {
         kind: "runtime",
-        date: "2026-10-17",
+        date: "2026-10-19",
         scope:
           "Local SDK/runtime fixtures verify durable Conversations, metadata, pagination, account isolation, atomic writes and restart. Not native Codex persistence or live backend validation.",
-        sources: ["src/server/conversations.ts", "tests/conversations.test.ts"],
+        sources: [
+          "src/server/conversations.ts",
+          "src/server/conversation-items.ts",
+          "tests/conversations.test.ts",
+        ],
       },
       prerequisites: [
         "Minimal mode, the same account and the same private proxy store; raw only relays.",
       ],
       limitations: [
         "Twenty items maximum per create/add; desc pagination by default, order:asc for chronological retrieval. Metadata: 16 string pairs, keys 64 characters and values 512. Updates replace metadata; null clears it.",
-        "Validated local input subset: messages (text, image/file references, unannotated output text/refusal), function calls/results, reasoning, compaction and inert program/program_output history (including opaque fingerprints/results). Other public union variants, annotations, logprobs and unknown fields are explicitly refused, never stored unchecked. Media URLs are not fetched; storing history executes no program or tool and does not establish replay support.",
+        "Local inert-history profile: all 29 concrete SDK 7.20.0 ConversationItem families, eight message roles, nine content types, annotations/logprobs, caller/namespace/provenance and finite opaque JSON. Nested tools/actions are validated against the pinned contract. Original JSON is retained separately from public presentation; no tool/program/schema is executed or provisioned and no media URL is fetched. Storage does not establish replay or native backend support.",
+        "Not exhaustive ResponseInputItem acceptance: compaction_trigger and item_reference (including {id} or type:null) return 501 conversation_control_not_materializable without execution/lookup. Missing fields needed for faithful public history return 400 invalid_conversation_request (e.g. tool-search execution/status/call_id); no inferred client/server/completed values. Only established message shorthand is materialized, with a local ID when absent/null. Valid failed/incomplete/in-progress histories remain storable; unknown future families are refused. IDs are nonempty strings; collisions are account-wide.",
         "DELETE Conversation removes only the parent. Its orphan items and associations remain retained and counted in the shared quota, but their parent-scoped routes return 404. Delete items first to remove that content; item DELETE returns the Conversation. No Response, file or other copy is purged.",
         "No thirty-day TTL. Shared 1 GiB account/kind budget, 4 MiB per object and bounded row/physical storage. Concurrent mutations use synchronous SQLite transactions on the sole owner's shared handle: complete batch or rollback. ID collisions within the account are rejected (400). A second storage owner is refused with 409 before recovery. Generations using a Conversation are not implemented in this slice.",
       ],

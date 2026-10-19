@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GatewayError } from "../shared/contracts";
+import { conversationItemSchema, presentConversationItem } from "./conversation-items";
 import type { DurableStore } from "./durable-store";
 import { metadataPairs } from "./metadata";
 
@@ -8,112 +9,7 @@ const id = z
   .min(1)
   .max(256)
   .regex(/^[A-Za-z0-9_-]+$/);
-const status = z.enum(["in_progress", "completed", "incomplete"]);
-const text = z.object({ type: z.literal("input_text"), text: z.string() }).strict();
-const outputText = z
-  .object({
-    type: z.literal("output_text"),
-    text: z.string(),
-    annotations: z.array(z.never()).default([]),
-    logprobs: z.array(z.never()).optional(),
-  })
-  .strict();
-const image = z
-  .object({
-    type: z.literal("input_image"),
-    image_url: z.string().nullable().optional(),
-    file_id: z.string().nullable().optional(),
-    detail: z.enum(["auto", "low", "high", "original"]).optional(),
-  })
-  .strict()
-  .refine((v) => !!v.image_url || !!v.file_id);
-const file = z
-  .object({
-    type: z.literal("input_file"),
-    file_id: z.string().optional(),
-    file_url: z.string().optional(),
-    file_data: z.string().optional(),
-    filename: z.string().optional(),
-  })
-  .strict()
-  .refine((v) => !!v.file_id || !!v.file_url || !!v.file_data);
-const content = z.union([
-  text,
-  outputText,
-  image,
-  file,
-  z.object({ type: z.literal("refusal"), refusal: z.string() }).strict(),
-]);
-// Explicit local subset of ResponseInputItem; other public variants are refused, never stored unchecked.
-const itemSchema = z.union([
-  z
-    .object({
-      type: z.literal("message").optional(),
-      id: id.optional(),
-      role: z.enum(["user", "assistant", "system", "developer"]),
-      content: z.union([z.string(), z.array(content)]),
-      status: status.optional(),
-      phase: z.enum(["commentary", "final_answer"]).nullable().optional(),
-    })
-    .strict()
-    .refine(
-      (v) =>
-        v.role === "assistant" ||
-        (v.phase === undefined &&
-          (typeof v.content === "string" ||
-            v.content.every((part) => !["output_text", "refusal"].includes(part.type)))),
-    ),
-  z
-    .object({
-      type: z.literal("function_call"),
-      id: id.optional(),
-      call_id: z.string().min(1),
-      name: z.string().min(1),
-      arguments: z.string(),
-      status: status.optional(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal("function_call_output"),
-      id: id.optional(),
-      call_id: z.string().min(1),
-      output: z.union([z.string(), z.array(z.union([text, image, file]))]),
-      status: status.optional(),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal("reasoning"),
-      id: id,
-      summary: z.array(z.object({ type: z.literal("summary_text"), text: z.string() }).strict()),
-      encrypted_content: z.string().nullable().optional(),
-      content: z
-        .array(z.object({ type: z.literal("reasoning_text"), text: z.string() }).strict())
-        .optional(),
-      status: status.optional(),
-    })
-    .strict(),
-  z
-    .object({ type: z.literal("compaction"), id: id.optional(), encrypted_content: z.string() })
-    .strict(),
-  // SDK 7.20.0 ResponseInputItem: code, fingerprints and results remain inert history.
-  z.strictObject({
-    type: z.literal("program"),
-    id,
-    call_id: z.string(),
-    code: z.string(),
-    fingerprint: z.string(),
-  }),
-  z.strictObject({
-    type: z.literal("program_output"),
-    id,
-    call_id: z.string(),
-    result: z.string(),
-    status: z.enum(["completed", "incomplete"]),
-  }),
-]);
-const itemsSchema = z.array(itemSchema).max(20);
+const itemsSchema = z.array(conversationItemSchema).max(20);
 const metadata = metadataPairs.nullable();
 const createSchema = z
   .object({ items: itemsSchema.nullable().optional(), metadata: metadata.optional() })
@@ -205,23 +101,11 @@ export function conversations(
     const append = (conversation: Conversation, inputs: z.infer<typeof itemsSchema>) => {
       const result: Item[] = inputs.map((input) => {
         const item: Item = {
-          ...input,
+          original: input,
           id:
-            input.id ??
-            `${!("type" in input) || input.type === "message" ? "msg" : "item"}_${crypto.randomUUID().replaceAll("-", "")}`,
+            (input["id"] as string | null | undefined) ??
+            `${!("type" in input) || input["type"] === "message" ? "msg" : "item"}_${crypto.randomUUID().replaceAll("-", "")}`,
         };
-        if (!("type" in input) || input.type === undefined || input.type === "message") {
-          item["type"] = "message";
-          item["status"] ??= "completed";
-          if (typeof item["content"] === "string")
-            item["content"] = [
-              {
-                type: input.role === "assistant" ? "output_text" : "input_text",
-                text: item["content"],
-                ...(input.role === "assistant" ? { annotations: [] } : {}),
-              },
-            ];
-        }
         return item;
       });
       const seen = new Set<string>();
@@ -234,7 +118,7 @@ export function conversations(
         store.put(account, "conversation-item", item.id, item);
         store.put(account, `conversation-links:${conversation.id}`, item.id, { id: item.id });
       }
-      return result;
+      return result.map(presentConversationItem);
     };
     if (!conversationId) {
       if (request.method !== "POST") return missing();
@@ -277,7 +161,11 @@ export function conversations(
     if (itemId) {
       if (!store.get(account, kind, itemId)) return missing();
       if (request.method === "GET")
-        return Response.json(store.get(account, "conversation-item", itemId) ?? missing());
+        return Response.json(
+          presentConversationItem(
+            (store.get(account, "conversation-item", itemId) ?? missing()) as Item,
+          ),
+        );
       if (request.method === "DELETE") {
         store.delete(account, kind, itemId);
         store.delete(account, "conversation-item", itemId);
@@ -308,7 +196,9 @@ export function conversations(
       list(
         rows
           .slice(0, Number(limit))
-          .map((row) => store.get(account, "conversation-item", row.id) as Item),
+          .map((row) =>
+            presentConversationItem(store.get(account, "conversation-item", row.id) as Item),
+          ),
         rows.length > Number(limit),
       ),
     );
