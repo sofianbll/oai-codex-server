@@ -4,10 +4,27 @@ Un serveur compatible OpenAI devant la session ChatGPT de Codex installée sur c
 
 ## Démarrage
 
-Prérequis : Bun et une session obtenue avec `codex login`. Les identifiants restent dans le `CODEX_HOME` du serveur.
+Prérequis de construction : Bun 1.4.3, Node.js 18+ avec npm, Python 3.10+ et un accès HTTPS public à `api.github.com` et `raw.githubusercontent.com`. Depuis un clone propre, restaurer les dépendances et le contrat ignoré par Git avant le build ou les tests :
+
+Bun 1.4.3 est épinglé pour le projet, la CI et la base Docker : les diagnostics locaux inchangés terminent réellement l'arrêt WebSocket avec cette version, contre un blocage sous 1.3.13, cohérent avec le [signalement upstream](https://github.com/oven-sh/bun/issues/36223). Cette preuve locale ne détermine pas la première version stable corrigée et ne valide ni Docker ni l'accès backend.
 
 ```sh
 bun install --frozen-lockfile
+(cd codex-contract-atlas && env -u GITHUB_TOKEN -u GH_TOKEN npm run snapshot)
+```
+
+Le collecteur existant utilise les révisions épinglées dans [son package.json](codex-contract-atlas/package.json) : Codex `a956835d020762cb2b570053af06f643a11c0ecc`, OpenAPI `ddface9bd361f5fe37943291d23ee2ca72cbcc2b`. Il télécharge uniquement des sources publiques, sans session Codex ni token GitHub. Cette source OpenAPI est JSON : aucune installation PyYAML n'est nécessaire.
+
+Le collecteur termine actuellement avec **2** : seule la source secondaire `compact` (`codex-rs/codex-api/src/endpoint/compact.rs`) est absente au SHA Codex épinglé (HTTP 404). Ce n'est pas un succès du snapshot complet. Examiner `codex-contract-atlas/snapshot/source-manifest.json` : l'entrée `openapi` doit être `fetched` à la révision ci-dessus, sans erreur de résolution des commits. Arrêter en cas d'autre erreur ou source `failed` (réseau, contrat absent/invalide ou empreinte différente), sans recopier un snapshot local ni créer de substitut. Vérifier les deux empreintes OpenAPI du [verrou existant](codex-contract-atlas/research/source-lock.json), source originale puis JSON normalisé :
+
+```sh
+echo '9b3fe0902e71ad60004949c1b4bef39b79503c39506466c283a613f9fa65aea9  codex-contract-atlas/snapshot/openai/openai-openapi/openapi.json' | shasum -a 256 -c -
+echo '9050474c9217015eea50ed89af179be5cb05496f50ef119836ca4a28a94bc1fd  codex-contract-atlas/snapshot/openapi.json' | shasum -a 256 -c -
+```
+
+Ces contrôles restaurent le contrat utilisé par le catalogue et Scalar, pas l'atlas complet : son verrou historique utilise une autre révision Codex et `npm run reproduce` n'est pas validé par cette étape. Voir les [limites de collecte de l'atlas](codex-contract-atlas/README.md#constituer-un-snapshot-réellement-figé). La construction et les tests locaux ne nécessitent pas de session Codex ; **pour servir des requêtes réelles seulement**, une session obtenue avec `codex login` est requise. Les identifiants restent dans le `CODEX_HOME` du serveur.
+
+```sh
 bun run build
 ./oai-codex init --host tailscale --port 8788
 ./oai-codex serve

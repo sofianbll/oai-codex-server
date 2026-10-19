@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/sofianbll/oai-codex-server.git"
   },
-  "packageManager": "bun@1.3.13",
+  "packageManager": "bun@1.4.3",
   "bin": {
     "oai-codex": "./bin/oai-codex"
   },
@@ -23,7 +23,7 @@
     "test:live": "bun scripts/live-smoke.ts"
   },
   "engines": {
-    "bun": ">=1.3.0"
+    "bun": ">=1.4.3"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
