@@ -388,6 +388,11 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
     request: Request,
     pinnedAuth?: UpstreamCredentials,
     beforeSend?: () => Promise<void>,
+    restore?: (
+      previous: string,
+      payload: Readonly<Record<string, unknown>>,
+      accountId: string,
+    ) => Readonly<Record<string, unknown>>,
   ): Promise<Response> {
     if (request.method !== "POST")
       return errorResponse(405, "method_not_allowed", "Responses bridge requires POST");
@@ -396,7 +401,8 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
       const payloadValue: unknown = JSON.parse(adapted.body);
       if (!isRecord(payloadValue))
         throw new GatewayError(400, "invalid_request", "Responses requires a JSON object");
-      const { stream: _stream, ...websocketPayload } = payloadValue;
+      const { stream: _stream, ...initialPayload } = payloadValue;
+      let websocketPayload = initialPayload;
       const previous = payloadValue["previous_response_id"];
       if (
         previous !== undefined &&
@@ -409,12 +415,6 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
           "previous_response_id must be a non-empty string",
         );
       const session = typeof previous === "string" ? responseSessions.get(previous) : undefined;
-      if (typeof previous === "string" && session === undefined)
-        return errorResponse(
-          404,
-          "previous_response_not_found",
-          "No live Responses session owns previous_response_id",
-        );
       if (session?.busy)
         return errorResponse(
           409,
@@ -422,6 +422,21 @@ export function createResponsesBridge(options: ProxyOptions, credentials: Creden
           "The previous response is still active",
         );
       const auth = pinnedAuth ?? (await waitFor(credentials(), options.timeoutMs, request.signal));
+      if (typeof previous === "string" && session === undefined) {
+        if (!restore)
+          return errorResponse(
+            404,
+            "previous_response_not_found",
+            "No live Responses session owns previous_response_id",
+          );
+        websocketPayload = restore(previous, websocketPayload, auth.accountId);
+        if (Buffer.byteLength(JSON.stringify(websocketPayload)) > options.maxBodyBytes)
+          throw new GatewayError(
+            413,
+            "body_too_large",
+            "Restored context exceeds the configured byte limit",
+          );
+      }
       if (session?.closed)
         return errorResponse(404, "previous_response_not_found", "Responses session expired");
       if (session?.busy)

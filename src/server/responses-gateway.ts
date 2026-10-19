@@ -5,6 +5,7 @@ import { chatStream } from "./chat-stream";
 import { conversations } from "./conversations";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
+import { restoreResponse, type StoredResponse } from "./response-replay";
 import { restoreStreamOutput } from "./response-stream-adapter";
 import { createBackgroundResponses } from "./responses-background";
 import { createResponsesLifecycle, type ResponsesStoreOptions } from "./responses-store";
@@ -52,7 +53,16 @@ export function createResponsesGateway(
             (req) => forward(req, options, async () => auth),
           );
         if (request.method === "POST" && path === "/v1/responses") {
-          const response = await bridge.forward(request, auth);
+          const response = await bridge.forward(
+            request,
+            auth,
+            undefined,
+            (previous, payload, account) =>
+              restoreResponse(
+                store?.get(account, "response", previous) as StoredResponse | undefined,
+                payload,
+              ),
+          );
           if (
             response.ok &&
             response.body &&
