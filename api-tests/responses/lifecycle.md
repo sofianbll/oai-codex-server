@@ -30,5 +30,11 @@ run actuel.
 `--scenario compact` exige un item de compaction chiffré puis un rappel exact
 après replay ; les champs SDK optionnels null sont omis lors du replay.
 
-Le stockage du proxy est éphémère. Conversation, background/cancel et comptage
-restent des sondes de compatibilité, pas des capacités promises.
+Ces pilotes effectuent de vrais appels sur la cible choisie : ils ne font pas
+partie de la suite locale hors ligne et exigent un mandat live distinct.
+Les anciennes observations natives restent datées, sans valider les adaptations
+actuelles. En mode minimal, le proxy fournit maintenant un stockage SQLite local
+opt-in, des Conversations durables et background/cancel/reprise SSE, testés avec
+des upstreams synthétiques ; raw reste un relais. Le comptage exact demeure non
+établi, jamais estimé. Voir le [contrat courant et le bilan de livraison](../../README.md#bilan-de-livraison-local--20-octobre-2026)
+pour rétention, quotas, suppressions distinctes et limites backend.

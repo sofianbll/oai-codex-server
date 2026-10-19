@@ -4,7 +4,7 @@ Un serveur compatible OpenAI devant la session ChatGPT de Codex installée sur c
 
 ## Démarrage
 
-Prérequis de construction : Bun 1.4.3, Node.js 18+ avec npm, Python 3.10+ et un accès HTTPS public à `api.github.com` et `raw.githubusercontent.com`. Depuis un clone propre, restaurer les dépendances et le contrat ignoré par Git avant le build ou les tests :
+Prérequis de construction : Bun 1.4.3, Node.js 18+ avec npm, Python 3.10+ et un accès HTTPS public à `api.github.com` et `raw.githubusercontent.com`. Les tests produit exigent aussi `uv` et les dépendances des scripts Python (notamment OpenAI 3.16.2) déjà disponibles dans son cache pour une exécution hors ligne. Un cache vide avec `UV_OFFLINE=1` ne suffit pas ; aucun téléchargement Python n'est effectué par les contrôles hors ligne ci-dessous. Depuis un clone propre, restaurer les dépendances et le contrat ignoré par Git avant le build ou les tests :
 
 Bun 1.4.3 est épinglé pour le projet, la CI et la base Docker : les diagnostics locaux inchangés terminent réellement l'arrêt WebSocket avec cette version, contre un blocage sous 1.3.13, cohérent avec le [signalement upstream](https://github.com/oven-sh/bun/issues/36223). Cette preuve locale ne détermine pas la première version stable corrigée et ne valide ni Docker ni l'accès backend.
 
@@ -116,16 +116,16 @@ En mode minimal, `POST /v1/images/edits` transforme les uploads multipart `image
 
 Audio REST : la transcription conserve la langue d’origine ; la traduction vise l’anglais. Toutes deux restent des relais **non vérifiés**, sans mécanisme fidèle établi sous `/backend-api/codex`. Dans Explorer, choisir « Multipart avec fichier », conserver les champs de l’exemple et joindre l’audio sous `file`. La limite locale porte sur le multipart entier (16 Mio par défaut), pas seulement le fichier ; aucun texte, timestamp, langue détectée ou locuteur n’est fabriqué. La dictée Desktop hors préfixe et Realtime ne prouvent pas ces opérations. Voir la [matrice Audio REST, les limites et la requête synthétique archivée](docs/research/2026-10-17-audio-rest.md). L’unique tentative transcription du coordinateur, le **2026-10-16T22:31:26.788Z**, en QA loopback minimal (`gpt-4o-transcribe`, WAV synthétique sans indice de phrase), a reçu **403 HTML, 97 632 octets, sans transcript**, après une seule tentative upstream sous le préfixe Codex. Cause/strate inconnue, sans conclusion universelle ni attribution au TTS ; **budget transcription épuisé 1/1, aucune relance autorisée**. La traduction reste non essayée et non autorisée.
 
-### Probes médias à réserver par le coordinateur
+### Probes médias : critères et budgets historiques
 
-Aucun appel n'est lancé par la consultation du catalogue. Pour le lot live explicitement réservé, conserver modèle/version, mode, chemin, date, résultat métier et refus expurgés ; chaque tentative consomme le budget, sans retry automatique :
+Aucun appel backend n'est lancé par la consultation du catalogue. Le tableau conserve les critères du lot live historique, **pas une autorisation de lancement**. La livraison finale n'effectue aucun nouvel essai live, même sur un budget ancien non consommé. Chaque tentative passée compte, sans retry automatique ; modèle/version, mode, chemin, date, résultat métier et refus restent qualifiés :
 
 | Probe préparée | Résultat à observer, pas seulement HTTP 200 |
 | --- | --- |
-| Une génération Images | Contenu image décodable et conforme à la consigne ; modèle/options et réponse réels. Ni édition ni variantes n'en héritent. |
+| Une génération Images — budget épuisé 1/1 | Image obtenue, mais dimensions non conformes (1374×1145 au lieu de 1024×1024). Ni édition ni variantes n'en héritent. |
 | Une transcription synthétique Audio REST — budget épuisé 1/1 | 403 HTML observé le 2026-10-16T22:31:26.788Z, aucun transcript ; cause inconnue, aucune relance ni dictée Desktop hors préfixe. |
-| Une synthèse vocale Audio REST | Audio décodable, texte/voix/format établis ; aucun fallback API payant. |
-| Une session Realtime, dix secondes maximum | Transport WS ou WebRTC identifié, négociation/événements et résultat audio établis ; l'autre transport reste non vérifié. Aucun appel téléphonique. |
+| Une synthèse vocale Audio REST — budget épuisé 1/1 | 403 HTML, sans WAV ; aucune synthèse obtenue, aucun fallback API payant. |
+| Une session Realtime, dix secondes maximum — non exécutée | Calibration WebRTC et typage de la garde WS arrêtés après leurs plafonds de réparation ; aucun résultat audio backend établi. Aucun appel téléphonique ni nouveau mandat live. |
 
 Audio speech HTTP : le mode minimal renvoie `501 speech_contract_unverified` après réception bornée du corps, avant accès aux identifiants ou synthèse : aucun contrat TTS Codex fidèle n'est établi dans les sources ciblées. Raw reste un relais non vérifié, sans fallback ni création de voix/consentement. Une interruption binaire raw peut laisser un fichier tronqué avec le statut HTTP initial ; valider le fichier complet, pas seulement 200. La [qualification speech, la requête préparée archivée et le refus observé par le coordinateur](docs/research/2026-10-17-audio-speech.md) distinguent contrat public, tests WAV locaux et synthèse réelle non obtenue.
 
@@ -234,7 +234,7 @@ Seules les métadonnées sont modifiables : au plus 16 paires, clés de 64 carac
 
 Le même DurableStore impose le plafond **global de 1 Gio**, tous comptes et genres confondus, et 4 Mio maximum par objet. La réservation précède la génération ; un manque de capacité produit `507` sans éviction. En SSE, aucune fin réussie ni `[DONE]` n'est exposée avant le commit durable. Annulation, erreur partielle ou échec de commit ne produisent pas de faux succès et ne relancent jamais la génération. Raw reste un relais sans stockage local. Ces garanties sont testées localement, pas validées contre le compte réel.
 
-Le dashboard offre un parcours Tests API (Responses en premier, scénarios numérotés, verdicts techniques et de consigne séparés, échanges dépliables), un explorateur de routes (JSON, texte, multipart/fichier et WebSocket), les réponses binaires téléchargeables, le journal des requêtes et la configuration. Le navigateur garde uniquement la clé du proxy dans `sessionStorage`. Scalar est servi localement ; renseignez la même clé dans Bearer. Aucun proxy Scalar externe n'est utilisé.
+Le dashboard offre un parcours Tests API (Responses en premier, scénarios numérotés, verdicts techniques et de consigne séparés, échanges dépliables), un explorateur de routes (JSON, texte, multipart/fichier et WebSocket), les réponses binaires téléchargeables, le journal des requêtes et la configuration. Le navigateur garde uniquement la clé du proxy dans `sessionStorage`. Les assets Scalar et le contrat sont servis localement ; renseignez la même clé dans Bearer. Aucun proxy Scalar externe n'est configuré pour les requêtes API. La QA initiale du 20 octobre 2026 a constaté trois tentatives externes au chargement de `/docs` : registre de l'agent vers `api.scalar.com` et police vers `fonts.scalar.com`, toutes bloquées avant transport. Les options officielles de Scalar 1.69.0 **`agent:{disabled:true}` et `withDefaultFonts:false`** désactivent maintenant cet agent cloud (actif par défaut sur loopback) et les polices distantes ; les polices système restent utilisées. Le même contrôle navigateur constate ensuite zéro tentative externe aux deux viewports, page rendue sans erreur JavaScript ni débordement horizontal. Aucun bundle tiers n'est réécrit ; les requêtes API locales restent disponibles. Cette observation ne couvre pas tous les liens/actions externes proposés par Scalar et ne certifie pas tous ses parcours hors ligne.
 
 WebSocket navigateur : `new WebSocket('ws://100.64.0.1:8788/v1/responses', ['oai-codex', 'oai-codex-token.' + token])`. La clé de sous-protocole n'est jamais envoyée à Codex. Les clients natifs peuvent utiliser `Authorization: Bearer`. Les frames ne sont pas traduites ; une déconnexion est relayée sans reconnexion automatique. Les buffers sont bornés et le serveur accepte au maximum 64 WebSockets simultanés.
 
@@ -248,15 +248,38 @@ Le journal HTTP en mémoire contient méthode, chemin sans query, statut, durée
 
 ## Vérification
 
+Utiliser explicitement Bun **1.4.3** (y compris les sous-processus `bun` via le `PATH`), pas le Bun 1.3.13 éventuellement installé par défaut. Par exemple sur ce Mac, préfixer chaque commande par `PATH="/opt/homebrew/bin:$PATH" UV_OFFLINE=1 /opt/homebrew/bin/bun` à la place de `bun`. Sans dépendances Python déjà en cache, la suite hors ligne échoue sur son prérequis, pas sur une preuve de compatibilité backend.
+
 ```sh
 bun run check
-bun run test
+UV_OFFLINE=1 bun run test
 bun run build
-bun run lint
-bun run test:live             # deux générations courtes sur le serveur actif
+bun run lint --diagnostic-level=error
+git diff --check
 ```
 
-La suite produit utilise des upstreams locaux et le SDK OpenAI : SSE avant EOF, annulation/délais, erreurs, champs inconnus, fichiers binaires, origine/destination, secrets, rafraîchissement et WebSocket. `test:live` effectue réellement les appels modèles/JSON/SSE avec votre session et enregistre uniquement une synthèse dans `artifacts/qa/live-proxy.json`.
+La suite produit utilise des upstreams locaux et le SDK OpenAI : SSE avant EOF, annulation/délais, erreurs, champs inconnus, fichiers binaires, origine/destination, secrets, rafraîchissement et WebSocket. **Hors vérification locale** : `bun run test:live` effectue réellement les appels modèles/JSON/SSE avec votre session sur le serveur actif et enregistre une synthèse dans `artifacts/qa/live-proxy.json`. Ne pas le lancer sans mandat live distinct ; il n'a pas été exécuté pour la livraison finale.
+
+### Bilan de livraison local — 20 octobre 2026
+
+Les niveaux ci-dessous sont distincts et ne se propagent pas d'une opération à ses voisines. Source produit contrôlée : `e65cfa9d0aff7747eff61d4bcbf207a967d88879`, Bun 1.4.3. Un **vrai clone local `--no-local`**, sans copie de fichiers ignorés, a restauré le contrat par le collecteur public épinglé : empreintes ci-dessus conformes, collecte partielle explicitement qualifiée. Build, **18 tests app/OpenAPI (21 535 assertions)** puis **406 tests produit (24 047 assertions)** réussissent. Ces résultats utilisent le cache Python préexistant, pas un cache froid ni une autre machine.
+
+| Périmètre | Implémenté / vérifié localement | Vérifié contre backend réel / refusé / non vérifié |
+| --- | --- | --- |
+| Responses HTTP et Chat | Adaptations JSON/SSE, fonctions Chat, bornes et erreurs testées avec upstreams locaux | Texte simple Responses JSON/SSE et Chat JSON observés historiquement ; **Chat SSE a échoué `unsupported_chat_output`**, correctif rejoué localement seulement. Pas de nouvelle validation live. |
+| État local | Responses et Chat `store:true`, replay de contexte, Conversations inertes et tours Responses, jobs background JSON/SSE, polling/cancel/reprise testés via SDK/HTTP/runtime locaux | **Pas de validation backend réelle de ces adaptations** ; replay chiffré réel et portabilité modèles/versions non vérifiés. Historique stockable ≠ contexte génératif accepté. |
+| Images | Transport génération et adaptation du sous-contrat d'édition testés localement | Génération réelle obtenue mais dimensions **non conformes** ; édition non essayée, variantes refusées localement `501`. Pas de validation globale Images. |
+| Audio REST | Relais transcription/traduction qualifiés ; speech minimal refuse `501 speech_contract_unverified` | Transcription minimal et speech raw : **403 HTML**, sans transcript ni audio, cause inconnue. Traduction non essayée. Pas de TTS fonctionnel validé. |
+| Realtime | Transport WS et enveloppe WebRTC testés synthétiquement ; refus/protocoles/prérequis documentés | Calibration des outils live arrêtée ; aucun échange audio réel vérifié. Contrôles de session et autres transports n'héritent d'aucun succès. |
+| Navigateur | Chromium installé, 1440×900 et 390×844 : qualifications Conversations/Responses/médias, refus synthétiques de reprise/cancel et Scalar inspectés ; pas de débordement horizontal de page ni erreur JavaScript sur ces vues | Dashboard sans requête externe observée ; Scalar initialement en échec sur ce critère, puis **zéro tentative externe au chargement après désactivation de l'agent cloud et des polices distantes**. Fixture toujours `501` : aucun vrai état de job validé dans le navigateur. Pas d'audit exhaustif a11y/clavier/hover ni de clipping interne. |
+
+Addendum correctif Scalar : le rouge navigateur (trois tentatives par viewport) et le vert ont des rapports/captures séparés, sans remplacer les observations initiales. **407 tests produit (24 053 assertions)**, dont le contrôle de configuration `/docs`, puis types/build/lint niveau erreur/whitespace réussissent localement après ce correctif. Ce n'est ni une nouvelle validation backend ni une nouvelle vérification de clone propre du code corrigé.
+
+**Non exécuté / non établi** : Docker (images de base absentes localement, aucun pull/build), second appareil, CI distante, tests Python avec cache froid satisfaisant, benchmark TCP/RSS et injection de panne disque. La revue finale Standards + Spec est une étape distincte : ce bilan n'en revendique pas l'approbation. Aucune activation, migration de données existantes, modification de service actif, publication ou mise en production n'a été réalisée pour cette livraison.
+
+**Compatibilité et données** : les profils minimal/raw et les refus restent ceux documentés ci-dessous ; les schémas publics Scalar ne promettent pas la disponibilité backend. `store:false` ordinaire ne conserve pas de Response, mais une Conversation explicite conserve ses items et un job background exige sa rétention temporaire. Les TTL, quota global, propriétaire SQLite unique, suppressions distinctes et absence de purge physique garantie restent applicables. Aucun nouveau schéma ni migration n'est introduit par cette documentation.
+
+**Retour arrière** : cette livraison documentaire n'exige aucun redémarrage. Un retour de version du produit n'est pas un effacement des objets SQLite et ne garantit pas qu'une ancienne version sache lire les enveloppes récentes. Avant toute activation ou rétrogradation séparément autorisée, arrêter proprement le propriétaire, sauvegarder la base privée fermée et conserver la configuration ; ne pas lancer deux propriétaires sur la même base, ne pas supprimer les données pour contourner une incompatibilité. Les jobs inachevés deviennent failed à la reprise, sans réémission automatique. Ni sauvegarde/restauration ni retour de version en production n'ont été exécutés ici.
 
 `bun test` à la racine et `bun run test` chargent automatiquement la garde **réservée aux tests** de `bunfig.toml`. Les appels globaux `fetch`, `fetch.preconnect` et les constructions globales `WebSocket` refusent les destinations autres que `127.0.0.1`, `localhost` et `[::1]`, avant transport ; seuls les protocoles HTTP(S)/WS(S) sont admis. Les redirections HTTP automatiques sont refusées, y compris vers une autre URL locale ; `redirect:"manual"` permet d'inspecter leur réponse. Les signatures, options, statiques et `instanceof` WebSocket restent disponibles. Le [test de garde](tests/network-guard.test.ts) charge des stubs de transport **avant** ce preload dans un enfant Bun : les contre-exemples distants sont simulés, sans résolution DNS ni envoi réel, avec zéro effet sur les stubs après refus. Les suites locales existantes vérifient aussi les vrais échanges loopback, sans affaiblir les assertions CLI/lifecycle.
 

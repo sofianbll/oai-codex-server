@@ -59,6 +59,17 @@ test("public liveness and spec; API requires local token and same-origin", async
   expect(response.status).toBe(200);
   expect(await response.text()).not.toContain("secret");
 });
+test("embedded docs disable Scalar cloud agent and remote default fonts", async () => {
+  const { app, forwarded } = await fixture();
+  const response = await app.request("/docs");
+  expect(response.status).toBe(200);
+  const html = await response.text();
+  expect(html).toContain('src="/assets/scalar.js"');
+  expect(html).toContain("withDefaultFonts:false");
+  expect(html).toContain("agent:{disabled:true}");
+  expect(html).toContain("hideTestRequestButton:false");
+  expect(forwarded()).toBe(0);
+});
 test("authenticated route preserves response and records only metadata", async () => {
   const { app, headers } = await fixture();
   const response = await app.request("/v1/future?secret=hidden", {
