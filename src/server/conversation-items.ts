@@ -183,18 +183,18 @@ export const conversationItemSchema = z.custom<Record<string, unknown>>((value) 
       "conversation_control_not_materializable",
       "Inert history cannot materialize compaction_trigger or item_reference; no execution or reference lookup is performed",
     );
-  if (
-    item["id"] !== undefined &&
-    item["id"] !== null &&
-    (typeof item["id"] !== "string" || !item["id"].length)
-  )
-    return false;
+  // Only messages may omit id (one is generated at persistence); other families keep their
+  // own identity. Dot segments are refused: SDK/HTTP item paths can never address them.
+  const isMessage = item["type"] === undefined || item["type"] === "message";
+  if (typeof item["id"] !== "string" || !item["id"].length) {
+    if (item["id"] !== undefined && item["id"] !== null) return false;
+    if (!isMessage) return false;
+  } else if (item["id"] === "." || item["id"] === "..") return false;
   const publicItem = presentConversationItem({ id: "item_validation", original: item });
   return (
     ownDictionaries(item) &&
     history.safeParse(publicItem).success &&
-    ((item["type"] === undefined || item["type"] === "message") &&
-    !(typeof item["id"] === "string" && Object.hasOwn(item, "status"))
+    (isMessage && !(typeof item["id"] === "string" && Object.hasOwn(item, "status"))
       ? shorthand.safeParse(item).success
       : true)
   );

@@ -67,6 +67,7 @@ test("SDK Conversation metadata and ordered items survive runtime restart and ac
         { role: "user", content: "second" },
         {
           type: "function_call",
+          id: "function_fixture",
           call_id: "call_fixture",
           name: "lookup",
           arguments: "{}",
@@ -530,6 +531,50 @@ test("inert history rejects malformed fields and prerequisites atomically, inclu
     });
     expect(infinite.status).toBe(400);
     expect((await f.client.conversations.items.list(conversation.id)).data).toEqual([]);
+    expect(f.calls()).toBe(0);
+  } finally {
+    await f.close();
+  }
+});
+
+test("inert history refuses invented identities and non-addressable dot ids", async () => {
+  const f = await fixture();
+  const program = {
+    type: "program",
+    call_id: "call_identity",
+    code: "inert",
+    fingerprint: "opaque",
+  };
+  try {
+    const conversation = await f.client.conversations.create();
+    const append = (items: unknown[]) =>
+      fetch(`${f.url}/v1/conversations/${conversation.id}/items`, {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      });
+    for (const bad of [
+      // Missing or null identity on a non-message family must be refused, not invented.
+      program,
+      { ...program, id: null },
+      {
+        type: "function_call",
+        call_id: "call_identity",
+        name: "fixture",
+        arguments: "{}",
+        status: "completed",
+      },
+      // Dot segments are storable but never addressable through SDK/HTTP item paths.
+      { ...program, id: "." },
+      { ...program, id: ".." },
+      { role: "user", content: "inert", id: "." },
+    ])
+      expect(
+        (await append([{ role: "user", content: "rollback" }, bad])).status,
+        JSON.stringify(bad),
+      ).toBe(400);
+    // Messages without id still receive a generated msg_ identity.
+    expect((await append([{ role: "user", content: "kept" }])).status).toBe(200);
+    expect((await f.client.conversations.items.list(conversation.id)).data).toHaveLength(1);
     expect(f.calls()).toBe(0);
   } finally {
     await f.close();
