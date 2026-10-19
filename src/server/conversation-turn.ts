@@ -1,5 +1,4 @@
 import { GatewayError } from "../shared/contracts";
-import { presentConversationItem } from "./conversation-items";
 import {
   appendConversationItems,
   lockConversation,
@@ -74,7 +73,7 @@ export function prepareConversationTurn(
     records.push(item);
     after = row.id;
   }
-  const history = records.map(presentConversationItem);
+  const history = records.map((item) => item["original"] ?? item);
   const input = originalInput(payload["input"]);
   if (!input)
     throw new GatewayError(
@@ -104,7 +103,7 @@ export function prepareConversationTurn(
     id,
     release,
     releaseCapacity,
-    context: [...records.map((item) => item["original"] ?? item), ...input],
+    context: [...history, ...input],
     payload: { ...native, input: [...projected, ...input] },
     append(response: Json) {
       const output = response["output"];

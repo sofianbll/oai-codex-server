@@ -7,6 +7,62 @@ import { createDurableStore } from "../src/server/durable-store";
 import { createResponsesGateway } from "../src/server/responses-gateway";
 
 type Json = Record<string, unknown>;
+
+test("SDK Conversation tool-result presentation defaults never enter the next upstream request", async () => {
+  const f = await fixture();
+  const result = {
+    type: "function_call_output" as const,
+    call_id: "call_presentation",
+    output: "provided result",
+  };
+  try {
+    const c = await f.client.conversations.create();
+    await f.client.responses.create({ model: "fixture", conversation: c.id, input: [result] });
+    expect((await f.client.conversations.items.list(c.id, { order: "asc" })).data[0]).toMatchObject(
+      { ...result, status: "completed" },
+    );
+    f.restart();
+    await f.client.responses.create({ model: "fixture", conversation: c.id, input: "next" });
+    const input = f.received[1]?.["input"] as Json[];
+    expect(input[0]).toEqual(result);
+    expect(input[0]).not.toHaveProperty("status");
+    expect((await f.client.conversations.items.list(c.id, { order: "asc" })).data[0]).toMatchObject(
+      { ...result, status: "completed" },
+    );
+  } finally {
+    await f.close();
+  }
+});
+
+test("SDK Responses do not silently complete a program_output missing its required status", async () => {
+  const f = await fixture();
+  try {
+    const c = await f.client.conversations.create();
+    await expect(
+      f.client
+        .post("/responses", {
+          body: {
+            model: "fixture",
+            conversation: c.id,
+            input: [
+              {
+                type: "program_output",
+                id: "program_without_status",
+                call_id: "call_program",
+                result: "provided",
+              },
+            ],
+          },
+        })
+        .asResponse(),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(f.received).toHaveLength(0);
+    expect((await f.client.conversations.items.list(c.id)).data).toHaveLength(0);
+  } finally {
+    await f.close();
+  }
+});
+
 async function fixture(
   reply?: (socket: { send(value: string): void; close(): void }, input: Json, n: number) => void,
   limits: { maxRecords?: number; maxBytes?: number } = {},
@@ -105,7 +161,7 @@ test("SDK Conversation prefixes all items once and retains successive turns with
     expect(first.conversation).toEqual({ id: c.id });
     expect(f.received[0]).not.toHaveProperty("conversation");
     expect(f.received[0]?.["input"]).toMatchObject([
-      { role: "user", content: [{ type: "input_text", text: "seed" }] },
+      { role: "user", content: "seed" },
       { role: "user", content: [{ type: "input_text", text: "first" }] },
     ]);
     await expect(f.client.responses.retrieve(first.id).asResponse()).rejects.toMatchObject({
@@ -119,7 +175,7 @@ test("SDK Conversation prefixes all items once and retains successive turns with
     });
     expect(second.conversation).toEqual({ id: c.id });
     expect(f.received[1]?.["input"]).toMatchObject([
-      { role: "user", content: [{ text: "seed" }] },
+      { role: "user", content: "seed" },
       { role: "user", content: [{ text: "first" }] },
       { role: "assistant", content: [{ text: "reply" }] },
       { role: "user", content: [{ text: "second" }] },
@@ -410,7 +466,7 @@ test("SDK tool turns include more than twenty ordered items and previous_respons
       store: true,
     });
     expect(f.received[1]?.["input"]).toMatchObject([
-      ...Array.from({ length: 23 }, (_, i) => ({ role: "user", content: [{ text: `seed ${i}` }] })),
+      ...Array.from({ length: 23 }, (_, i) => ({ role: "user", content: `seed ${i}` })),
       { role: "user", content: [{ text: "lookup" }] },
       tool,
       result,
@@ -690,7 +746,7 @@ test("SDK background JSON/SSE prefix and commit every native terminal before pol
         expect((await f.client.conversations.items.list(c.id)).data).toHaveLength(3);
         expect(f.received.at(-1)).not.toHaveProperty("conversation");
         expect(f.received.at(-1)?.["input"]).toMatchObject([
-          { role: "user", content: [{ text: "prefix" }] },
+          { role: "user", content: "prefix" },
           { role: "user", content: [{ text: "new" }] },
         ]);
       }
