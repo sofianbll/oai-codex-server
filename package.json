@@ -28,17 +28,17 @@
   "dependencies": {
     "@clack/prompts": "^1.8.1",
     "commander": "^15.0.0",
-    "hono": "^4.13.8",
-    "ky": "^2.1.0",
-    "openai": "7.20.0",
-    "zod": "^4.6.5"
+    "hono": "^4.13.13",
+    "ky": "^2.2.0",
+    "openai": "7.34.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "@phosphor-icons/core": "^2.1.1",
-    "@playwright/test": "^1.63.0",
-    "@scalar/api-reference": "^1.69.0",
-    "@types/bun": "^1.4.2",
+    "@playwright/test": "^1.64.1",
+    "@scalar/api-reference": "^1.74.0",
+    "@types/bun": "^1.4.3",
     "typescript": "^7.0.2"
   }
 }
