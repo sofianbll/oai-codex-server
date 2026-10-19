@@ -4,7 +4,9 @@ Un serveur compatible OpenAI devant la session ChatGPT de Codex installée sur c
 
 ## Démarrage
 
-Prérequis de construction : Bun, Node.js 18+ avec npm, Python 3.10+ et un accès HTTPS public à `api.github.com` et `raw.githubusercontent.com`. Depuis un clone propre, restaurer les dépendances et le contrat ignoré par Git avant le build ou les tests :
+Prérequis de construction : Bun 1.4.3, Node.js 18+ avec npm, Python 3.10+ et un accès HTTPS public à `api.github.com` et `raw.githubusercontent.com`. Depuis un clone propre, restaurer les dépendances et le contrat ignoré par Git avant le build ou les tests :
+
+Bun 1.4.3 est épinglé pour le projet, la CI et la base Docker : les diagnostics locaux inchangés terminent réellement l'arrêt WebSocket avec cette version, contre un blocage sous 1.3.13, cohérent avec le [signalement upstream](https://github.com/oven-sh/bun/issues/36223). Cette preuve locale ne détermine pas la première version stable corrigée et ne valide ni Docker ni l'accès backend.
 
 ```sh
 bun install --frozen-lockfile
