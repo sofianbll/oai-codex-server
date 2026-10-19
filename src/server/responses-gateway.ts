@@ -155,6 +155,8 @@ export function createResponsesGateway(
             }).reserve(current.accountId, original);
           let response: Response;
           const cancel = path.match(/^\/v1\/responses\/([^/]+)\/cancel$/);
+          const replay = path.match(/^\/v1\/responses\/([^/]+)$/);
+          const query = new URL(request.url).searchParams;
           if (conversation && store) {
             response = conversations(
               request,
@@ -162,6 +164,34 @@ export function createResponsesGateway(
               store,
               conversationBody,
               storage.now,
+            );
+          } else if (
+            request.method === "GET" &&
+            replay?.[1] &&
+            background &&
+            (query.get("stream") === "true" || query.has("starting_after"))
+          ) {
+            for (const name of query.keys())
+              if (!["stream", "starting_after"].includes(name) || query.getAll(name).length !== 1)
+                throw new GatewayError(
+                  400,
+                  "invalid_request",
+                  "Unsupported or duplicate background stream parameter",
+                );
+            const after = query.get("starting_after");
+            if (
+              query.get("stream") !== "true" ||
+              (after !== null && (!/^\d+$/.test(after) || !Number.isSafeInteger(Number(after))))
+            )
+              throw new GatewayError(
+                400,
+                "invalid_cursor",
+                "Resume requires stream=true and a nonnegative integer starting_after",
+              );
+            response = background.stream(
+              current.accountId,
+              decodeURIComponent(replay[1]),
+              after === null ? -1 : Number(after),
             );
           } else if (request.method === "POST" && cancel?.[1] && background) {
             response = background.cancel(current.accountId, decodeURIComponent(cancel[1]));

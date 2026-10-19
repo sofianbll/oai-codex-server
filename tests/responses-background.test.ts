@@ -219,7 +219,7 @@ test("background polling preserves native cancelled, failed and incomplete termi
   }
 });
 
-test("invalid background options and missing SSE journal fail explicitly before any upstream emission", async () => {
+test("invalid background options fail explicitly before any upstream emission", async () => {
   const f = await fixture();
   try {
     for (const options of [
@@ -236,9 +236,6 @@ test("invalid background options and missing SSE journal fail explicitly before 
       expect(result.status).toBe(400);
       await result.text();
     }
-    await expect(
-      f.client.responses.create({ input: "stream", background: true, stream: true }).asResponse(),
-    ).rejects.toMatchObject({ status: 501, code: "background_stream_not_ready" });
     expect(f.emissions()).toBe(0);
   } finally {
     await f.close();
@@ -477,7 +474,7 @@ test("explicit background storage survives restart for thirty days without renew
     expect(await terminal(f.client, queued.id)).toMatchObject({ store: true, status: "completed" });
     await expect(
       f.client.responses.retrieve(queued.id, { stream: true, starting_after: 0 }).asResponse(),
-    ).rejects.toMatchObject({ status: 501, code: "background_stream_not_ready" });
+    ).rejects.toMatchObject({ status: 400, code: "background_not_streamed" });
     f.restart();
     time += 10 * 60_000;
     expect(await f.client.responses.retrieve(queued.id)).toMatchObject({ store: true });
