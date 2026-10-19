@@ -145,15 +145,6 @@ export function createResponsesLifecycle(
         if (!id) return jsonError(400, "invalid_request", "Response ID is required");
 
         if (request.method === "GET" && !suffix) {
-          if (
-            store.get(accountId, "background", id) &&
-            (url.searchParams.get("stream") === "true" || url.searchParams.has("starting_after"))
-          )
-            return jsonError(
-              501,
-              "background_stream_not_ready",
-              "Background SSE journal and replay are not implemented yet; use JSON polling",
-            );
           const saved = (store.get(accountId, "response", id) ??
             store.get(accountId, "background", id)) as StoredResponse | undefined;
           return saved
@@ -173,6 +164,7 @@ export function createResponsesLifecycle(
             );
           const deleted =
             store.delete(accountId, "response", id) || store.delete(accountId, "background", id);
+          if (deleted) store.delete(accountId, "background-stream", id);
           return deleted
             ? Response.json({ id, object: "response.deleted", deleted: true })
             : jsonError(404, "not_found", `Response '${id}' was not found`);

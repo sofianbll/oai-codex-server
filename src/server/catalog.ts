@@ -47,7 +47,7 @@ export const transportDescription =
 const publicDescription =
   "The schema is the public OpenAI contract, not proof of Codex backend availability. Upstream status codes and errors are returned to the caller.";
 const responsesDescription =
-  "In minimal mode, POST /v1/responses converts string input to a user message, supplies a missing model and instructions, sets store=false upstream and requests native streaming. Synchronous callers receive terminal JSON or SSE as requested. background:true with stream:false (or omitted) returns a local queued Response immediately; GET polls it and POST /responses/{id}/cancel cancels idempotently. Client disconnect does not cancel background work. Background streaming/replay returns 501 until its journal is implemented. For synchronous stream:true, the proxy restores terminal response.output only when the upstream terminal event omits or empties it. Other fields, including tools, reasoning, metadata and future extensions, are retained. Raw mode bypasses these adaptations. Only basic synchronous text creation and client-supplied history have historical live evidence; background is verified with local SDK/runtime fixtures only.";
+  "In minimal mode, POST /v1/responses converts string input to a user message, supplies a missing model and instructions, sets store=false upstream and requests native streaming. Synchronous callers receive terminal JSON or SSE as requested. background:true returns a local queued Response immediately (JSON or a response.created SSE event); GET polls it and POST /responses/{id}/cancel cancels idempotently. Client disconnect does not cancel background work. Only a background stream:true creation enables GET /responses/{id}?stream=true&starting_after=N: exact retained events after N, without regeneration. Background events use the local Response ID and canonical increasing sequence_number starting at zero; upstream sequence numbers are replaced only for background. The private bounded journal expires ten minutes after terminal, independently of thirty-day store:true JSON. For synchronous stream:true, the proxy restores terminal response.output only when the upstream terminal event omits or empties it. Other fields, including tools, reasoning, metadata and future extensions, are retained. Raw mode bypasses these adaptations. Only basic synchronous text creation and client-supplied history have historical live evidence; background is verified with local SDK/runtime fixtures only.";
 const sourceBacked = new Set([
   "listModels",
   "createImage",
@@ -326,6 +326,7 @@ function qualification(id: string): Qualification {
           "src/server/responses-store.ts",
           "tests/responses-durable.test.ts",
           "tests/responses-background.test.ts",
+          "tests/responses-background-stream.test.ts",
         ],
       },
       prerequisites: [
@@ -333,7 +334,7 @@ function qualification(id: string): Qualification {
       ],
       limitations: [
         "Thirty-day local retention across restart; 1 GiB global application budget across accounts/kinds, 4 MiB per retained object including inputs. Capacity errors are explicit, without arbitrary eviction. Raw mode only relays. Durable data does not restore a native continuation.",
-        "Background store:false/omitted retains data during bounded execution and ten minutes after terminal; store:true retains the Response thirty days. All queued/running jobs fail on restart without re-emission. Delete an active job only after cancel. Background SSE retrieval/replay returns 501 until its journal is implemented.",
+        "Background store:false/omitted retains data during bounded execution and ten minutes after terminal; store:true retains the Response thirty days. Only background stream:true creation enables replay; the journal expires ten minutes after terminal (410 background_journal_unavailable) independently of JSON. All queued/running jobs fail on restart without re-emission; replay retains only committed events then reports background_interrupted. Delete an active job only after cancel.",
       ],
     };
   }
@@ -380,7 +381,7 @@ function qualification(id: string): Qualification {
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
         "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Responses integration with Conversations and durable-context replay are not implemented.",
-        "background:true is a local JSON/poll/cancel job, tested only against local upstreams: at most 16 pending jobs, each bounded by timeoutMs from acceptance. Credentials are pinned per request and the persisted account is revalidated before native emission. All unfinished jobs fail after restart; no automatic retry. Temporary retention is execution plus ten minutes after terminal, or thirty days with store:true. Background stream:true/replay returns 501 (journal not ready). Local job IDs do not yet provide native continuation or durable replay.",
+        "background:true is a local JSON/SSE/poll/cancel job, tested only against local upstreams: at most 16 pending jobs and 64 subscribers, each request bounded by timeoutMs. Credentials are pinned and the account is revalidated before native emission. All unfinished jobs fail after restart; no retry. Temporary JSON and the SSE journal expire ten minutes after terminal; store:true JSON lasts thirty days. The journal reserves a separate 4 MiB object under the same 1 GiB budget before generation. A full journal fails the job explicitly; a slow subscriber is disconnected with slow_consumer without cancelling the job. Only stream:true creation enables exact replay after starting_after with local ID and canonical sequences from zero. Local IDs do not provide native continuation or durable-context replay.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };
