@@ -8,6 +8,56 @@ import { createResponsesGateway } from "../src/server/responses-gateway";
 
 type Json = Record<string, unknown>;
 
+test("SDK Conversation shorthand and explicit messages reject the same inert assistant input content", async () => {
+  const f = await fixture();
+  try {
+    for (const type of [undefined, "message"]) {
+      const item = {
+        ...(type === undefined ? {} : { type }),
+        role: "assistant",
+        content: [{ type: "input_text", text: "inert" }],
+      };
+      const c = await f.client.post<{ id: string }>("/conversations", { body: { items: [item] } });
+      await expect(
+        f.client.responses
+          .create({ model: "fixture", conversation: c.id, input: "must not generate" })
+          .asResponse(),
+      ).rejects.toMatchObject({ status: 409, code: "response_context_not_replayable" });
+      expect(f.received).toHaveLength(0);
+      expect((await f.client.conversations.items.list(c.id)).data).toHaveLength(1);
+    }
+  } finally {
+    await f.close();
+  }
+});
+
+test("SDK stored replay rejects inert assistant input content with absent, null or explicit message type", async () => {
+  const f = await fixture();
+  try {
+    for (const type of [undefined, null, "message"]) {
+      const item = {
+        ...(type === undefined ? {} : { type }),
+        role: "assistant",
+        content: [{ type: "input_text", text: "inert" }],
+      };
+      const root = await f.client.post<{ id: string }>("/responses", {
+        body: { model: "fixture", input: [item], store: true },
+      });
+      expect(f.received.at(-1)?.["input"]).toEqual([item]);
+      f.restart();
+      const before = f.received.length;
+      await expect(
+        f.client.responses
+          .create({ model: "fixture", previous_response_id: root.id, input: "must not generate" })
+          .asResponse(),
+      ).rejects.toMatchObject({ status: 409, code: "response_context_not_replayable" });
+      expect(f.received).toHaveLength(before);
+    }
+  } finally {
+    await f.close();
+  }
+});
+
 test("SDK Conversation tool-result presentation defaults never enter the next upstream request", async () => {
   const f = await fixture();
   const result = {

@@ -85,7 +85,7 @@ export function prepareConversationTurn(
     throw new GatewayError(400, "invalid_conversation_input", "Conversation inputs must be items");
   prepareConversationItems(store, account, input as Json[], true);
   const { conversation: _conversation, ...native } = payload;
-  const projected = projectContext(history, true);
+  const projected = projectContext(history);
   const unlock = lockConversation(store, account, id);
   let capacity: ReturnType<DurableStore["reserve"]>;
   try {
