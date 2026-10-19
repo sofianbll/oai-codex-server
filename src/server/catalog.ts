@@ -250,7 +250,9 @@ function qualification(id: string): Qualification {
       limitations: [
         "Historical 2026-09-20 backend refusals: temperature, top_p, max_output_tokens. Fields are not silently removed; this is not a universal model limitation.",
         "Code Interpreter was rejected as an unsupported tool on 2026-09-20; no local substitute or new resource is provided.",
-        "store:true opts into thirty-day private SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs, Conversations and durable-context replay are not implemented.",
+        "store:true opts into thirty-day account-isolated SQLite persistence in minimal mode; omitted store remains false. Quota reservations may reject a write before generation (507). Background jobs and Conversations are separate adaptations.",
+        "After socket loss/restart, complete stored context can be projected into a new explicit request without a native previous_response_id, duplicate history or inherited instructions. Local SDK/runtime replay tests only; real encrypted replay and cross-model/version portability remain unverified.",
+        "Without a live socket, missing/expired/deleted/foreign IDs fail with 404 previous_response_not_found; incomplete or unprojectable context fails with 409 response_context_incomplete/response_context_not_replayable before generation. No automatic retry or local tool execution.",
         "Only basic creation is marked verified; advanced options and tools require their own result evidence. Raw mode bypasses local adaptations.",
       ],
     };

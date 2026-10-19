@@ -2,6 +2,7 @@ import { type CredentialProvider, GatewayError, type ProxyOptions } from "../sha
 import { chatRequest, chatResponse } from "./chat-adapter";
 import { createDurableStore } from "./durable-store";
 import { compactResponse } from "./response-compact";
+import { restoreResponse, type StoredResponse } from "./response-replay";
 import { restoreStreamOutput } from "./response-stream-adapter";
 import { createResponsesLifecycle, type ResponsesStoreOptions } from "./responses-store";
 import { createResponsesBridge } from "./responses-ws-bridge";
@@ -32,7 +33,12 @@ export function createResponsesGateway(
             (req) => forward(req, options, async () => auth),
           );
         if (request.method === "POST" && path === "/v1/responses") {
-          const response = await bridge.forward(request, auth);
+          const response = await bridge.forward(request, auth, (previous, payload, account) =>
+            restoreResponse(
+              store?.get(account, "response", previous) as StoredResponse | undefined,
+              payload,
+            ),
+          );
           if (
             response.ok &&
             response.body &&

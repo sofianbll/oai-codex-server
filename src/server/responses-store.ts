@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { GatewayError } from "../shared/contracts";
 import { createDurableStore, type DurableStore, type DurableStoreOptions } from "./durable-store";
+import { completedContext, originalInput, type StoredResponse } from "./response-replay";
 
 type JsonObject = Readonly<Record<string, unknown>>;
 
@@ -16,11 +17,6 @@ export type ResponsesStoreOptions = DurableStoreOptions & {
 export type ResponsesLifecycle = ((request: Request, accountId?: string) => Promise<Response>) & {
   close(): void;
   size(): number;
-};
-
-type StoredResponse = {
-  readonly response: JsonObject;
-  readonly input: readonly unknown[];
 };
 
 const objectSchema = z.record(z.string(), z.unknown());
@@ -56,7 +52,18 @@ export function createResponsesLifecycle(
             );
 
           const input = inputItems(parsed["input"]);
-          if (Buffer.byteLength(JSON.stringify({ input })) > store.maxRecordBytes)
+          const previous = parsed["previous_response_id"];
+          const parent =
+            typeof previous === "string"
+              ? completedContext(
+                  store.get(accountId, "response", previous) as StoredResponse | undefined,
+                )
+              : previous == null
+                ? []
+                : undefined;
+          const original = originalInput(parsed["input"]);
+          const context = parent && original ? [...parent, ...original] : undefined;
+          if (Buffer.byteLength(JSON.stringify({ input, context })) > store.maxRecordBytes)
             return jsonError(
               507,
               "stored_response_too_large",
@@ -66,7 +73,7 @@ export function createResponsesLifecycle(
           const save = (response: JsonObject, items: readonly unknown[]): boolean => {
             const id = response["id"];
             if (typeof id !== "string" || id.length === 0) return false;
-            reservation.commit(id, { response, input: items }, now() + ttlMs);
+            reservation.commit(id, { response, input: items, context }, now() + ttlMs);
             return true;
           };
           let streaming = false;

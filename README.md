@@ -206,7 +206,7 @@ La [recherche complémentaire](docs/evidence/responses-gap-research/DECISIONS.md
 
 ## Responses : adaptations intégrées
 
-En mode minimal, les créations HTTP Responses utilisent une connexion native WebSocket conservée pour `previous_response_id`. Les sessions sont limitées à 64, expirent après cinq minutes d’inactivité et conservent au plus 256 identifiants chacune. Un identifiant inconnu ou expiré renvoie une erreur explicite. Le mode raw reste inchangé.
+En mode minimal, les créations HTTP Responses utilisent une connexion native WebSocket conservée pour `previous_response_id`. Les sessions sont limitées à 64, expirent après cinq minutes d’inactivité et conservent au plus 256 identifiants chacune. Après perte de socket ou redémarrage, une Response explicitement stockée peut fournir son contexte complet à une nouvelle génération : c'est une adaptation locale, pas la résurrection d'une session native ni un retry automatique. Le mode raw reste inchangé.
 
 `web_search_preview` est normalisé vers `web_search`. `/v1/responses/compact` utilise la compaction native et retourne un véritable contenu chiffré réutilisable. Pour réinjecter les objets du SDK Python, utiliser `item.model_dump(mode="json", exclude_none=True)` : le champ optionnel de sortie `created_by: null` n’est pas accepté en entrée par Codex.
 
@@ -216,4 +216,28 @@ Le budget applicatif est global : 1 Gio, tous comptes et types de contenu retenu
 
 SQLite utilise un cache de pages de 2 Mio, des objets lus séparément, des transactions immédiates et un journal rollback supprimé à chaque commit, sans WAL cumulatif. Le fichier est plafonné à 1 152 Mio (294 912 pages de 4 Kio) ; avec le journal temporaire, le surcoût physique reste borné à environ 2 320 Mio au total, indépendamment du budget applicatif. Le dossier et le fichier doivent être privés (0700/0600). Expiration et suppression rendent les objets inaccessibles et libèrent le budget, mais ne promettent pas l'effacement physique de toutes leurs copies.
 
-Le stockage n'implémente pas le replay d'une continuité après expiration de socket. `background:true` avec stockage renvoie explicitement 501 ; les tâches de fond et Conversations ne sont pas implémentées ici. Les [tests SDK/runtime locaux](tests/responses-durable.test.ts) vérifient persistance et isolation, sans validation backend réelle ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.
+### Restaurer un contexte stocké
+
+```js
+const first = await client.responses.create({
+  model: 'gpt-6-astra',
+  input: 'Retiens le mot azur.',
+  instructions: 'Réponds brièvement pour ce tour uniquement.',
+  store: true,
+});
+// Conserver first.id côté client ; la socket peut ensuite disparaître.
+const next = await client.responses.create({
+  model: 'gpt-6-astra',
+  previous_response_id: first.id,
+  input: 'Quel mot avais-je donné ?',
+  store: true,
+});
+```
+
+Le contexte original est conservé séparément des inputs projetés par le helper public du SDK Node OpenAI 7.20.0 (`openai/lib/responses/ResponseInputItems`). La restauration ajoute une seule fois l'historique de la branche, dans l'ordre, puis les nouveaux inputs ; elle conserve phases, `call_id`, arguments/résultats d'outils structurés et contenus chiffrés terminés. Elle n'exécute aucun outil localement et ne reconduit pas les anciennes `instructions` : fournir celles du nouveau tour explicitement. Une branche stockée contient son préfixe complet, sans dépendre d'une relecture récursive de ses ancêtres.
+
+La rétention de trente jours et l'isolation par compte s'appliquent toujours. Sans socket utilisable, un identifiant absent, expiré, supprimé ou d'un autre compte renvoie `404 previous_response_not_found`. Un contexte incomplet (notamment ancêtre non stocké, ancienne Response sans contexte, terminal non terminé) renvoie `409 response_context_incomplete`. Un item inconnu, référencé sans contenu, inachevé, opaque sans contenu chiffré réutilisable ou omis par la projection SDK renvoie `409 response_context_not_replayable`, avant toute nouvelle génération. Le contexte restauré reste soumis aux limites de corps et de stockage ; aucun retry automatique n'est effectué si Codex refuse son contenu.
+
+Les [tests de restauration SDK/runtime](tests/responses-replay.test.ts) couvrent JSON/SSE, branche, perte de socket, redémarrage, refus et compte synthétique. **Le replay chiffré backend réel et sa portabilité entre modèles/versions restent non vérifiés** : une fixture locale opaque ne les prouve pas. Bun 1.4.3 est requis pour ces contrôles de fermeture ; Bun 1.3.13 présente un blocage `stop(true)` reproduit indépendamment du produit. Les [tests de stockage](tests/responses-durable.test.ts) vérifient persistance et isolation ; les [preuves historiques du sprint](docs/evidence/responses-sprint/RESULTAT.md) restent datées.
+
+`background:true` avec stockage renvoie explicitement 501 ; les tâches de fond et Conversations ne sont pas implémentées dans cette tranche.
