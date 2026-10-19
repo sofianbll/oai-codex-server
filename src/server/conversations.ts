@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { GatewayError } from "../shared/contracts";
 import type { DurableStore } from "./durable-store";
+import { metadataPairs } from "./metadata";
 
 const id = z
   .string()
@@ -96,12 +97,24 @@ const itemSchema = z.union([
   z
     .object({ type: z.literal("compaction"), id: id.optional(), encrypted_content: z.string() })
     .strict(),
+  // SDK 7.20.0 ResponseInputItem: code, fingerprints and results remain inert history.
+  z.strictObject({
+    type: z.literal("program"),
+    id,
+    call_id: z.string(),
+    code: z.string(),
+    fingerprint: z.string(),
+  }),
+  z.strictObject({
+    type: z.literal("program_output"),
+    id,
+    call_id: z.string(),
+    result: z.string(),
+    status: z.enum(["completed", "incomplete"]),
+  }),
 ]);
 const itemsSchema = z.array(itemSchema).max(20);
-const metadata = z
-  .record(z.string().max(64), z.string().max(512))
-  .refine((v) => Object.keys(v).length <= 16)
-  .nullable();
+const metadata = metadataPairs.nullable();
 const createSchema = z
   .object({ items: itemsSchema.nullable().optional(), metadata: metadata.optional() })
   .strict();
