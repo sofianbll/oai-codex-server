@@ -50,10 +50,30 @@ export function restoreResponse(
       "response_context_incomplete",
       "The retained Response does not contain a complete replayable context",
     );
-  const projected = context.map((value) => {
+  const projected = projectContext(context);
+  const { previous_response_id: _previous, ...current } = payload;
+  return { ...current, input: [...projected, ...input] };
+}
+
+export function projectContext(context: readonly unknown[], conversation = false) {
+  return context.map((value) => {
     if (typeof value !== "object" || value === null || Array.isArray(value)) throw incompatible();
     const item = value as Record<string, unknown>;
     if (
+      (conversation &&
+        (item["type"] === "message" || (item["type"] == null && Object.hasOwn(item, "role"))) &&
+        (!["user", "assistant", "developer", "system"].includes(String(item["role"])) ||
+          (Array.isArray(item["content"]) &&
+            item["content"].some(
+              (part) =>
+                !part ||
+                typeof part !== "object" ||
+                !(
+                  item["role"] === "assistant"
+                    ? ["output_text", "refusal"]
+                    : ["input_text", "input_image", "input_file"]
+                ).includes(String(part.type)),
+            )))) ||
       item["type"] === "item_reference" ||
       (item["type"] == null &&
         (typeof item["role"] !== "string" || item["content"] === undefined)) ||
@@ -70,8 +90,6 @@ export function restoreResponse(
       throw incompatible();
     }
   });
-  const { previous_response_id: _previous, ...current } = payload;
-  return { ...current, input: [...projected, ...input] };
 }
 
 function incompatible(): GatewayError {

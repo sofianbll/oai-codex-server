@@ -205,6 +205,13 @@ export function presentConversationItem(record: Item): Item {
   if (record["type"] !== undefined) return record;
   const original = record["original"] as Record<string, unknown>;
   const item: Item = { ...original, id: record.id };
+  // A supplied function result is complete in presentation only; other families keep their required-status contract.
+  if (
+    record["responseItem"] === true &&
+    item["status"] === undefined &&
+    item["type"] === "function_call_output"
+  )
+    item["status"] = "completed";
   if (item["type"] === undefined || item["type"] === "message") {
     item["type"] = "message";
     if (item["status"] === undefined) item["status"] = "completed";

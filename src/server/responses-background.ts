@@ -4,6 +4,7 @@ import {
   type ProxyOptions,
   type UpstreamCredentials,
 } from "../shared/contracts";
+import type { ConversationTurn } from "./conversation-turn";
 import type { DurableStore } from "./durable-store";
 import { adaptRequest } from "./response-adapter";
 import { restoreStreamOutput } from "./response-stream-adapter";
@@ -192,7 +193,12 @@ export function createBackgroundResponses(
   };
   return {
     stream,
-    async create(request: Request, parsed: Json, auth: UpstreamCredentials): Promise<Response> {
+    async create(
+      request: Request,
+      parsed: Json,
+      auth: UpstreamCredentials,
+      turn?: ConversationTurn,
+    ): Promise<Response> {
       if (closed) throw new GatewayError(503, "server_stopping", "Server is stopping");
       const streaming = parsed["stream"] === true;
       if (active.size >= 16)
@@ -208,7 +214,12 @@ export function createBackgroundResponses(
         ).buffer,
         options,
       );
-      const body = { ...parsed, store: false, background: false, stream: streaming };
+      const body = {
+        ...(turn?.payload ?? parsed),
+        store: false,
+        background: false,
+        stream: streaming,
+      };
       const id = `resp_bg_${crypto.randomUUID()}`;
       const response: Json = {
         id,
@@ -222,6 +233,7 @@ export function createBackgroundResponses(
         output: [],
         error: null,
         incomplete_details: null,
+        ...(turn ? { conversation: { id: turn.id } } : {}),
       };
       const input =
         typeof parsed["input"] === "string"
@@ -319,8 +331,9 @@ export function createBackgroundResponses(
           background: true,
           store: response["store"],
           ...(streaming ? { stream: true } : {}),
+          ...(turn ? { conversation: { id: turn.id } } : {}),
         });
-        const publish = (event: Json, result?: Json) => {
+        const publish = (event: Json, result?: Json, nativeTerminal = false) => {
           if (closed || settled) return;
           const exposed: Json = { ...event };
           if (exposed["response_id"] !== undefined) exposed["response_id"] = id;
@@ -334,7 +347,9 @@ export function createBackgroundResponses(
               "background_journal_full",
               "Background event journal reached its bounded capacity",
             );
+          if (result && nativeTerminal) turn?.releaseCapacity();
           store.atomic(() => {
+            if (result && nativeTerminal) turn?.append(result);
             journalReservation?.commit(id, next, result ? now() + TEMP_TTL : null, true);
             if (result) {
               const retained = retain(result);
@@ -343,15 +358,26 @@ export function createBackgroundResponses(
           });
           journal = next;
           if (result) settled = true;
+          if (result) turn?.release();
           notify(Buffer.byteLength(encoded));
         };
-        const save = (result: Json) => {
+        const save = (result: Json, nativeTerminal = false) => {
           if (closed || settled) return;
           const retained = retain(result);
           try {
             if (streaming)
-              publish({ type: `response.${retained["status"]}`, response: retained }, retained);
-            else reservation.commit(id, { ...job, response: retained }, expires(retained));
+              publish(
+                { type: `response.${retained["status"]}`, response: retained },
+                retained,
+                nativeTerminal,
+              );
+            else {
+              if (nativeTerminal) turn?.releaseCapacity();
+              store.atomic(() => {
+                if (nativeTerminal) turn?.append(result);
+                reservation.commit(id, { ...job, response: retained }, expires(retained));
+              });
+            }
           } catch (error) {
             const failure = {
               ...response,
@@ -365,11 +391,13 @@ export function createBackgroundResponses(
             else reservation.commit(id, { response: failure, input: job.input }, expires(failure));
           }
           settled = true;
+          turn?.release();
         };
         active.set(key, {
           cancel() {
             save({ ...response, status: "cancelled" });
             exchange.controller.abort();
+            turn?.release();
           },
         });
         // The producer owns its signal: disconnecting the creation/polling client is not cancel.
@@ -434,7 +462,7 @@ export function createBackgroundResponses(
                       if (text && text !== "[DONE]") {
                         const event = JSON.parse(text) as Json;
                         const value = event["response"] as Json | undefined;
-                        if (value && terminal(value)) publish(event, value);
+                        if (value && terminal(value)) publish(event, value, true);
                         else if (
                           event["type"] === "error" ||
                           (event["type"] === undefined && event["error"])
@@ -474,7 +502,7 @@ export function createBackgroundResponses(
               const value = (await exchange.wait(result.json())) as Json;
               if (terminal(value)) {
                 if (typeof value["id"] === "string") job.nativeId = value["id"];
-                save(value);
+                save(value, true);
               } else
                 save({
                   ...response,
@@ -499,6 +527,7 @@ export function createBackgroundResponses(
               journalReservation?.release();
               exchange.close();
               active.delete(key);
+              turn?.release();
             }
           })().catch(() => {
             for (const subscriber of subscribers.get(key) ?? []) {

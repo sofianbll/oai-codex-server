@@ -23,6 +23,28 @@ type Conversation = {
   metadata: Record<string, string> | null;
 };
 type Item = Record<string, unknown> & { id: string };
+const activeTurns = new WeakMap<DurableStore, Set<string>>();
+function assertConversationIdle(store: DurableStore, account: string, id: string) {
+  if (activeTurns.get(store)?.has(JSON.stringify([account, id])))
+    throw new GatewayError(
+      409,
+      "conversation_busy",
+      "A generation owns this Conversation; retry after it ends",
+    );
+}
+export function lockConversation(store: DurableStore, account: string, id: string) {
+  assertConversationIdle(store, account, id);
+  const locks = activeTurns.get(store) ?? new Set<string>();
+  activeTurns.set(store, locks);
+  const key = JSON.stringify([account, id]);
+  locks.add(key);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    locks.delete(key);
+  };
+}
 const invalid = (message: string): never => {
   throw new GatewayError(400, "invalid_conversation_request", message);
 };
@@ -45,6 +67,44 @@ const list = (data: Item[], has_more = false) => ({
   last_id: data.at(-1)?.id ?? null,
   has_more,
 });
+
+export function prepareConversationItems(
+  store: DurableStore,
+  account: string,
+  inputs: readonly Record<string, unknown>[],
+  responseItems = false,
+) {
+  const result: Item[] = inputs.map((input) => ({
+    original: input,
+    ...(responseItems ? { responseItem: true } : {}),
+    id:
+      (input["id"] as string | null | undefined) ??
+      `${!input["type"] || input["type"] === "message" ? "msg" : "item"}_${crypto.randomUUID().replaceAll("-", "")}`,
+  }));
+  const seen = new Set<string>();
+  for (const item of result) {
+    if (seen.has(item.id) || store.get(account, "conversation-item", item.id) !== undefined)
+      invalid("Item ID already retained in this account");
+    seen.add(item.id);
+    parse(conversationItemSchema, presentConversationItem(item));
+  }
+  return result;
+}
+
+export function appendConversationItems(
+  store: DurableStore,
+  account: string,
+  conversationId: string,
+  inputs: readonly Record<string, unknown>[],
+  responseItems = false,
+) {
+  const result = prepareConversationItems(store, account, inputs, responseItems);
+  for (const item of result) {
+    store.put(account, "conversation-item", item.id, item);
+    store.put(account, `conversation-links:${conversationId}`, item.id, { id: item.id });
+  }
+  return result.map(presentConversationItem);
+}
 
 export function conversations(
   request: Request,
@@ -99,26 +159,7 @@ export function conversations(
       );
     };
     const append = (conversation: Conversation, inputs: z.infer<typeof itemsSchema>) => {
-      const result: Item[] = inputs.map((input) => {
-        const item: Item = {
-          original: input,
-          id:
-            (input["id"] as string | null | undefined) ??
-            `${!("type" in input) || input["type"] === "message" ? "msg" : "item"}_${crypto.randomUUID().replaceAll("-", "")}`,
-        };
-        return item;
-      });
-      const seen = new Set<string>();
-      for (const item of result) {
-        if (seen.has(item.id) || store.get(account, "conversation-item", item.id) !== undefined)
-          invalid("Item ID already retained in this account");
-        seen.add(item.id);
-      }
-      for (const item of result) {
-        store.put(account, "conversation-item", item.id, item);
-        store.put(account, `conversation-links:${conversation.id}`, item.id, { id: item.id });
-      }
-      return result.map(presentConversationItem);
+      return appendConversationItems(store, account, conversation.id, inputs);
     };
     if (!conversationId) {
       if (request.method !== "POST") return missing();
@@ -139,6 +180,7 @@ export function conversations(
       return Response.json(conversation);
     }
     const conversation = parent();
+    if (request.method !== "GET") assertConversationIdle(store, account, conversation.id);
     if (!isItems) {
       if (request.method === "GET") return Response.json(conversation);
       if (request.method === "POST") {

@@ -2,8 +2,14 @@ import { type CredentialProvider, GatewayError, type ProxyOptions } from "../sha
 import { chatObject, chatRequest, chatResponse } from "./chat-adapter";
 import { createChatStorage } from "./chat-storage";
 import { chatStream } from "./chat-stream";
+import {
+  type ConversationTurn,
+  prepareConversationTurn,
+  responseConversation,
+} from "./conversation-turn";
 import { conversations } from "./conversations";
 import { createDurableStore } from "./durable-store";
+import { adaptRequest } from "./response-adapter";
 import { compactResponse } from "./response-compact";
 import { restoreResponse, type StoredResponse } from "./response-replay";
 import { restoreStreamOutput } from "./response-stream-adapter";
@@ -41,7 +47,7 @@ export function createResponsesGateway(
     if (!storage.store) store?.close();
     throw error;
   }
-  const lifecycleFor = (auth: Awaited<ReturnType<CredentialProvider>>) =>
+  const lifecycleFor = (auth: Awaited<ReturnType<CredentialProvider>>, turn?: ConversationTurn) =>
     createResponsesLifecycle(
       async (request: Request) => {
         const path = new URL(request.url).pathname;
@@ -81,6 +87,7 @@ export function createResponsesGateway(
         ...(store ? { store } : {}),
         maxResponseBytes: options.maxBodyBytes,
         reservationMs: options.timeoutMs,
+        ...(turn ? { conversationTurn: turn } : {}),
       },
     );
   return {
@@ -104,6 +111,9 @@ export function createResponsesGateway(
         let metadata: ReturnType<typeof chatRequest>["metadata"];
         let reservation: ReturnType<ReturnType<typeof createChatStorage>["reserve"]> | undefined;
         let streaming = false;
+        let responsePayload: Record<string, unknown> | undefined;
+        let turn: ConversationTurn | undefined;
+        let backgroundOwnsTurn = false;
         try {
           if (
             (chatOperation && request.method === "POST") ||
@@ -129,6 +139,29 @@ export function createResponsesGateway(
               : new ArrayBuffer(0);
             request = new Request(request, { body, signal: exchange.controller.signal });
             if (conversation && body.byteLength) conversationBody = new TextDecoder().decode(body);
+            if (!chat && path === "/v1/responses") {
+              try {
+                responsePayload = JSON.parse(new TextDecoder().decode(body));
+              } catch {
+                throw new GatewayError(400, "invalid_json", "Responses requires a JSON object");
+              }
+              if (
+                !responsePayload ||
+                typeof responsePayload !== "object" ||
+                Array.isArray(responsePayload)
+              )
+                throw new GatewayError(400, "invalid_request", "Responses requires a JSON object");
+              responseConversation(responsePayload);
+              adaptRequest(
+                new TextEncoder().encode(
+                  JSON.stringify({
+                    ...responsePayload,
+                    store: responsePayload["store"] === true ? false : responsePayload["store"],
+                  }),
+                ).buffer,
+                options,
+              );
+            }
             if (chat) {
               const adapted = chatRequest(request, body);
               request = adapted.request;
@@ -196,21 +229,34 @@ export function createResponsesGateway(
           } else if (request.method === "POST" && cancel?.[1] && background) {
             response = background.cancel(current.accountId, decodeURIComponent(cancel[1]));
           } else if (!chat && request.method === "POST" && path === "/v1/responses" && background) {
-            let parsed: unknown;
-            try {
-              parsed = await request.clone().json();
-            } catch {
-              throw new GatewayError(400, "invalid_json", "Responses requires a JSON object");
-            }
-            if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-              throw new GatewayError(400, "invalid_request", "Responses requires a JSON object");
-            if ("background" in parsed && parsed.background === true)
+            const parsed = responsePayload as Record<string, unknown>;
+            const id = responseConversation(parsed);
+            turn =
+              typeof id === "string" && store
+                ? prepareConversationTurn(
+                    store,
+                    current.accountId,
+                    id,
+                    parsed,
+                    options.timeoutMs + 60_000,
+                    options.maxBodyBytes,
+                  )
+                : undefined;
+            if (parsed["background"] === true) {
               response = await background.create(
                 request,
                 parsed as Record<string, unknown>,
                 current,
+                turn,
               );
-            else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
+              backgroundOwnsTurn = true;
+            } else {
+              if (turn)
+                exchange.controller.signal.addEventListener("abort", turn.release, { once: true });
+              response = await exchange.wait(
+                lifecycleFor(current, turn)(request, current.accountId),
+              );
+            }
           } else response = await exchange.wait(lifecycleFor(current)(request, current.accountId));
           if (chat) {
             response =
@@ -238,24 +284,31 @@ export function createResponsesGateway(
             exchange.close();
             return response;
           }
-          if (reservation && response.headers.get("content-type")?.includes("text/event-stream")) {
+          if (
+            (reservation || (turn && !backgroundOwnsTurn)) &&
+            response.headers.get("content-type")?.includes("text/event-stream")
+          ) {
             const owner = reservation;
+            const conversationOwner = turn;
             const reader = body.getReader();
             body = new ReadableStream<Uint8Array>({
               async pull(controller) {
                 try {
                   const next = await reader.read();
                   if (next.done) {
-                    owner.release();
+                    owner?.release();
+                    conversationOwner?.release();
                     controller.close();
                   } else controller.enqueue(next.value);
                 } catch (error) {
-                  owner.release();
+                  owner?.release();
+                  conversationOwner?.release();
                   controller.error(error);
                 }
               },
               async cancel(reason) {
-                owner.release();
+                owner?.release();
+                conversationOwner?.release();
                 await reader.cancel(reason);
               },
             });
@@ -278,7 +331,10 @@ export function createResponsesGateway(
             );
           throw error;
         } finally {
-          if (!streaming) reservation?.release();
+          if (!streaming) {
+            reservation?.release();
+            if (!backgroundOwnsTurn) turn?.release();
+          }
         }
       }
       return relay(request);
