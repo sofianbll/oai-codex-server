@@ -205,6 +205,21 @@ export function presentConversationItem(record: Item): Item {
   if (record["type"] !== undefined) return record;
   const original = record["original"] as Record<string, unknown>;
   const item: Item = { ...original, id: record.id };
+  // Responses tool results are supplied facts; default presentation only, never the original or inert CRUD inputs.
+  if (
+    record["responseItem"] === true &&
+    item["status"] === undefined &&
+    [
+      "function_call_output",
+      "custom_tool_call_output",
+      "computer_call_output",
+      "local_shell_call_output",
+      "shell_call_output",
+      "tool_search_output",
+      "program_output",
+    ].includes(String(item["type"]))
+  )
+    item["status"] = "completed";
   if (item["type"] === undefined || item["type"] === "message") {
     item["type"] = "message";
     if (item["status"] === undefined) item["status"] = "completed";

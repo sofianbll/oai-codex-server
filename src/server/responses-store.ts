@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GatewayError } from "../shared/contracts";
+import type { ConversationTurn } from "./conversation-turn";
 import { createDurableStore, type DurableStore, type DurableStoreOptions } from "./durable-store";
 import { completedContext, originalInput, type StoredResponse } from "./response-replay";
 
@@ -12,6 +13,7 @@ export type ResponsesStoreOptions = DurableStoreOptions & {
   readonly reservationMs?: number;
   readonly maxResponseBytes?: number;
   readonly ttlMs?: number;
+  readonly conversationTurn?: ConversationTurn;
 };
 
 export type ResponsesLifecycle = ((request: Request, accountId?: string) => Promise<Response>) & {
@@ -31,6 +33,7 @@ export function createResponsesLifecycle(
   const ttlMs = positiveInteger(options.ttlMs, DEFAULT_TTL_MS);
   const maxResponseBytes = positiveInteger(options.maxResponseBytes, DEFAULT_BODY_BYTES);
   const now = options.now ?? Date.now;
+  const turn = options.conversationTurn;
 
   const handle: ResponsesLifecycle = Object.assign(
     async (request: Request, accountId = "local"): Promise<Response> => {
@@ -43,7 +46,7 @@ export function createResponsesLifecycle(
           const parsed = await readRequestBody(request);
           if (parsed instanceof Response) return parsed;
           const shouldStore = parsed["store"] === true;
-          if (!shouldStore) return relay(request);
+          if (!shouldStore && !turn) return relay(request);
           if (parsed["background"] === true)
             return jsonError(
               501,
@@ -62,23 +65,31 @@ export function createResponsesLifecycle(
                 ? []
                 : undefined;
           const original = originalInput(parsed["input"]);
-          const context = parent && original ? [...parent, ...original] : undefined;
+          const context =
+            turn?.context ?? (parent && original ? [...parent, ...original] : undefined);
           if (Buffer.byteLength(JSON.stringify({ input, context })) > store.maxRecordBytes)
             return jsonError(
               507,
               "stored_response_too_large",
               "Inputs exceed the per-object durable storage limit",
             );
-          const reservation = store.reserve(accountId, "response", options.reservationMs ?? 900000);
+          const reservation = shouldStore
+            ? store.reserve(accountId, "response", options.reservationMs ?? 900000)
+            : undefined;
           const save = (response: JsonObject, items: readonly unknown[]): boolean => {
             const id = response["id"];
             if (typeof id !== "string" || id.length === 0) return false;
-            reservation.commit(id, { response, input: items, context }, now() + ttlMs);
+            turn?.releaseCapacity();
+            store.atomic(() => {
+              turn?.append(response as Record<string, unknown>);
+              reservation?.commit(id, { response, input: items, context }, now() + ttlMs);
+            });
+            turn?.release();
             return true;
           };
           let streaming = false;
           try {
-            const body = JSON.stringify({ ...parsed, store: false });
+            const body = JSON.stringify({ ...(turn?.payload ?? parsed), store: false });
             const upstreamRequest = new Request(request, { body });
             const upstream = await relay(upstreamRequest);
             if (!upstream.ok && upstream.status !== 502) return upstream;
@@ -101,7 +112,12 @@ export function createResponsesLifecycle(
                 input,
                 save,
                 maxResponseBytes,
-                reservation.release,
+                () => reservation?.release(),
+                (value) => ({
+                  ...value,
+                  store: shouldStore,
+                  ...(turn ? { conversation: { id: turn.id } } : {}),
+                }),
               );
               streaming = true;
               return new Response(tapped, {
@@ -118,7 +134,7 @@ export function createResponsesLifecycle(
               !upstream.ok &&
               !(
                 responseObject?.["object"] === "response" &&
-                ["failed", "incomplete"].includes(String(responseObject["status"]))
+                ["failed", "incomplete", "cancelled"].includes(String(responseObject["status"]))
               )
             )
               return new Response(captured.body, {
@@ -126,7 +142,13 @@ export function createResponsesLifecycle(
                 statusText: captured.statusText,
                 headers: captured.headers,
               });
-            const storedObject = responseObject ? { ...responseObject, store: true } : undefined;
+            const storedObject = responseObject
+              ? {
+                  ...responseObject,
+                  store: shouldStore,
+                  ...(turn ? { conversation: { id: turn.id } } : {}),
+                }
+              : undefined;
             if (!storedObject || !save(storedObject, input))
               return jsonError(
                 502,
@@ -141,7 +163,7 @@ export function createResponsesLifecycle(
               headers: captured.headers,
             });
           } finally {
-            if (!streaming) reservation.release();
+            if (!streaming) reservation?.release();
           }
         }
 
@@ -324,13 +346,19 @@ function tapEventStream(
   save: (response: JsonObject, input: readonly unknown[]) => boolean,
   maxFrameBytes: number,
   release: () => void,
+  decorate: (response: JsonObject) => JsonObject,
 ): ReadableStream<Uint8Array> {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let pending = "";
   let savedTerminal = false;
   const frameBoundary = /\r?\n\r?\n/;
-  const terminalTypes = new Set(["response.completed", "response.incomplete", "response.failed"]);
+  const terminalTypes = new Set([
+    "response.completed",
+    "response.incomplete",
+    "response.failed",
+    "response.cancelled",
+  ]);
 
   const rewriteFrame = (frame: string): string => {
     const lines = frame.split(/\r?\n/);
@@ -348,12 +376,15 @@ function tapEventStream(
     const parsed = z
       .looseObject({ type: z.string(), response: objectSchema.optional() })
       .safeParse(value);
-    if (!parsed.success || !terminalTypes.has(parsed.data.type)) return frame;
-    if (!parsed.data.response || typeof parsed.data.response["id"] !== "string")
+    if (!parsed.success || !parsed.data.response) return frame;
+    const terminal = terminalTypes.has(parsed.data.type);
+    if (terminal && typeof parsed.data.response["id"] !== "string")
       throw new Error("Upstream terminal event did not contain a storable response");
-    const stored = { ...parsed.data.response, store: true };
-    if (!save(stored, input)) throw new Error("Local Responses store capacity was exceeded");
-    savedTerminal = true;
+    const stored = decorate(parsed.data.response);
+    if (terminal) {
+      if (!save(stored, input)) throw new Error("Local Responses store capacity was exceeded");
+      savedTerminal = true;
+    }
     const retained = lines.filter((line) => !line.startsWith("data:"));
     retained.push(`data: ${JSON.stringify({ ...parsed.data, response: stored })}`);
     return retained.join("\n");
