@@ -27,7 +27,7 @@ export async function startServer(config: AppConfig, configPath: string) {
       "invalid_storage_path",
       "Durable storage must not use the Codex credential directory",
     );
-  const responses = createResponsesGateway(config.proxy, credentials.get, { path: storagePath });
+  let responses: ReturnType<typeof createResponsesGateway> | undefined;
   const host = resolveHost(config.server.host);
   let stopped = false;
   let server: Bun.Server<WebSocketData> | undefined;
@@ -35,7 +35,7 @@ export async function startServer(config: AppConfig, configPath: string) {
     if (stopped) return;
     stopped = true;
     websocket.close();
-    responses.close();
+    responses?.close();
     await server?.stop(true);
     process.off("SIGINT", stop);
     process.off("SIGTERM", stop);
@@ -62,7 +62,14 @@ export async function startServer(config: AppConfig, configPath: string) {
     startedAt: new Date(),
     address: () => ({ host, port: server?.port ?? config.server.port }),
     stop,
-    relay: (request) => responses.forward(request),
+    relay: (request) =>
+      responses?.forward(request) ??
+      Promise.resolve(
+        Response.json(
+          { error: { code: "server_starting", message: "Server is starting" } },
+          { status: 503 },
+        ),
+      ),
   });
   server = Bun.serve<WebSocketData>({
     hostname: host,
@@ -88,6 +95,13 @@ export async function startServer(config: AppConfig, configPath: string) {
     },
     error: errorResponse,
   });
+  try {
+    responses = createResponsesGateway(config.proxy, credentials.get, { path: storagePath });
+  } catch (error) {
+    websocket.close();
+    await server.stop(true);
+    throw error;
+  }
   const reachable =
     host === "0.0.0.0"
       ? "127.0.0.1"

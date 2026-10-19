@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { operations, publicApi, publicOperations, transportDescription } from "./catalog";
+import { imageEditSchema } from "./image-edits";
 
 const localSecurity = [{ LocalBearer: [] }] as const;
 const controls = [
@@ -58,10 +60,45 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     const example = ["createResponse", "createChatCompletion"].includes(operation.id)
       ? { model: defaultModel, ...operation.requestBodyExample }
       : operation.requestBodyExample;
-    const requestBody =
-      body && media && example
-        ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
-        : body;
+    let requestBody =
+      operation.id === "createImageEdit" && body
+        ? {
+            ...body,
+            content: {
+              ...body.content,
+              "application/json": {
+                schema: z.toJSONSchema(imageEditSchema),
+                example,
+              },
+            },
+          }
+        : body && media && example
+          ? { ...body, content: { ...body.content, "application/json": { ...media, example } } }
+          : body;
+    if (operation.id === "create-realtime-call" && body && example) {
+      requestBody = {
+        ...body,
+        content: {
+          ...body.content,
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["sdp"],
+              additionalProperties: false,
+              properties: {
+                sdp: { type: "string", minLength: 1 },
+                session: {
+                  type: "object",
+                  additionalProperties: true,
+                  not: { required: ["id"] },
+                },
+              },
+            },
+            example,
+          },
+        },
+      };
+    }
     const definition = Object.fromEntries(
       Object.entries(source ?? {}).filter(
         ([key]) => !["servers", "security", "x-oaiMeta"].includes(key),
@@ -72,7 +109,7 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
       ...definition,
       operationId: operation.id,
       summary: operation.summary,
-      description: `${operation.description}\n\nImplementation: ${operation.implementation}. Evidence (${operation.evidence.kind}, ${operation.evidence.date ?? "undated"}): ${operation.evidence.scope}\nPrerequisites: ${operation.prerequisites.join(" ")}\nLimitations: ${operation.limitations.join(" ")}\nSources: ${operation.evidence.sources.join(", ")}${source?.description ? `\n\nPublic contract reference:\n${source.description}` : ""}`,
+      description: `${operation.description}\n\nImplementation: ${operation.implementation}. Evidence (${operation.evidence.kind}, ${operation.evidence.date ?? "undated"}): ${operation.evidence.scope}\nPrerequisites: ${operation.prerequisites.join(" ")}\nLimitations: ${operation.limitations.join(" ")}\nSources: ${operation.evidence.sources.join(", ")}${operation.id === "createResponse" ? `\n\nLocal background JSON example (poll/cancel; no SSE replay):\n\n\`\`\`json\n${JSON.stringify({ model: defaultModel, input: "Say hello in one sentence.", background: true, store: false, stream: false }, null, 2)}\n\`\`\`` : ""}${source?.description ? `\n\nPublic contract reference:\n${source.description}` : ""}`,
       tags: [operation.category],
       security: localSecurity,
       "x-proxy-availability": operation.availability,
@@ -88,6 +125,14 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
             "WebSocket upgrade accepted; subsequent messages use the selected native protocol.",
         },
         "400": { description: "A WebSocket upgrade request is required." },
+        ...(operation.id === "connectRealtimeWebSocket"
+          ? {
+              "501": {
+                description:
+                  "Minimal mode: realtime_protocol_not_adapted for the incompatible native V1 quicksilver intent. Raw mode remains a native relay.",
+              },
+            }
+          : {}),
         "502": { description: "The Codex backend could not establish the connection." },
       },
     };
@@ -127,7 +172,7 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
     info: {
       title: "OAI Codex Server",
       version: "0.1.0",
-      description: `${transportDescription}\n\nThe reference covers the complete public Responses, Models, Images, Audio, Realtime and Live families in the pinned source, Chat creation (minimal mode: restricted JSON text adaptation), plus the source-backed Responses WebSocket transport. Public schemas are retained verbatim and do not establish backend support. Duplicate ?beta=true source paths are omitted; query strings remain relayable except where an adaptation explicitly refuses them. Other /v1/* paths can be relayed even when absent from this reference; minimal-mode stored Chat operations are explicitly refused.\n\nUse the local server bearer token below. Never enter a Codex access token. The server reads Codex credentials privately.`,
+      description: `${transportDescription}\n\nThe reference includes public schemas from the pinned source and the source-backed Responses WebSocket transport. Public schemas are retained verbatim as a reference, not a guarantee of the adapted subset or backend support. Consult the per-operation qualifications and /api/capabilities catalogue for delivered local adaptations, validated contracts, prerequisites, evidence and limitations. Duplicate ?beta=true source paths are omitted; query strings remain relayable except where an adaptation explicitly refuses them. Other /v1/* paths can be relayed even when absent from this reference.\n\nUse the local server bearer token below. Never enter a Codex access token. The server reads Codex credentials privately.`,
     },
     servers: [{ url: "/" }],
     security: localSecurity,
@@ -136,7 +181,12 @@ export async function createOpenApi(defaultModel: string): Promise<Record<string
       {
         name: "Chat",
         description:
-          "Adaptation JSON texte via Responses ; options non implémentées refusées explicitement.",
+          "Adaptation locale JSON/SSE texte et fonctions via Responses, avec stockage explicite et CRUD. Consulter les qualifications par opération ; aucune compatibilité backend générale n’est garantie.",
+      },
+      {
+        name: "Conversations",
+        description:
+          "Historique local durable, distinct des Responses et de la continuité Codex. Supprimer le conteneur ne supprime pas ses items.",
       },
       { name: "Models", description: "Lister et inspecter les modèles disponibles." },
       { name: "Images", description: "Générer et modifier des images." },

@@ -7,6 +7,7 @@ import { renderSocket } from "./socket";
 
 const categoryOrder = [
   "Responses",
+  "Conversations",
   "Chat",
   "Models",
   "Images",
@@ -16,7 +17,9 @@ const categoryOrder = [
 ] as const;
 const categoryDescriptions: Readonly<Record<string, string>> = {
   Responses: "Créer, lire, annuler et gérer les réponses du modèle",
-  Chat: "JSON texte via Responses ; streaming et outils non implémentés",
+  Conversations:
+    "Historique local durable ; supprimer les items avant le conteneur pour les effacer",
+  Chat: "JSON/SSE et fonctions via Responses ; historique durable sur store:true",
   Models: "Lister et inspecter les modèles disponibles",
   Images: "Générer et modifier des images",
   Audio: "Synthèse vocale, transcription et gestion des voix",
@@ -35,7 +38,7 @@ const implementation = {
   local: "Réalisation locale (mode minimal)",
 } as const;
 const evidence = {
-  runtime: "Observation historique",
+  runtime: "Preuve d’exécution — périmètre ci-dessous",
   source: "Preuve statique",
   "historical-refusal": "Refus historique qualifié",
   unknown: "Non établi",

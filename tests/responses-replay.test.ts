@@ -266,11 +266,11 @@ test("runtime restores a lost socket and rejects missing, foreign, unfinished an
     expect(received).toHaveLength(beforeForeign);
     await account("a");
     const invalid: { id: string; code: string }[] = [];
-    for (const mode of ["opaque", "unknown", "omitted", "unfinished", "incomplete"]) {
+    for (const mode of ["opaque", "unknown", "omitted", "unfinished", "incomplete", "reference"]) {
       try {
         const response = await client().responses.create({
           model: "fixture",
-          input: "original",
+          input: mode === "reference" ? [{ id: "missing-context-item" }] : "original",
           store: true,
           metadata: { mode },
         });

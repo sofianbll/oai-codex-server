@@ -55,6 +55,8 @@ export function restoreResponse(
     const item = value as Record<string, unknown>;
     if (
       item["type"] === "item_reference" ||
+      (item["type"] == null &&
+        (typeof item["role"] !== "string" || item["content"] === undefined)) ||
       (item["status"] !== undefined && item["status"] !== "completed") ||
       (["reasoning", "compaction"].includes(String(item["type"])) &&
         (typeof item["encrypted_content"] !== "string" || !item["encrypted_content"]))

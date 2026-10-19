@@ -1,7 +1,13 @@
+import { authorized, checkOrigin } from "../../src/server/access";
 import { createWebSocketProxy } from "../../src/server/websocket";
 import { GatewayError, type ProxyOptions } from "../../src/shared/contracts";
 
-export function fixture(overrides: Partial<ProxyOptions> = {}, gate = Promise.resolve()) {
+export function fixture(
+  overrides: Partial<ProxyOptions> = {},
+  gate = Promise.resolve(),
+  token?: string,
+  tls?: Bun.TLSOptions,
+) {
   const received = Promise.withResolvers<Request>();
   const disconnected = Promise.withResolvers<void>();
   const opened = Promise.withResolvers<Bun.ServerWebSocket<undefined>>();
@@ -43,9 +49,14 @@ export function fixture(overrides: Partial<ProxyOptions> = {}, gate = Promise.re
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
+    ...(tls ? { tls } : {}),
     websocket: proxy.websocket,
     async fetch(request, runtime) {
       try {
+        if (token && !checkOrigin(request))
+          throw new GatewayError(403, "origin_rejected", "Origin rejected");
+        if (token && !authorized(request, token))
+          throw new GatewayError(401, "unauthorized", "Local token required");
         return await proxy.upgrade(request, runtime);
       } catch (error) {
         if (error instanceof GatewayError)
@@ -59,7 +70,7 @@ export function fixture(overrides: Partial<ProxyOptions> = {}, gate = Promise.re
     received: received.promise,
     disconnected: disconnected.promise,
     upstreamSocket: opened.promise,
-    url: server.url.origin.replace("http:", "ws:"),
+    url: server.url.origin.replace(/^http/, "ws"),
     close() {
       proxy.close();
       server.stop(true);

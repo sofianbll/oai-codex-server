@@ -74,6 +74,23 @@ test("authenticated route preserves response and records only metadata", async (
   expect(activity).not.toContain("private prompt");
   expect(activity).not.toContain("hidden");
 });
+test("public OpenAPI describes delivered Chat adaptations without claiming backend compatibility", async () => {
+  const { app, forwarded } = await fixture();
+  const spec = (await (await app.request("/openapi.json")).json()) as {
+    info: { description: string };
+    tags: { name: string; description: string }[];
+    paths: Record<string, Record<string, Record<string, unknown>>>;
+  };
+  expect(spec.info.description).not.toContain("stored Chat operations are explicitly refused");
+  expect(spec.info.description).toContain("per-operation qualifications");
+  expect(spec.tags.find((tag) => tag.name === "Chat")?.description).toContain("JSON/SSE");
+  expect(spec.tags.find((tag) => tag.name === "Chat")?.description).toContain("stockage");
+  expect(spec.paths["/v1/chat/completions"]?.["post"]?.["description"]).toContain("function");
+  expect(
+    spec.paths["/v1/chat/completions/{completion_id}"]?.["get"]?.["x-proxy-implementation"],
+  ).toBe("local");
+  expect(forwarded()).toBe(0);
+});
 test("capabilities distinguish Images runtime evidence from full compatibility for dashboard clients", async () => {
   const { app, headers, forwarded } = await fixture();
   const response = await app.request("/api/capabilities", { headers });
@@ -122,9 +139,7 @@ test("capabilities retain exact-count uncertainty, historical option refusals an
       expect.stringContaining("Code Interpreter"),
     ]),
   });
-  expect(operations.some((operation) => operation.path.startsWith("/v1/conversations"))).toBe(
-    false,
-  );
+  expect(operations.some((operation) => operation.path.startsWith("/v1/conversations"))).toBe(true);
   expect(operations.find((operation) => operation.id === "createChatCompletion")).toMatchObject({
     path: "/v1/chat/completions",
     method: "POST",
@@ -133,6 +148,19 @@ test("capabilities retain exact-count uncertainty, historical option refusals an
     availability: "unverified",
     limitations: expect.arrayContaining([expect.stringContaining("stream:true")]),
   });
+  for (const id of [
+    "listChatCompletions",
+    "getChatCompletion",
+    "updateChatCompletion",
+    "deleteChatCompletion",
+    "getChatCompletionMessages",
+  ]) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      implementation: "local",
+      supported: true,
+      limitations: expect.arrayContaining([expect.stringContaining("30 days")]),
+    });
+  }
   expect(operations.find((operation) => operation.id === "createImageVariation")).toMatchObject({
     implementation: "relay",
     availability: "unverified",
@@ -149,7 +177,7 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
       implementation: "relay",
       availability: "unverified",
       evidence: {
-        kind: id === "createSpeech" ? "historical-refusal" : "unknown",
+        kind: id === "createTranslation" ? "unknown" : "historical-refusal",
         scope: expect.stringContaining("Audio REST"),
       },
       limitations: expect.arrayContaining([
@@ -165,15 +193,28 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
       implementation: "relay",
       availability: "source-backed",
       evidence: { kind: "source", date: "2026-10-16", scope: expect.stringContaining("WebSocket") },
+      prerequisites: expect.arrayContaining([
+        expect.stringContaining("API key auth"),
+        expect.stringContaining("ChatGPT bearer"),
+      ]),
+      limitations: expect.arrayContaining([
+        expect.stringContaining("RealtimeV2"),
+        expect.stringContaining("quicksilver"),
+        expect.stringContaining("Frameless Bidi"),
+        expect.stringContaining("thread/realtime"),
+        expect.stringContaining("SDK"),
+      ]),
     },
   );
   expect(operations.find((operation) => operation.id === "create-realtime-call")).toMatchObject({
-    implementation: "relay",
+    implementation: "adaptation",
     availability: "source-backed",
+    evidence: { kind: "source", scope: expect.stringContaining("No real peer negotiation") },
     limitations: expect.arrayContaining([
-      expect.stringContaining("JSON {sdp, session}"),
-      expect.stringContaining("multipart"),
+      expect.stringContaining("Only the request envelope"),
+      expect.stringContaining("Raw mode remains byte relay"),
     ]),
+    requestBodyExample: { session: { type: "realtime" } },
   });
   for (const id of [
     "createVoice",
@@ -184,6 +225,47 @@ test("capabilities separate Audio REST, Realtime WebSocket, WebRTC and effectful
     expect(operations.find((operation) => operation.id === id)).toMatchObject({
       availability: "unverified",
       prerequisites: expect.arrayContaining([expect.stringContaining("explicit authorization")]),
+    });
+  }
+  expect(forwarded()).toBe(0);
+});
+test("Audio REST qualifies original-language transcription separately from English translation", async () => {
+  const { app, headers, forwarded } = await fixture();
+  const { operations } = operationsSchema.parse(
+    await (await app.request("/api/capabilities", { headers })).json(),
+  );
+  const transcription = operations.find((operation) => operation.id === "createTranscription");
+  expect(transcription?.evidence.scope).toContain("2026-10-16T22:31:26.788Z");
+  expect(transcription?.evidence.scope).toContain("97632 bytes, no transcript");
+  expect(transcription?.evidence.scope).toContain("layer/cause unknown");
+  expect(transcription?.prerequisites).toContainEqual(expect.stringContaining("exhausted (1/1)"));
+  expect(
+    operations.find((operation) => operation.id === "createTranslation")?.prerequisites,
+  ).toContainEqual(expect.stringContaining("No live translation attempt is authorized"));
+  for (const [id, purpose] of [
+    ["createTranscription", "original language"],
+    ["createTranslation", "English"],
+  ] as const) {
+    expect(operations.find((operation) => operation.id === id)).toMatchObject({
+      supported: true,
+      implementation: "relay",
+      availability: "unverified",
+      evidence: {
+        kind: id === "createTranscription" ? "historical-refusal" : "unknown",
+        date: id === "createTranscription" ? "2026-10-16" : null,
+        scope: expect.stringContaining(purpose),
+      },
+      prerequisites: expect.arrayContaining([
+        expect.stringContaining("REST mechanism under /backend-api/codex"),
+      ]),
+      limitations: expect.arrayContaining([
+        expect.stringContaining("timestamps, detected languages or speaker labels"),
+        expect.stringContaining("Realtime"),
+      ]),
+      requestBodyExample: {
+        model: id === "createTranscription" ? "gpt-4o-transcribe" : "whisper-1",
+        response_format: "json",
+      },
     });
   }
   expect(forwarded()).toBe(0);

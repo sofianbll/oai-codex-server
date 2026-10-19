@@ -20,6 +20,15 @@ function walk(value: unknown, visit: (entry: Record<string, unknown>) => void): 
 }
 
 describe("same-origin OpenAPI reference", () => {
+  test("Realtime publishes the qualified protocol refusal without claiming backend compatibility", async () => {
+    const spec = await createOpenApi("fixture");
+    const route = record.parse(record.parse(record.parse(spec["paths"])["/v1/realtime"])["get"]);
+    expect(route["x-proxy-supported"]).toBe(true);
+    expect(route["x-proxy-implementation"]).toBe("relay");
+    expect(route["x-proxy-availability"]).toBe("source-backed");
+    expect(JSON.stringify(route["responses"])).toContain("realtime_protocol_not_adapted");
+    expect(JSON.stringify(route["x-proxy-prerequisites"])).toContain("API key auth");
+  });
   test("retains every public schema when the local reference is generated", async () => {
     // Given the full public source, including fields outside the proxy adapter.
     const sourceComponents = record.parse(source["components"]);
@@ -59,7 +68,7 @@ describe("same-origin OpenAPI reference", () => {
     const expected = Object.entries(record.parse(source["paths"]))
       .filter(
         ([path]) =>
-          /^\/(responses|models|images|audio|realtime|live)(\/|$)/.test(path) &&
+          /^\/(responses|conversations|models|images|audio|realtime|live)(\/|$)/.test(path) &&
           !path.includes("?"),
       )
       .flatMap(([path, value]) =>
@@ -71,8 +80,8 @@ describe("same-origin OpenAPI reference", () => {
     const actual = operations.map(
       (operation) => `${operation.method.toLowerCase()} ${operation.path}`,
     );
-    // Then all 38 source operations are available in the explorer.
-    expect(expected).toHaveLength(38);
+    // Then all 46 source operations are available in the explorer.
+    expect(expected).toHaveLength(46);
     for (const route of expected) expect(actual).toContain(route);
     expect(new Set(actual).size).toBe(actual.length);
     expect(actual.every((route) => !route.includes("?"))).toBe(true);
@@ -176,7 +185,17 @@ describe("same-origin OpenAPI reference", () => {
     const paths = record.parse(spec["paths"]);
     const image = record.parse(record.parse(paths["/v1/images/edits"])["post"]);
     expect(image["x-proxy-supported"]).toBe(true);
-    expect(image["x-proxy-implementation"]).toBe("relay");
+    expect(image["x-proxy-implementation"]).toBe("adaptation");
+    expect(image["x-proxy-availability"]).toBe("source-backed");
+    const editContent = record.parse(record.parse(image["requestBody"])["content"]);
+    expect(editContent["multipart/form-data"]).toBeDefined();
+    const native = record.parse(editContent["application/json"]);
+    expect(record.parse(native["schema"])["additionalProperties"]).toBe(false);
+    expect(native["example"]).toEqual({
+      images: [{ file_id: "file-existing-authorized-image" }],
+      model: "unverified-image-model",
+      prompt: "Keep the image unchanged.",
+    });
     expect(image["x-proxy-evidence"]).toMatchObject({ kind: "source", date: "2026-10-16" });
     expect(image["x-proxy-limitations"]).toEqual(
       expect.arrayContaining([expect.stringContaining("mask")]),
@@ -187,7 +206,21 @@ describe("same-origin OpenAPI reference", () => {
     const socket = record.parse(record.parse(paths["/v1/realtime"])["get"]);
     expect(record.parse(socket["responses"])["101"]).toBeDefined();
     expect(socket["x-proxy-availability"]).toBe("source-backed");
-    expect(paths["/v1/conversations"]).toBeUndefined();
+    const conversation = record.parse(record.parse(paths["/v1/conversations"])["post"]);
+    expect(conversation["x-proxy-implementation"]).toBe("local");
+    expect(conversation["x-proxy-limitations"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("orphan")]),
+    );
+    const call = record.parse(record.parse(paths["/v1/realtime/calls"])["post"]);
+    expect(call["x-proxy-implementation"]).toBe("adaptation");
+    expect(call["x-proxy-availability"]).toBe("source-backed");
+    const content = record.parse(record.parse(call["requestBody"])["content"]);
+    expect(content["multipart/form-data"]).toBeDefined();
+    expect(content["application/sdp"]).toBeDefined();
+    expect(content["application/json"]).toMatchObject({
+      schema: { required: ["sdp"], additionalProperties: false },
+      example: { session: { type: "realtime" } },
+    });
     const chat = record.parse(record.parse(paths["/v1/chat/completions"])["post"]);
     expect(chat["x-proxy-implementation"]).toBe("adaptation");
     expect(chat["x-proxy-availability"]).toBe("unverified");
@@ -197,10 +230,38 @@ describe("same-origin OpenAPI reference", () => {
       model: "configured-model",
       messages: [{ role: "user", content: "Say hello in one sentence." }],
       store: false,
-      stream: false,
+      stream: true,
+      stream_options: { include_usage: true },
     });
     expect(chat["x-proxy-limitations"]).toEqual(
-      expect.arrayContaining([expect.stringContaining("stream:true")]),
+      expect.arrayContaining([
+        expect.stringContaining("progressive SSE"),
+        expect.stringContaining("never executes tools"),
+        expect.stringContaining("unknown options"),
+      ]),
     );
+  });
+  test("Audio REST keeps full multipart contracts and separate unverified prerequisites in Scalar", async () => {
+    const spec = await createOpenApi("configured-model");
+    const paths = record.parse(spec["paths"]);
+    for (const [path, purpose] of [
+      ["transcriptions", "original language"],
+      ["translations", "English"],
+    ] as const) {
+      const post = record.parse(record.parse(paths[`/v1/audio/${path}`])["post"]);
+      const original = record.parse(
+        record.parse(record.parse(source["paths"])[`/audio/${path}`])["post"],
+      );
+      expect(post["requestBody"]).toEqual(original["requestBody"]);
+      expect(post["responses"]).toEqual(original["responses"]);
+      expect(post["x-proxy-supported"]).toBe(true);
+      expect(post["x-proxy-availability"]).toBe("unverified");
+      expect(post["x-proxy-implementation"]).toBe("relay");
+      const evidence = record.parse(post["x-proxy-evidence"]);
+      expect(evidence["kind"]).toBe(path === "transcriptions" ? "historical-refusal" : "unknown");
+      expect(evidence["date"]).toBe(path === "transcriptions" ? "2026-10-16" : null);
+      expect(evidence["scope"]).toContain(purpose);
+      expect(post["description"]).toContain("REST mechanism under /backend-api/codex");
+    }
   });
 });
