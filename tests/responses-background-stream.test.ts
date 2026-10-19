@@ -23,6 +23,81 @@ function responseId(event: Event | undefined): string {
   return required(required(event).response).id;
 }
 
+test("native cancelled background terminals retain completed items in SSE, polling and replay", async () => {
+  const item = {
+    id: "msg_before_cancel",
+    type: "message",
+    role: "assistant",
+    status: "completed",
+    phase: "final_answer",
+    content: [{ type: "output_text", text: "RETAINED BEFORE CANCEL", annotations: [] }],
+    fixture_extension: { retained: true },
+  };
+  const terminalItem = {
+    ...item,
+    id: "msg_terminal",
+    content: [{ type: "output_text", text: "ALREADY PRESENT", annotations: [] }],
+  };
+  for (const { output, expected } of [
+    { output: undefined, expected: [item] },
+    { output: [], expected: [item] },
+    { output: [terminalItem], expected: [terminalItem] },
+  ]) {
+    const f = await fixture((socket) => {
+      socket.send(
+        JSON.stringify({
+          type: "response.output_item.done",
+          sequence_number: 17,
+          output_index: 0,
+          item,
+        }),
+      );
+      socket.send(
+        JSON.stringify({
+          type: "response.cancelled",
+          sequence_number: 21,
+          fixture_extension: "terminal",
+          response: {
+            id: "native_cancelled",
+            object: "response",
+            status: "cancelled",
+            ...(output === undefined ? {} : { output }),
+          },
+        }),
+      );
+    });
+    try {
+      const events = await collect(
+        await f.client.responses.create({
+          input: "cancel after item",
+          background: true,
+          stream: true,
+          store: true,
+        }),
+      );
+      const id = responseId(events[0]);
+      expect(events.at(-1)).toMatchObject({
+        type: "response.cancelled",
+        sequence_number: 2,
+        fixture_extension: "terminal",
+        response: { id, status: "cancelled", output: expected },
+      });
+      expect(await f.client.responses.retrieve(id)).toMatchObject({
+        id,
+        status: "cancelled",
+        output: expected,
+      });
+      expect(
+        await collect(await f.client.responses.retrieve(id, { stream: true, starting_after: 1 })),
+      ).toEqual(events.slice(2));
+      expect(events.some((event) => event.type === "response.completed")).toBe(false);
+      expect(f.emissions()).toBe(1);
+    } finally {
+      await f.close();
+    }
+  }
+});
+
 async function fixture(
   handler: (socket: Bun.ServerWebSocket<undefined>) => void,
   storage: ResponsesStoreOptions = {},
