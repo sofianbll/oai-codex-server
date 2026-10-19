@@ -55,12 +55,13 @@ export function restoreResponse(
   return { ...current, input: [...projected, ...input] };
 }
 
-export function projectContext(context: readonly unknown[]) {
+export function projectContext(context: readonly unknown[], conversation = false) {
   return context.map((value) => {
     if (typeof value !== "object" || value === null || Array.isArray(value)) throw incompatible();
     const item = value as Record<string, unknown>;
     if (
-      ((item["type"] === "message" || (item["type"] == null && Object.hasOwn(item, "role"))) &&
+      (conversation &&
+        (item["type"] === "message" || (item["type"] == null && Object.hasOwn(item, "role"))) &&
         (!["user", "assistant", "developer", "system"].includes(String(item["role"])) ||
           (Array.isArray(item["content"]) &&
             item["content"].some(

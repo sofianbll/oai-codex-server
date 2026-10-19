@@ -31,7 +31,7 @@ test("SDK Conversation shorthand and explicit messages reject the same inert ass
   }
 });
 
-test("SDK stored replay rejects inert assistant input content with absent, null or explicit message type", async () => {
+test("SDK stored replay preserves assistant input_text messages with absent, null or explicit message type", async () => {
   const f = await fixture();
   try {
     for (const type of [undefined, null, "message"]) {
@@ -46,12 +46,25 @@ test("SDK stored replay rejects inert assistant input content with absent, null 
       expect(f.received.at(-1)?.["input"]).toEqual([item]);
       f.restart();
       const before = f.received.length;
-      await expect(
-        f.client.responses
-          .create({ model: "fixture", previous_response_id: root.id, input: "must not generate" })
-          .asResponse(),
-      ).rejects.toMatchObject({ status: 409, code: "response_context_not_replayable" });
-      expect(f.received).toHaveLength(before);
+      const replay = await f.client.responses.create({
+        model: "fixture",
+        previous_response_id: root.id,
+        input: "continue",
+      });
+      expect(replay.status).toBe("completed");
+      expect(f.received).toHaveLength(before + 1);
+      expect(f.received.at(-1)).not.toHaveProperty("previous_response_id");
+      expect(f.received.at(-1)?.["input"]).toEqual([
+        item,
+        {
+          type: "message",
+          id: `msg_${before}`,
+          role: "assistant",
+          status: "completed",
+          content: [{ type: "output_text", text: "reply", annotations: [] }],
+        },
+        { role: "user", content: [{ type: "input_text", text: "continue" }] },
+      ]);
     }
   } finally {
     await f.close();
