@@ -53,7 +53,12 @@ export function restoreStreamOutput(maxBytes: number): TransformStream<Uint8Arra
       limit();
     }
     if (
-      ["response.completed", "response.failed", "response.incomplete"].includes(event.type) &&
+      [
+        "response.completed",
+        "response.failed",
+        "response.incomplete",
+        "response.cancelled",
+      ].includes(event.type) &&
       event.response
     ) {
       const output = event.response["output"];
