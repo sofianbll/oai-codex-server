@@ -7,7 +7,7 @@
     "test": "node tests/schema.test.js && node --test tests/audit.test.js",
     "audit": "node scripts/audit_snapshot.js",
     "reproduce": "node scripts/verify_reproduction.js",
-    "snapshot": "python3 scripts/fetch_snapshot.py --out snapshot --codex-ref a956835d020762cb2b570053af06f643a11c0ecc --openapi-ref ddface9bd361f5fe37943291d23ee2ca72cbcc2b",
+    "snapshot": "python3 scripts/fetch_snapshot.py --out snapshot --codex-ref 360319d8dee62d87e2d59fc0c21805d79519cfed --openapi-ref ddface9bd361f5fe37943291d23ee2ca72cbcc2b",
     "build": "python3 scripts/build_site.py",
     "data": "python3 scripts/build_data.py"
   },
