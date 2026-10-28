@@ -1,0 +1,9 @@
+# Persistance locale explicite, sans réémission automatique
+
+Décision acceptée avec l’utilisateur le 16 octobre 2026 pour la compatibilité OpenAI étendue. Les créations ordinaires conservent `store:false` lorsque le client omet ce champ : l’alternative du défaut OpenAI `store:true` a été écartée afin que cette extension ne transforme pas silencieusement les appels existants en historiques durables. L’usage explicite d’une Conversation et la rétention temporaire nécessaire aux jobs ont leurs contrats propres ; cette décision n’en promet pas l’absence de stockage.
+
+Les Responses explicitement stockées suivent une rétention de 30 jours ; les Conversations n’ont pas d’expiration automatique de 30 jours. Les données sont isolées par compte Codex et soumises à un plafond applicatif global de **1 Gio**, avec erreur explicite lorsque de nouvelles écritures ne peuvent pas être acceptées, sans éviction d’une conversation pour libérer de la place. Le surcoût technique du stockage doit être borné séparément. Aucune migration ou suppression des données actuelles n’est autorisée implicitement.
+
+La [suppression publique d’une Conversation](https://developers.openai.com/api/reference/resources/conversations/methods/delete) ne supprime pas ses items. Le profil compatible respecte cette distinction : il faut demander séparément la suppression des items avant celle du conteneur pour effacer ce contenu. Aucune purge globale de leurs copies, des Responses ou des fichiers associés n’est promise.
+
+Après redémarrage, les jobs non terminés deviennent `failed` avec une erreur d’interruption, y compris ceux encore en attente. La reprise des jobs prouvés non envoyés a également été écartée : aucun travail ne repart automatiquement. Ce choix permet au client de décider d’un nouvel essai sans répéter silencieusement une consommation de quota ou un effet externe incertain.

@@ -1,21 +1,33 @@
+import type { Operation } from "../shared/contracts";
 import { getToken } from "./api";
 import { badge, button, code, el, errorText, field, notice, panel, updateNotice } from "./dom";
 import { jsonObject } from "./schemas";
 
-export function renderSocket(container: HTMLElement): () => void {
+export function renderSocket(container: HTMLElement, operation: Operation): () => void {
   const view = panel(
-    "WebSocket Responses",
+    operation.summary,
     "Échangez des trames avec le proxy. La disponibilité dépend de Codex.",
   );
   const endpoint = el("input", "mono");
-  endpoint.value = "/v1/responses";
+  endpoint.value = operation.path;
   const message = el("textarea", "mono");
   message.spellcheck = false;
-  message.value = JSON.stringify(
-    { type: "response.create", response: { input: "Bonjour", store: false } },
-    null,
-    2,
-  );
+  message.value =
+    operation.id === "connectResponsesWebSocket"
+      ? JSON.stringify(
+          {
+            type: "response.create",
+            model: "gpt-6-astra",
+            instructions: "",
+            input: [{ role: "user", content: [{ type: "input_text", text: "Bonjour" }] }],
+            store: false,
+          },
+          null,
+          2,
+        )
+      : "";
+  message.placeholder =
+    "Saisissez une trame du protocole natif ; aucun message n’est envoyé automatiquement.";
   const feedback = notice("Déconnecté.");
   const log = code("");
   const actions = el("div", "cluster");

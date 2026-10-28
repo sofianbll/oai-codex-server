@@ -5,9 +5,21 @@ import { createConsole } from "./console";
 import { badge, el, errorText, field, notice, panel } from "./dom";
 import { renderSocket } from "./socket";
 
-const categoryOrder = ["Responses", "Models", "Images", "Audio", "Realtime", "Live"] as const;
+const categoryOrder = [
+  "Responses",
+  "Conversations",
+  "Chat",
+  "Models",
+  "Images",
+  "Audio",
+  "Realtime",
+  "Live",
+] as const;
 const categoryDescriptions: Readonly<Record<string, string>> = {
   Responses: "Créer, lire, annuler et gérer les réponses du modèle",
+  Conversations:
+    "Historique local durable ; supprimer les items avant le conteneur pour les effacer",
+  Chat: "JSON/SSE et fonctions via Responses ; historique durable sur store:true",
   Models: "Lister et inspecter les modèles disponibles",
   Images: "Générer et modifier des images",
   Audio: "Synthèse vocale, transcription et gestion des voix",
@@ -16,9 +28,20 @@ const categoryDescriptions: Readonly<Record<string, string>> = {
 } as const;
 
 const availability = {
-  verified: "Vérifié",
+  verified: "Vérifié sous conditions",
   "source-backed": "Présent dans les sources",
   unverified: "À vérifier",
+} as const;
+const implementation = {
+  relay: "Relais sans adaptation du contrat",
+  adaptation: "Adaptation locale (mode minimal)",
+  local: "Réalisation locale (mode minimal)",
+} as const;
+const evidence = {
+  runtime: "Preuve d’exécution — périmètre ci-dessous",
+  source: "Preuve statique",
+  "historical-refusal": "Refus historique qualifié",
+  unknown: "Non établi",
 } as const;
 
 export function renderExplorer(container: HTMLElement, onComplete: () => void): () => void {
@@ -42,8 +65,47 @@ export function renderExplorer(container: HTMLElement, onComplete: () => void): 
     disposeConsole();
     selectedId = operation.id;
     renderList();
-    if (operation.id === "connectResponsesWebSocket") {
-      disposeConsole = renderSocket(workspace);
+    const qualification = panel("Capacité et preuve", implementation[operation.implementation]);
+    qualification.root.classList.add("capability-details");
+    qualification.body.classList.add("stack");
+    qualification.body.append(
+      notice(
+        operation.supported ? "Route relayable — aucune garantie backend." : "Route non relayable.",
+      ),
+      badge(
+        availability[operation.availability],
+        operation.availability === "verified" ? "success" : "warning",
+      ),
+      el(
+        "p",
+        "muted",
+        `${evidence[operation.evidence.kind]} · ${operation.evidence.date ?? "sans date d’observation"}`,
+      ),
+      el("p", "", operation.evidence.scope),
+    );
+    for (const [title, items] of [
+      ["Prérequis", operation.prerequisites],
+      ["Limites et refus", operation.limitations],
+      ["Sources", operation.evidence.sources],
+    ] as const) {
+      const details = el("details", "contract-details");
+      details.append(el("summary", "", title));
+      const itemsList = el("ul");
+      for (const item of items) {
+        const row = el("li");
+        if (title === "Sources" && item.startsWith("https://")) {
+          const link = el("a", "", item);
+          link.href = item;
+          row.append(link);
+        } else row.textContent = item;
+        itemsList.append(row);
+      }
+      details.append(itemsList);
+      qualification.body.append(details);
+    }
+    if (["connectResponsesWebSocket", "connectRealtimeWebSocket"].includes(operation.id)) {
+      disposeConsole = renderSocket(workspace, operation);
+      workspace.prepend(qualification.root);
       return;
     }
     const requestPanel = panel("Exécuter l’opération", operation.summary);
@@ -101,7 +163,7 @@ export function renderExplorer(container: HTMLElement, onComplete: () => void): 
       requestConsole.feedback,
       requestConsole.actions,
     );
-    workspace.replaceChildren(requestPanel.root, requestConsole.result);
+    workspace.replaceChildren(qualification.root, requestPanel.root, requestConsole.result);
   }
 
   function renderList(): void {

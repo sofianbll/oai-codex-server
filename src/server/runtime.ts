@@ -1,5 +1,5 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { GatewayError } from "../shared/contracts";
 import { authorized, checkOrigin, loadServerToken } from "./access";
 import { createActivity } from "./activity";
@@ -15,7 +15,19 @@ export async function startServer(config: AppConfig, configPath: string) {
   const token = await loadServerToken(resolve(directory, config.auth.tokenFile));
   const credentials = createCredentialStore(resolve(directory, config.auth.codexHome));
   const websocket = createWebSocketProxy(config.proxy, credentials.get);
-  const responses = createResponsesGateway(config.proxy, credentials.get);
+  const storagePath = resolve(directory, config.storage.path);
+  const authPath = resolve(directory, config.auth.codexHome);
+  const withinAuth = relative(authPath, storagePath);
+  if (
+    config.proxy.translationMode === "minimal" &&
+    (withinAuth === "" || (!withinAuth.startsWith("..") && !withinAuth.startsWith("/")))
+  )
+    throw new GatewayError(
+      400,
+      "invalid_storage_path",
+      "Durable storage must not use the Codex credential directory",
+    );
+  let responses: ReturnType<typeof createResponsesGateway> | undefined;
   const host = resolveHost(config.server.host);
   let stopped = false;
   let server: Bun.Server<WebSocketData> | undefined;
@@ -23,7 +35,7 @@ export async function startServer(config: AppConfig, configPath: string) {
     if (stopped) return;
     stopped = true;
     websocket.close();
-    responses.close();
+    responses?.close();
     await server?.stop(true);
     process.off("SIGINT", stop);
     process.off("SIGTERM", stop);
@@ -50,7 +62,14 @@ export async function startServer(config: AppConfig, configPath: string) {
     startedAt: new Date(),
     address: () => ({ host, port: server?.port ?? config.server.port }),
     stop,
-    relay: (request) => responses.forward(request),
+    relay: (request) =>
+      responses?.forward(request) ??
+      Promise.resolve(
+        Response.json(
+          { error: { code: "server_starting", message: "Server is starting" } },
+          { status: 503 },
+        ),
+      ),
   });
   server = Bun.serve<WebSocketData>({
     hostname: host,
@@ -76,6 +95,13 @@ export async function startServer(config: AppConfig, configPath: string) {
     },
     error: errorResponse,
   });
+  try {
+    responses = createResponsesGateway(config.proxy, credentials.get, { path: storagePath });
+  } catch (error) {
+    websocket.close();
+    await server.stop(true);
+    throw error;
+  }
   const reachable =
     host === "0.0.0.0"
       ? "127.0.0.1"

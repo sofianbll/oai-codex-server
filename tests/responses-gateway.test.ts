@@ -48,7 +48,7 @@ test("raw gateway leaves Responses bytes and lifecycle routes at the upstream", 
   }
 });
 
-test("integrated minimal gateway stores responses and clears them on account change", async () => {
+test("integrated minimal gateway stores responses and isolates them on account change", async () => {
   const upstream = Bun.serve<{ turn: number }>({
     hostname: "127.0.0.1",
     port: 0,
@@ -108,6 +108,10 @@ test("integrated minimal gateway stores responses and clears them on account cha
     account = "account-two";
     const old = await gateway.forward(new Request("http://local/v1/responses/resp_integrated_1"));
     expect(old.status).toBe(404);
+    account = "account-one";
+    expect(
+      (await gateway.forward(new Request("http://local/v1/responses/resp_integrated_1"))).status,
+    ).toBe(200);
   } finally {
     gateway.close();
     upstream.stop(true);
