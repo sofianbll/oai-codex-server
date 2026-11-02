@@ -73,7 +73,7 @@ jobs:
             echo '```'
           } > "$RUNNER_TEMP/pr-body.md"
       - if: steps.v.outputs.bump == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: codex/bump
           commit-message: "chore: suivre Codex ${{ steps.v.outputs.latest }}"
