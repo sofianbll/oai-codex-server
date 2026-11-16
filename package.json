@@ -26,19 +26,19 @@
     "bun": ">=1.4.3"
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
-    "commander": "^15.0.0",
-    "hono": "^4.13.13",
+    "@clack/prompts": "^1.9.0",
+    "commander": "^15.1.0",
+    "hono": "^4.13.18",
     "ky": "^2.2.0",
-    "openai": "7.34.0",
+    "openai": "7.56.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.7",
     "@phosphor-icons/core": "^2.1.1",
-    "@playwright/test": "^1.64.1",
-    "@scalar/api-reference": "^1.74.0",
-    "@types/bun": "^1.4.3",
+    "@playwright/test": "^1.65.0",
+    "@scalar/api-reference": "^1.78.1",
+    "@types/bun": "^1.4.4",
     "typescript": "^7.0.2"
   }
 }
